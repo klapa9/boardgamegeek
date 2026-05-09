@@ -10,8 +10,10 @@ import { CollectionBundle, CollectionGameDto } from '@/lib/types';
 function meta(game: CollectionGameDto) {
   return [
     game.year_published,
-    game.min_players && game.max_players ? `${game.min_players}-${game.max_players} spelers` : null,
-    game.playing_time ? `${game.playing_time} min` : null
+    game.community_players.length ? `community ${game.community_players.join(', ')} spelers` : game.min_players && game.max_players ? `${game.min_players}-${game.max_players} spelers` : null,
+    game.playing_time ? `${game.playing_time} min` : null,
+    game.bgg_weight ? `complexiteit ${game.bgg_weight.toFixed(1)}` : null,
+    game.play_mode === 'cooperative' ? 'co-op' : game.play_mode === 'competitive' ? 'competitive' : null
   ].filter(Boolean).join(' · ');
 }
 

@@ -53,7 +53,10 @@ function parseCollection(xml) {
   const parsed = parser.parse(xml);
   const items = asArray(parsed.items?.item);
 
-  return items.map((item) => ({
+  return items.filter((item) => {
+    if (!item.status || typeof item.status.own === 'undefined') return true;
+    return String(item.status.own) === '1';
+  }).map((item) => ({
     bggId: Number(item.objectid),
     title: text(item.name) ?? 'Onbekend spel',
     yearPublished: num(item.yearpublished),
@@ -67,7 +70,7 @@ function parseCollection(xml) {
 }
 
 async function fetchCollection(username) {
-  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(username)}`;
+  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(username)}&own=1&stats=1`;
   let lastError = null;
 
   for (let attempt = 0; attempt <= BGG_RETRY_DELAYS_MS.length; attempt += 1) {

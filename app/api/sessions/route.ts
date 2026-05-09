@@ -23,7 +23,10 @@ export async function POST(request: Request) {
     maxPlayers: game.maxPlayers,
     playingTime: game.playingTime,
     bggRating: game.bggRating,
-    bggWeight: game.bggWeight
+    bggWeight: game.bggWeight,
+    mechanics: game.mechanics,
+    playMode: game.playMode,
+    communityPlayers: game.communityPlayers
   }));
 
   const gamesFromManual = manualGames
@@ -31,7 +34,7 @@ export async function POST(request: Request) {
     .filter(Boolean)
     .map((name: string) => ({ title: name }));
 
-  const allGamesByTitle = new Map<string, { title: string; bggId?: number | null; yearPublished?: number | null; imageUrl?: string | null; minPlayers?: number | null; maxPlayers?: number | null; playingTime?: number | null; bggRating?: number | null; bggWeight?: number | null }>();
+  const allGamesByTitle = new Map<string, { title: string; bggId?: number | null; yearPublished?: number | null; imageUrl?: string | null; minPlayers?: number | null; maxPlayers?: number | null; playingTime?: number | null; bggRating?: number | null; bggWeight?: number | null; mechanics?: string[]; playMode?: string | null; communityPlayers?: number[] }>();
   for (const game of [...gamesFromCollection, ...gamesFromManual]) {
     allGamesByTitle.set(game.title.toLowerCase(), game);
   }

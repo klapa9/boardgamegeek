@@ -1,0 +1,5 @@
+ALTER TABLE "Game" ADD COLUMN "mechanics" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "Game" ADD COLUMN "playMode" TEXT;
+
+ALTER TABLE "CollectionGame" ADD COLUMN "mechanics" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "CollectionGame" ADD COLUMN "playMode" TEXT;

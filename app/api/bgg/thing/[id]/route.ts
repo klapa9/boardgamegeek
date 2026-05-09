@@ -8,6 +8,55 @@ function primaryName(names: any): string {
   return list.find((name: any) => name.type === 'primary')?.value ?? list[0]?.value ?? 'Onbekend spel';
 }
 
+function asArray<T>(value: T | T[] | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function mechanicsFromLinks(links: any): string[] {
+  return asArray<any>(links)
+    .filter((link) => link.type === 'boardgamemechanic' && typeof link.value === 'string')
+    .map((link) => link.value)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function playModeFromMechanics(mechanics: string[]): string {
+  return mechanics.some((mechanic) => mechanic.toLowerCase().includes('cooperative')) ? 'cooperative' : 'competitive';
+}
+
+function num(value: unknown): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function communityPlayersFromPolls(polls: any): number[] {
+  const poll = asArray<any>(polls).find((item) => item.name === 'suggested_numplayers');
+  const recommended = new Set<number>();
+
+  for (const resultGroup of asArray<any>(poll?.results)) {
+    const label = String(resultGroup.numplayers ?? '');
+    const count = Number(label.replace('+', ''));
+    if (!Number.isInteger(count)) continue;
+
+    const votes = asArray<any>(resultGroup.result).reduce<Record<string, number>>((acc, result) => {
+      acc[String(result.value)] = num(result.numvotes);
+      return acc;
+    }, {});
+
+    const positiveVotes = (votes.Best ?? 0) + (votes.Recommended ?? 0);
+    const notRecommendedVotes = votes['Not Recommended'] ?? 0;
+    if (positiveVotes <= 0 || positiveVotes < notRecommendedVotes) continue;
+
+    recommended.add(count);
+    if (label.endsWith('+')) {
+      recommended.add(count + 1);
+      recommended.add(count + 2);
+    }
+  }
+
+  return Array.from(recommended).sort((a, b) => a - b);
+}
+
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const id = Number(params.id);
   if (!Number.isFinite(id)) return NextResponse.json({ error: 'Ongeldige BGG id.' }, { status: 400 });
@@ -23,6 +72,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   if (!item) return NextResponse.json({ error: 'Spel niet gevonden.' }, { status: 404 });
 
   const ratings = item.statistics?.ratings;
+  const mechanics = mechanicsFromLinks(item.link);
   return NextResponse.json({
     bggId: id,
     title: primaryName(item.name),
@@ -32,6 +82,9 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     maxPlayers: item.maxplayers?.value ? Number(item.maxplayers.value) : null,
     playingTime: item.playingtime?.value ? Number(item.playingtime.value) : null,
     averageRating: ratings?.average?.value ? Number(ratings.average.value) : null,
-    averageWeight: ratings?.averageweight?.value ? Number(ratings.averageweight.value) : null
+    averageWeight: ratings?.averageweight?.value ? Number(ratings.averageweight.value) : null,
+    mechanics,
+    playMode: playModeFromMechanics(mechanics),
+    communityPlayers: communityPlayersFromPolls(item.poll)
   });
 }

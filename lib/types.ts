@@ -37,6 +37,9 @@ export type GameDto = {
   playing_time: number | null;
   bgg_rating: number | null;
   bgg_weight: number | null;
+  mechanics: string[];
+  play_mode: string | null;
+  community_players: number[];
   added_by: string | null;
   created_at: string;
 };
@@ -52,6 +55,9 @@ export type CollectionGameDto = {
   playing_time: number | null;
   bgg_rating: number | null;
   bgg_weight: number | null;
+  mechanics: string[];
+  play_mode: string | null;
+  community_players: number[];
   hidden: boolean;
   source: string;
   created_at: string;
@@ -101,4 +107,7 @@ export type BggGameDetails = BggSearchResult & {
   playingTime: number | null;
   averageRating: number | null;
   averageWeight: number | null;
+  mechanics: string[];
+  playMode: string | null;
+  communityPlayers: number[];
 };

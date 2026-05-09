@@ -32,6 +32,9 @@ export function serializeGame(game: Game) {
     playing_time: game.playingTime,
     bgg_rating: game.bggRating,
     bgg_weight: game.bggWeight,
+    mechanics: game.mechanics,
+    play_mode: game.playMode,
+    community_players: game.communityPlayers,
     added_by: game.addedBy,
     created_at: game.createdAt.toISOString()
   };
@@ -49,6 +52,9 @@ export function serializeCollectionGame(game: CollectionGame) {
     playing_time: game.playingTime,
     bgg_rating: game.bggRating,
     bgg_weight: game.bggWeight,
+    mechanics: game.mechanics,
+    play_mode: game.playMode,
+    community_players: game.communityPlayers,
     hidden: game.hidden,
     source: game.source,
     created_at: game.createdAt.toISOString()

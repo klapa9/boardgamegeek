@@ -24,6 +24,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
       playingTime: typeof body.playing_time === 'number' ? body.playing_time : null,
       bggRating: typeof body.bgg_rating === 'number' ? body.bgg_rating : null,
       bggWeight: typeof body.bgg_weight === 'number' ? body.bgg_weight : null,
+      mechanics: Array.isArray(body.mechanics) ? body.mechanics.map(String) : [],
+      playMode: body.play_mode === 'cooperative' || body.play_mode === 'competitive' ? body.play_mode : null,
+      communityPlayers: Array.isArray(body.community_players) ? body.community_players.map(Number).filter(Number.isInteger) : [],
       addedBy: body.added_by ?? null
     }
   });

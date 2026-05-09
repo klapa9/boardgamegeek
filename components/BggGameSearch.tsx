@@ -45,6 +45,9 @@ export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessio
           playing_time: details.playingTime,
           bgg_rating: details.averageRating,
           bgg_weight: details.averageWeight,
+          mechanics: details.mechanics,
+          play_mode: details.playMode,
+          community_players: details.communityPlayers,
           added_by: playerId
         })
       });

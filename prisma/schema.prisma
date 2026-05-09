@@ -49,6 +49,9 @@ model Game {
   playingTime   Int?
   bggRating     Float?
   bggWeight     Float?
+  mechanics     String[] @default([])
+  playMode      String?
+  communityPlayers Int[] @default([])
   addedBy       String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -100,6 +103,9 @@ model CollectionGame {
   playingTime   Int?
   bggRating     Float?
   bggWeight     Float?
+  mechanics     String[] @default([])
+  playMode      String?
+  communityPlayers Int[] @default([])
   hidden        Boolean  @default(false)
   source        String   @default("manual")
   createdAt     DateTime @default(now())
