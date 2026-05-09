@@ -15,14 +15,19 @@ type ResultRow = {
   missing: PlayerDto[];
 };
 
-const SCORE_OPTIONS = [0, 2, 4, 6, 8, 10] as const;
+const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 const SCORE_BADGES: Record<number, { label: string; className: string }> = {
-  0: { label: 'Neeee', className: 'bg-red-950 text-white' },
+  0: { label: 'Nooit', className: 'bg-red-950 text-white' },
+  1: { label: 'Liever niet', className: 'bg-red-900 text-white' },
   2: { label: 'Pfff', className: 'bg-red-800 text-white' },
+  3: { label: 'Mwah', className: 'bg-orange-700 text-white' },
   4: { label: 'Bwa', className: 'bg-orange-500 text-white' },
-  6: { label: 'mmm', className: 'bg-yellow-300 text-slate-950' },
+  5: { label: 'Oké', className: 'bg-amber-300 text-slate-950' },
+  6: { label: 'Prima', className: 'bg-yellow-300 text-slate-950' },
+  7: { label: 'Leuk', className: 'bg-lime-300 text-slate-950' },
   8: { label: 'Top', className: 'bg-lime-500 text-slate-950' },
+  9: { label: 'Heel graag', className: 'bg-emerald-600 text-white' },
   10: { label: 'JAAAA', className: 'bg-emerald-700 text-white' }
 };
 
@@ -116,7 +121,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     const average = relevantRatings.length ? total / relevantRatings.length : 0;
     const missing = eligiblePlayers.filter((player) => !relevantRatings.some((rating) => rating.player_id === player.id));
     return { game, total, average, count: relevantRatings.length, missing };
-  }).sort((a, b) => b.average - a.average || b.total - a.total || b.count - a.count || a.game.title.localeCompare(b.game.title)), [eligiblePlayers, games, ratings]);
+  }).sort((a, b) => b.total - a.total || b.average - a.average || b.count - a.count || a.game.title.localeCompare(b.game.title)), [eligiblePlayers, games, ratings]);
 
   const winner = results[0] ?? null;
 
@@ -262,7 +267,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   async function shareResult() {
     const url = `${window.location.origin}/s/${sessionId}`;
     const dayLabel = session?.chosen_day ? DAYS.find((day) => day.key === session.chosen_day)?.label : 'nog te kiezen dag';
-    const top = winner ? `${winner.game.title} (${winner.average.toFixed(1)}/10)` : 'nog geen winnaar';
+    const top = winner ? `${winner.game.title} (${winner.total} punten)` : 'nog geen winnaar';
     const text = `🎲 ${session?.title ?? 'Spelavond'}\n📅 ${dayLabel}\n🏆 Winnaar: ${top}\n\n${url}`;
     if (navigator.share) await navigator.share({ text });
     else {
@@ -354,23 +359,22 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               : SCORE_BADGES[visibleScore];
             const addedByName = playerName(game.added_by);
             return (
-              <article key={game.id} className="relative flex min-h-[31rem] flex-col rounded-[1.35rem] border border-slate-200 bg-gradient-to-br from-red-950/10 via-white to-emerald-700/10 p-4 shadow-sm">
+              <article key={game.id} className="relative flex flex-col rounded-[1.35rem] border border-slate-200 bg-gradient-to-br from-red-950/10 via-white to-emerald-700/10 p-3 shadow-sm">
                 {isAdmin && <button onClick={() => deleteGame(game.id)} className="absolute right-3 top-3 rounded-xl bg-white/85 p-2 text-slate-500 shadow-sm hover:bg-white" title="Verwijderen"><Trash2 size={17} /></button>}
-                <div className="min-h-16 pr-9 text-center">
+                <div className="min-h-14 pr-9 text-center">
                   <h3 className="line-clamp-2 text-lg font-black leading-tight">{game.title}</h3>
                   <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{formatGameMeta(game) || 'Geen extra info'}</p>
                   {addedByName && <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-400">Toegevoegd door {addedByName}</p>}
                 </div>
-                <div className="mt-3 flex flex-1 flex-col">
+                <div className="mt-2 flex flex-col">
                   {game.image_url ? (
-                    <img src={game.image_url} alt="" className="aspect-[3/4] w-full rounded-2xl bg-white object-cover shadow-sm" />
+                    <img src={game.image_url} alt="" className="aspect-[16/10] w-full rounded-2xl bg-white object-cover shadow-sm" />
                   ) : (
-                    <div className="flex aspect-[3/4] w-full items-center justify-center rounded-2xl bg-white text-5xl shadow-sm">🎲</div>
+                    <div className="flex aspect-[16/10] w-full items-center justify-center rounded-2xl bg-white text-5xl shadow-sm">🎲</div>
                   )}
-                  <span className={`mx-auto mt-4 max-w-full rounded-full px-4 py-2 text-center text-xs font-black shadow-sm ${badge.className}`}>{badge.label}</span>
-                  {game.bgg_id && <a className="mt-3 text-center text-sm font-bold text-slate-700 underline" href={`https://boardgamegeek.com/boardgame/${game.bgg_id}`} target="_blank">BGG bekijken</a>}
+                  <span className={`mx-auto mt-3 max-w-full rounded-full px-3 py-1.5 text-center text-xs font-black shadow-sm ${badge.className}`}>{badge.label}</span>
                 </div>
-                <div className="mt-4 rounded-2xl bg-white/90 p-4 shadow-sm">
+                <div className="mt-3 rounded-2xl bg-white/90 p-3 shadow-sm">
                   <input
                     aria-label={`Voorkeur voor ${game.title}`}
                     className="preference-slider h-3 w-full cursor-pointer appearance-none rounded-full bg-gradient-to-r from-red-950 via-yellow-300 to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -378,15 +382,15 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                     max={10}
                     min={0}
                     onChange={(event) => setScore(game.id, Number(event.target.value))}
-                    step={2}
+                    step={1}
                     type="range"
                     value={visibleScore}
                   />
-                  <div className="mt-3 grid grid-cols-6 text-center text-xs font-black text-slate-500">
+                  <div className="mt-2 grid grid-cols-11 text-center text-[11px] font-black text-slate-500">
                     {SCORE_OPTIONS.map((value) => (
                       <button
                         key={value}
-                        className={`rounded-lg py-1 ${score !== null && visibleScore === value ? 'bg-slate-950 text-white' : 'hover:bg-slate-100'}`}
+                        className={`rounded-md py-1 ${score !== null && visibleScore === value ? 'bg-slate-950 text-white' : 'hover:bg-slate-100'}`}
                         disabled={!currentPlayer}
                         onClick={() => setScore(game.id, value)}
                         type="button"
@@ -412,15 +416,15 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           <div className="mb-4 rounded-3xl bg-slate-950 p-5 text-white">
             <p className="text-sm font-semibold text-slate-300">Voorlopige winnaar</p>
             <h3 className="mt-1 text-2xl font-black">{winner.game.title}</h3>
-            <p className="mt-1 text-slate-300">{winner.average.toFixed(1)}/10 · {winner.count} stem{winner.count === 1 ? '' : 'men'}</p>
+            <p className="mt-1 text-slate-300">{winner.total} punten · {winner.average.toFixed(1)} gemiddeld · {winner.count} stem{winner.count === 1 ? '' : 'men'}</p>
           </div>
         )}
         <div className="space-y-2">
           {results.map((row, index) => (
             <div key={row.game.id} className="rounded-2xl bg-slate-50 px-4 py-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0"><b>#{index + 1} {row.game.title}</b><p className="text-sm text-slate-500">{row.count} stemmen · totaal {row.total}</p></div>
-                <div className="text-2xl font-black">{row.average.toFixed(1)}</div>
+                <div className="min-w-0"><b>#{index + 1} {row.game.title}</b><p className="text-sm text-slate-500">{row.count} stemmen · gemiddeld {row.average.toFixed(1)}</p></div>
+                <div className="text-2xl font-black">{row.total}</div>
               </div>
               {!!row.missing.length && <p className="mt-2 text-xs text-slate-500">Nog niet gestemd: {row.missing.map((player) => player.name).join(', ')}</p>}
             </div>
