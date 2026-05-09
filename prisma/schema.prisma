@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  title      String
+  adminToken String   @unique @default(cuid())
+  chosenDay  String?
+  locked     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  players      Player[]
+  games        Game[]
+  availability Availability[]
+  ratings      Rating[]
+}
+
+model Player {
+  id        String   @id @default(cuid())
+  sessionId String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session      Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  availability Availability[]
+  ratings      Rating[]
+  gamesAdded   Game[]  @relation("GameAddedBy")
+
+  @@index([sessionId])
+}
+
+model Game {
+  id            String   @id @default(cuid())
+  sessionId     String
+  title         String
+  bggId         Int?
+  yearPublished Int?
+  imageUrl      String?
+  minPlayers    Int?
+  maxPlayers    Int?
+  playingTime   Int?
+  bggRating     Float?
+  bggWeight     Float?
+  addedBy       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  session       Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  addedByPlayer Player? @relation("GameAddedBy", fields: [addedBy], references: [id], onDelete: SetNull)
+  ratings       Rating[]
+
+  @@index([sessionId])
+}
+
+model Availability {
+  id        String  @id @default(cuid())
+  sessionId String
+  playerId  String
+  day       String
+  available Boolean @default(false)
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  player  Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, day])
+  @@index([sessionId])
+}
+
+model Rating {
+  id        String @id @default(cuid())
+  sessionId String
+  playerId  String
+  gameId    String
+  score     Int
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  player  Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, gameId])
+  @@index([sessionId])
+}
+
+model CollectionGame {
+  id            String   @id @default(cuid())
+  bggId         Int?     @unique
+  title         String
+  yearPublished Int?
+  imageUrl      String?
+  minPlayers    Int?
+  maxPlayers    Int?
+  playingTime   Int?
+  bggRating     Float?
+  bggWeight     Float?
+  hidden        Boolean  @default(false)
+  source        String   @default("manual")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([title])
+  @@index([hidden])
+}
+
+model CollectionSyncState {
+  id           String    @id @default("default")
+  bggUsername  String?
+  lastSyncedAt DateTime?
+  lastStatus   String?
+  updatedAt    DateTime  @updatedAt
+}
