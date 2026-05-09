@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Search, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { DEFAULT_BGG_USERNAME } from '@/lib/defaults';
 import { CollectionBundle, CollectionGameDto } from '@/lib/types';
 
 function formatMeta(game: CollectionGameDto) {
@@ -17,7 +18,8 @@ function formatMeta(game: CollectionGameDto) {
 
 export default function CollectionManager() {
   const [games, setGames] = useState<CollectionGameDto[]>([]);
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(DEFAULT_BGG_USERNAME);
+  const [xmlInput, setXmlInput] = useState('');
   const [manualTitle, setManualTitle] = useState('');
   const [query, setQuery] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -65,6 +67,26 @@ export default function CollectionManager() {
     }
   }
 
+  async function importXml(event: React.FormEvent) {
+    event.preventDefault();
+    setSyncing(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const data = await api<{ imported: number; pending: boolean; message: string }>('/api/collection/sync', {
+        method: 'POST',
+        body: JSON.stringify({ username, xml: xmlInput })
+      });
+      setXmlInput('');
+      setMessage(data.message);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'XML importeren mislukt.');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   async function addManual(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -93,7 +115,10 @@ export default function CollectionManager() {
         <p className="mt-2 text-sm text-slate-500">Dit gebeurt buiten de spelavond-flow. Als BGG even traag is, probeer je later gewoon opnieuw.</p>
         <form onSubmit={syncBgg} className="mt-4 flex flex-col gap-2 sm:flex-row">
           <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="BGG username" className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400" />
-          <button disabled={syncing} className="rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-60"><RefreshCw size={18} className="mr-2 inline" />{syncing ? 'Synchroniseren...' : 'Synchroniseer'}</button>
+          <button disabled={syncing} className="rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-60">
+            <RefreshCw size={18} className={`mr-2 inline ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Synchroniseren...' : 'Synchroniseer'}
+          </button>
         </form>
         {message && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</p>}
         {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
@@ -104,6 +129,23 @@ export default function CollectionManager() {
         <form onSubmit={addManual} className="mt-4 flex gap-2">
           <input value={manualTitle} onChange={(event) => setManualTitle(event.target.value)} placeholder="Spelnaam" className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400" />
           <button className="rounded-2xl border border-slate-200 px-5 font-bold">Toevoegen</button>
+        </form>
+      </section>
+
+      <section className="rounded-3xl bg-white p-5 shadow-soft">
+        <h2 className="text-xl font-black">BGG XML plakken</h2>
+        <p className="mt-2 text-sm text-slate-500">Plak hier de XML van de publieke BGG collectie-link. De spellen worden opgeslagen in de lokale database.</p>
+        <form onSubmit={importXml} className="mt-4 space-y-3">
+          <textarea
+            value={xmlInput}
+            onChange={(event) => setXmlInput(event.target.value)}
+            placeholder="<items>...</items>"
+            className="min-h-40 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm outline-none focus:border-slate-400"
+          />
+          <button disabled={syncing || !xmlInput.trim()} className="rounded-2xl border border-slate-200 px-5 py-3 font-bold disabled:opacity-60">
+            <RefreshCw size={18} className={`mr-2 inline ${syncing ? 'animate-spin' : ''}`} />
+            XML importeren
+          </button>
         </form>
       </section>
 

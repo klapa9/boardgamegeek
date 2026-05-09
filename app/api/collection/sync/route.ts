@@ -1,23 +1,21 @@
 import { XMLParser } from 'fast-xml-parser';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { DEFAULT_BGG_USERNAME } from '@/lib/defaults';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
-const bggApiToken = process.env.BGG_API_TOKEN;
-
 const headers = {
-  'User-Agent': 'Gezelschapsspelkiezer/1.0 local-dev',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari',
   Accept: 'application/xml,text/xml,*/*',
-  'Accept-Language': 'nl-BE,nl;q=0.9,en;q=0.8',
-  ...(bggApiToken ? { Authorization: `Bearer ${bggApiToken}` } : {})
+  'Accept-Language': 'nl-BE,nl;q=0.9,en;q=0.8'
 };
 
 const BGG_COLLECTION_PENDING_MESSAGE = 'BGG is je collectie aan het voorbereiden. Probeer over 30 seconden opnieuw.';
-const BGG_AUTH_ERROR_MESSAGE = 'BoardGameGeek weigert de aanvraag. Zet een geldige BGG_API_TOKEN in je .env en herstart de dev server.';
+const BGG_AUTH_ERROR_MESSAGE = 'BoardGameGeek weigert de publieke collectie-aanvraag.';
 const BGG_TEMPORARY_ERROR_MESSAGE = 'BoardGameGeek is tijdelijk niet bereikbaar. Probeer over een minuut opnieuw.';
 const BGG_REQUEST_TIMEOUT_MS = 30000;
-const BGG_RETRY_DELAYS_MS = [5000, 5000];
+const BGG_RETRY_DELAYS_MS = [5000, 10000, 15000, 30000, 30000, 30000];
 
 type ParsedCollectionItem = {
   bggId: number;
@@ -68,8 +66,50 @@ function parseCollection(xml: string): ParsedCollectionItem[] {
   })).filter((item) => Number.isFinite(item.bggId) && item.title !== 'Onbekend spel');
 }
 
+async function saveCollection(username: string, games: ParsedCollectionItem[], statusPrefix = '') {
+  for (const game of games) {
+    await prisma.collectionGame.upsert({
+      where: { bggId: game.bggId },
+      create: {
+        bggId: game.bggId,
+        title: game.title,
+        yearPublished: game.yearPublished,
+        imageUrl: game.imageUrl,
+        minPlayers: game.minPlayers,
+        maxPlayers: game.maxPlayers,
+        playingTime: game.playingTime,
+        bggRating: game.bggRating,
+        bggWeight: game.bggWeight,
+        hidden: false,
+        source: 'bgg'
+      },
+      update: {
+        title: game.title,
+        yearPublished: game.yearPublished,
+        imageUrl: game.imageUrl,
+        minPlayers: game.minPlayers,
+        maxPlayers: game.maxPlayers,
+        playingTime: game.playingTime,
+        bggRating: game.bggRating,
+        bggWeight: game.bggWeight,
+        hidden: false,
+        source: 'bgg'
+      }
+    });
+  }
+
+  const message = `${statusPrefix}${games.length} spellen gesynchroniseerd.`;
+  await prisma.collectionSyncState.upsert({
+    where: { id: 'default' },
+    create: { id: 'default', bggUsername: username, lastSyncedAt: new Date(), lastStatus: message },
+    update: { bggUsername: username, lastSyncedAt: new Date(), lastStatus: message }
+  });
+
+  return message;
+}
+
 async function fetchCollection(username: string) {
-  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(username)}&own=1&subtype=boardgame&stats=1`;
+  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(username)}`;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= BGG_RETRY_DELAYS_MS.length; attempt += 1) {
@@ -79,6 +119,10 @@ async function fetchCollection(username: string) {
 
       // BGG returns 202 while it prepares/cache-builds a collection.
       if (response.status === 202) {
+        if (attempt < BGG_RETRY_DELAYS_MS.length) {
+          await delay(BGG_RETRY_DELAYS_MS[attempt]);
+          continue;
+        }
         return { pending: true, games: [] as ParsedCollectionItem[] };
       }
 
@@ -114,10 +158,19 @@ async function fetchCollection(username: string) {
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const username = String(body.username ?? '').trim();
-  if (!username) return NextResponse.json({ error: 'BGG username is verplicht.' }, { status: 400 });
+  const requestedUsername = String(body.username ?? '').trim();
+  const username = requestedUsername || DEFAULT_BGG_USERNAME;
+  const xml = String(body.xml ?? '').trim();
 
   try {
+    if (xml) {
+      const games = parseCollection(xml);
+      if (!games.length) return NextResponse.json({ error: 'Geen spellen gevonden in deze XML.' }, { status: 400 });
+
+      const message = await saveCollection(username, games, 'XML import: ');
+      return NextResponse.json({ imported: games.length, pending: false, message });
+    }
+
     const result = await fetchCollection(username);
 
     if (result.pending) {
@@ -129,44 +182,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ imported: 0, pending: true, message: BGG_COLLECTION_PENDING_MESSAGE });
     }
 
-    for (const game of result.games) {
-      await prisma.collectionGame.upsert({
-        where: { bggId: game.bggId },
-        create: {
-          bggId: game.bggId,
-          title: game.title,
-          yearPublished: game.yearPublished,
-          imageUrl: game.imageUrl,
-          minPlayers: game.minPlayers,
-          maxPlayers: game.maxPlayers,
-          playingTime: game.playingTime,
-          bggRating: game.bggRating,
-          bggWeight: game.bggWeight,
-          hidden: false,
-          source: 'bgg'
-        },
-        update: {
-          title: game.title,
-          yearPublished: game.yearPublished,
-          imageUrl: game.imageUrl,
-          minPlayers: game.minPlayers,
-          maxPlayers: game.maxPlayers,
-          playingTime: game.playingTime,
-          bggRating: game.bggRating,
-          bggWeight: game.bggWeight,
-          hidden: false,
-          source: 'bgg'
-        }
-      });
-    }
-
-    await prisma.collectionSyncState.upsert({
-      where: { id: 'default' },
-      create: { id: 'default', bggUsername: username, lastSyncedAt: new Date(), lastStatus: `${result.games.length} spellen gesynchroniseerd.` },
-      update: { bggUsername: username, lastSyncedAt: new Date(), lastStatus: `${result.games.length} spellen gesynchroniseerd.` }
-    });
-
-    return NextResponse.json({ imported: result.games.length, pending: false, message: `${result.games.length} spellen gesynchroniseerd.` });
+    const message = await saveCollection(username, result.games);
+    return NextResponse.json({ imported: result.games.length, pending: false, message });
   } catch (error) {
     const message = error instanceof Error && (error.name === 'TimeoutError' || error.message.includes('fetch failed'))
       ? BGG_TEMPORARY_ERROR_MESSAGE

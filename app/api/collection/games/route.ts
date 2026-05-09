@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { DEFAULT_BGG_USERNAME } from '@/lib/defaults';
 import { serializeCollectionGame, serializeCollectionSyncState } from '@/lib/serializers';
 
 export async function GET() {
@@ -10,7 +11,11 @@ export async function GET() {
 
   return NextResponse.json({
     games: games.map(serializeCollectionGame),
-    sync_state: serializeCollectionSyncState(syncState)
+    sync_state: serializeCollectionSyncState(syncState) ?? {
+      bgg_username: DEFAULT_BGG_USERNAME,
+      last_synced_at: null,
+      last_status: null
+    }
   });
 }
 

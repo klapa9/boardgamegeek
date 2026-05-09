@@ -4,7 +4,7 @@ Deze patch past de MVP aan naar de nieuwste flow:
 
 - BGG wordt niet meer live gebruikt tijdens het aanmaken of invullen van een spelavond.
 - Er is een apart scherm **Mijn spellen** op `/games`.
-- Daar synchroniseer je vooraf je BGG collectie.
+- Daar synchroniseer je vooraf je BGG collectie. Standaard gebruikt de app `gezelschapspelgroep`.
 - Bij het maken van een spelavond kies je spellen uit je lokale Postgres-lijst.
 - De sessie zelf doet alleen nog: spelers joinen, beschikbaarheid kiezen, scores geven en resultaat delen.
 
@@ -45,14 +45,27 @@ http://localhost:3000/games
 
 Daar kan je je BGG username synchroniseren.
 
-## BGG gedrag
-
-BGG vraagt tegenwoordig voor vrijwel alle XML API-aanroepen een geregistreerde applicatie-token. Maak op `https://boardgamegeek.com/applications` een applicatie aan, maak daar een token voor, en zet die in je `.env`:
+De standaardcollectie opslaan in de database kan ook via:
 
 ```bash
-BGG_API_TOKEN="jouw-token"
+npm run db:sync-default-collection
 ```
 
-Herstart daarna `npm run dev`, want Next.js leest `.env` bij het starten.
+Normaal hoeft dit niet tijdens deploy. De admin kan via `/games` handmatig synchroniseren; daarna staan de spellen in de database.
+Als BGG server-to-server weigert, kan je de XML uit de publieke BGG-link kopieren en op `/games` in **BGG XML plakken** importeren.
 
-BGG geeft soms HTTP 202 terug bij een collectie-import. Dat betekent dat BGG de collectie aan het voorbereiden is. Klik dan na ongeveer 30 seconden opnieuw op synchroniseren.
+## BGG gedrag
+
+De collectie-import gebruikt de publieke BoardGameGeek XML endpoint:
+
+```text
+https://boardgamegeek.com/xmlapi2/collection?username=gezelschapspelgroep
+```
+
+Daar is geen API-token voor nodig; de sync stuurt ook geen Authorization-header mee. Je kan de standaardgebruiker aanpassen in `.env`:
+
+```bash
+DEFAULT_BGG_USERNAME="gezelschapspelgroep"
+```
+
+BGG geeft soms HTTP 202 terug bij een collectie-import. Dat betekent dat BGG de collectie aan het voorbereiden is. De sync wacht automatisch langer en probeert opnieuw.
