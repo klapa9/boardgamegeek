@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CalendarDays, Copy, Dice5, RefreshCw, Share2, Trash2, Trophy, UserRound } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
@@ -13,6 +13,24 @@ type ResultRow = {
   count: number;
   missing: PlayerDto[];
 };
+
+const SCORE_OPTIONS = [0, 2, 4, 6, 8, 10] as const;
+
+const SCORE_BADGES: Record<number, { label: string; className: string }> = {
+  0: { label: 'Neeee', className: 'bg-red-950 text-white' },
+  2: { label: 'Pfff', className: 'bg-red-800 text-white' },
+  4: { label: 'Bwa', className: 'bg-orange-500 text-white' },
+  6: { label: 'mmm', className: 'bg-yellow-300 text-slate-950' },
+  8: { label: 'Top', className: 'bg-lime-500 text-slate-950' },
+  10: { label: 'JAAAA', className: 'bg-emerald-700 text-white' }
+};
+
+function sliderScore(score: number | null) {
+  if (score === null) return 0;
+  return SCORE_OPTIONS.reduce((closest, option) => (
+    Math.abs(option - score) < Math.abs(closest - score) ? option : closest
+  ), SCORE_OPTIONS[0]);
+}
 
 function playerKey(sessionId: string) {
   return `gsk-player-${sessionId}`;
@@ -46,6 +64,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const scoreSaveTimers = useRef<Record<string, number>>({});
 
   const currentPlayer = players.find((player) => player.id === currentPlayerId) ?? null;
   const isAdmin = Boolean(adminToken);
@@ -73,7 +92,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     setCurrentPlayerId(localStorage.getItem(playerKey(sessionId)));
     refresh(false);
     const interval = window.setInterval(() => refresh(false), 15000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+      Object.values(scoreSaveTimers.current).forEach((timer) => window.clearTimeout(timer));
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
@@ -174,22 +196,40 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
-  async function setScore(gameId: string, score: number) {
+  function setScore(gameId: string, score: number) {
     if (!currentPlayerId) return;
-    try {
-      await api(`/api/sessions/${sessionId}/ratings`, {
-        method: 'PUT',
-        body: JSON.stringify({ player_id: currentPlayerId, game_id: gameId, score })
-      });
-      await refresh(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Score opslaan mislukt.');
-    }
+    const playerId = currentPlayerId;
+    const timerKey = `${playerId}:${gameId}`;
+
+    setRatings((items) => {
+      const existing = items.some((rating) => rating.player_id === playerId && rating.game_id === gameId);
+      if (existing) {
+        return items.map((rating) => (
+          rating.player_id === playerId && rating.game_id === gameId ? { ...rating, score } : rating
+        ));
+      }
+      return [...items, { player_id: playerId, game_id: gameId, score }];
+    });
+
+    window.clearTimeout(scoreSaveTimers.current[timerKey]);
+    scoreSaveTimers.current[timerKey] = window.setTimeout(async () => {
+      try {
+        await api(`/api/sessions/${sessionId}/ratings`, {
+          method: 'PUT',
+          body: JSON.stringify({ player_id: playerId, game_id: gameId, score })
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Score opslaan mislukt.');
+        await refresh(false);
+      } finally {
+        delete scoreSaveTimers.current[timerKey];
+      }
+    }, 250);
   }
 
   async function shareInvite() {
     const url = `${window.location.origin}/s/${sessionId}`;
-    const text = `🎲 ${session?.title ?? 'Spelavond'} kiezen!\n\nDuid aan wanneer je kan en geef punten op 10:\n${url}`;
+    const text = `🎲 ${session?.title ?? 'Spelavond'} kiezen!\n\nDuid aan wanneer je kan en schuif je voorkeur per spel naar 0, 2, 4, 6, 8 of 10:\n${url}`;
     if (navigator.share) await navigator.share({ text });
     else {
       await navigator.clipboard.writeText(text);
@@ -213,7 +253,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   if (!session) return <main className="mx-auto max-w-4xl px-4 py-8">Sessie niet gevonden.</main>;
 
   return (
-    <main className="mx-auto max-w-4xl space-y-5 px-4 py-6 pb-16">
+    <main className="mx-auto max-w-6xl space-y-5 px-4 py-6 pb-16">
       <header className="rounded-3xl bg-white p-5 shadow-soft">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -269,28 +309,56 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       </section>
 
       <section className="rounded-3xl bg-white p-5 shadow-soft">
-        <div className="mb-4 flex items-center gap-2"><Dice5 size={20} /><h2 className="text-xl font-black">2. Geef punten op 10</h2></div>
+        <div className="mb-4 flex items-center gap-2"><Dice5 size={20} /><h2 className="text-xl font-black">2. Kies je voorkeur</h2></div>
         <p className="mb-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">De spellen voor deze avond zijn gekozen bij het aanmaken. BGG wordt in deze flow niet meer aangesproken.</p>
-        <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {games.map((game) => {
             const score = myScore(game.id);
+            const visibleScore = sliderScore(score);
+            const badge = score === null
+              ? { label: 'Nog niet gekozen', className: 'bg-white text-slate-600 ring-1 ring-slate-200' }
+              : SCORE_BADGES[visibleScore];
             return (
-              <article key={game.id} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
-                <div className="flex gap-3">
-                  {game.image_url ? <img src={game.image_url} alt="" className="h-20 w-20 rounded-2xl object-cover" /> : <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-2xl">🎲</div>}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex gap-2">
-                      <h3 className="flex-1 font-black">{game.title}</h3>
-                      {isAdmin && <button onClick={() => deleteGame(game.id)} className="rounded-xl p-2 text-slate-500 hover:bg-white" title="Verwijderen"><Trash2 size={17} /></button>}
-                    </div>
-                    <p className="text-sm text-slate-500">{formatGameMeta(game) || 'Geen extra info'}</p>
-                    {game.bgg_id && <a className="text-sm font-bold text-slate-700 underline" href={`https://boardgamegeek.com/boardgame/${game.bgg_id}`} target="_blank">BGG bekijken</a>}
-                  </div>
+              <article key={game.id} className="relative flex min-h-[31rem] flex-col rounded-[1.35rem] border border-slate-200 bg-gradient-to-br from-red-950/10 via-white to-emerald-700/10 p-4 shadow-sm">
+                {isAdmin && <button onClick={() => deleteGame(game.id)} className="absolute right-3 top-3 rounded-xl bg-white/85 p-2 text-slate-500 shadow-sm hover:bg-white" title="Verwijderen"><Trash2 size={17} /></button>}
+                <div className="min-h-16 pr-9 text-center">
+                  <h3 className="line-clamp-2 text-lg font-black leading-tight">{game.title}</h3>
+                  <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{formatGameMeta(game) || 'Geen extra info'}</p>
                 </div>
-                <div className="mt-4 grid grid-cols-6 gap-2 sm:grid-cols-11">
-                  {Array.from({ length: 11 }, (_, value) => (
-                    <button key={value} disabled={!currentPlayer} onClick={() => setScore(game.id, value)} className={`rounded-xl border px-2 py-2 text-sm font-bold ${score === value ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 bg-white'}`}>{value}</button>
-                  ))}
+                <div className="mt-3 flex flex-1 flex-col">
+                  {game.image_url ? (
+                    <img src={game.image_url} alt="" className="aspect-[3/4] w-full rounded-2xl bg-white object-cover shadow-sm" />
+                  ) : (
+                    <div className="flex aspect-[3/4] w-full items-center justify-center rounded-2xl bg-white text-5xl shadow-sm">🎲</div>
+                  )}
+                  <span className={`mx-auto mt-4 max-w-full rounded-full px-4 py-2 text-center text-xs font-black shadow-sm ${badge.className}`}>{badge.label}</span>
+                  {game.bgg_id && <a className="mt-3 text-center text-sm font-bold text-slate-700 underline" href={`https://boardgamegeek.com/boardgame/${game.bgg_id}`} target="_blank">BGG bekijken</a>}
+                </div>
+                <div className="mt-4 rounded-2xl bg-white/90 p-4 shadow-sm">
+                  <input
+                    aria-label={`Voorkeur voor ${game.title}`}
+                    className="preference-slider h-3 w-full cursor-pointer appearance-none rounded-full bg-gradient-to-r from-red-950 via-yellow-300 to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={!currentPlayer}
+                    max={10}
+                    min={0}
+                    onChange={(event) => setScore(game.id, Number(event.target.value))}
+                    step={2}
+                    type="range"
+                    value={visibleScore}
+                  />
+                  <div className="mt-3 grid grid-cols-6 text-center text-xs font-black text-slate-500">
+                    {SCORE_OPTIONS.map((value) => (
+                      <button
+                        key={value}
+                        className={`rounded-lg py-1 ${score !== null && visibleScore === value ? 'bg-slate-950 text-white' : 'hover:bg-slate-100'}`}
+                        disabled={!currentPlayer}
+                        onClick={() => setScore(game.id, value)}
+                        type="button"
+                      >
+                        {value}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </article>
             );
