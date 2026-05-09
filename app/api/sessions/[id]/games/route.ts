@@ -7,6 +7,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const title = String(body.title ?? '').trim();
   if (!title) return NextResponse.json({ error: 'Spelnaam is verplicht.' }, { status: 400 });
 
+  const addedBy = String(body.added_by ?? '').trim();
+  if (!addedBy) return NextResponse.json({ error: 'Je moet deelnemen om een spel toe te voegen.' }, { status: 403 });
+
+  const player = await prisma.player.findFirst({
+    where: { id: addedBy, sessionId: params.id }
+  });
+  if (!player) return NextResponse.json({ error: 'Alleen spelers van deze avond kunnen spellen toevoegen.' }, { status: 403 });
+
   const duplicate = await prisma.game.findFirst({
     where: { sessionId: params.id, title: { equals: title, mode: 'insensitive' } }
   });
@@ -27,7 +35,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       mechanics: Array.isArray(body.mechanics) ? body.mechanics.map(String) : [],
       playMode: body.play_mode === 'cooperative' || body.play_mode === 'competitive' ? body.play_mode : null,
       communityPlayers: Array.isArray(body.community_players) ? body.community_players.map(Number).filter(Number.isInteger) : [],
-      addedBy: body.added_by ?? null
+      addedBy
     }
   });
 

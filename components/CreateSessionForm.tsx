@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
@@ -22,7 +21,6 @@ export default function CreateSessionForm() {
   const [title, setTitle] = useState('Spelavond');
   const [collection, setCollection] = useState<CollectionGameDto[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [manualGames, setManualGames] = useState('');
   const [query, setQuery] = useState('');
   const [loadingCollection, setLoadingCollection] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -37,9 +35,14 @@ export default function CreateSessionForm() {
 
   const filteredCollection = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return collection.slice(0, 80);
-    return collection.filter((game) => game.title.toLowerCase().includes(q)).slice(0, 80);
+    if (!q) return collection;
+    return collection.filter((game) => game.title.toLowerCase().includes(q));
   }, [collection, query]);
+
+  const selectedGames = useMemo(() => {
+    const selected = new Set(selectedIds);
+    return collection.filter((game) => selected.has(game.id));
+  }, [collection, selectedIds]);
 
   function toggleGame(id: string) {
     setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
@@ -55,8 +58,7 @@ export default function CreateSessionForm() {
         method: 'POST',
         body: JSON.stringify({
           title,
-          collection_game_ids: selectedIds,
-          manual_games: manualGames.split('\n').map((line) => line.trim()).filter(Boolean)
+          collection_game_ids: selectedIds
         })
       });
       localStorage.setItem(`gsk-admin-${data.session.id}`, data.admin_token);
@@ -84,7 +86,6 @@ export default function CreateSessionForm() {
       <div>
         <div className="mb-2 flex items-center justify-between gap-3">
           <label className="block text-sm font-semibold text-slate-700">Kies spellen uit je lokale lijst</label>
-          <Link href="/games" className="text-sm font-bold text-slate-500 underline">Mijn spellen</Link>
         </div>
         <div className="relative mb-3">
           <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
@@ -102,20 +103,25 @@ export default function CreateSessionForm() {
               </button>
             );
           })}
-          {!loadingCollection && !filteredCollection.length && <p className="px-3 py-6 text-center text-sm text-slate-500">Geen spellen gevonden. Ga naar Mijn spellen om te synchroniseren of voeg hieronder manueel toe.</p>}
+          {!loadingCollection && !filteredCollection.length && <p className="px-3 py-6 text-center text-sm text-slate-500">Geen spellen gevonden.</p>}
         </div>
         <p className="mt-2 text-sm text-slate-500">Geselecteerd: <b>{selectedIds.length}</b></p>
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-semibold text-slate-700">Extra manuele spellen, optioneel</label>
-        <textarea
-          value={manualGames}
-          onChange={(event) => setManualGames(event.target.value)}
-          className="min-h-24 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400"
-          placeholder={'Heat\nAzul'}
-        />
-        <p className="mt-2 text-sm text-slate-500">Eén spel per lijn. BGG wordt hier niet gebruikt.</p>
+        {!!selectedGames.length && (
+          <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-3">
+            <p className="mb-2 text-sm font-semibold text-slate-700">Geselecteerde spellen</p>
+            <ul className="space-y-2">
+              {selectedGames.map((game) => (
+                <li key={game.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                  {game.image_url ? <img src={game.image_url} alt="" className="h-10 w-10 rounded-lg object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-lg">🎲</div>}
+                  <span className="min-w-0 flex-1">
+                    <b className="block truncate text-sm">{game.title}</b>
+                    <span className="block truncate text-xs text-slate-500">{meta(game) || 'Geen extra info'}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}

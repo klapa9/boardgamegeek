@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { CalendarDays, Copy, Dice5, RefreshCw, Share2, Trash2, Trophy, UserRound } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
 import { AvailabilityDto, DAYS, DayKey, GameDto, PlayerDto, RatingDto, SessionDto } from '@/lib/types';
+import BggGameSearch from './BggGameSearch';
 
 type ResultRow = {
   game: GameDto;
@@ -127,6 +128,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     return ratings.find((rating) => rating.player_id === currentPlayerId && rating.game_id === gameId)?.score ?? null;
   }
 
+  function playerName(playerId: string | null) {
+    if (!playerId) return null;
+    return players.find((player) => player.id === playerId)?.name ?? null;
+  }
+
   async function joinSession(event: React.FormEvent) {
     event.preventDefault();
     const name = nameInput.trim();
@@ -229,7 +235,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
   async function shareInvite() {
     const url = `${window.location.origin}/s/${sessionId}`;
-    const text = `🎲 ${session?.title ?? 'Spelavond'} kiezen!\n\nDuid aan wanneer je kan en schuif je voorkeur per spel naar 0, 2, 4, 6, 8 of 10:\n${url}`;
+    const text = `Wie kan wanneer komende week?\n\nDuid aan wanneer je kan en geef de voorkeur welk spel je wilt spelen via deze link: ${url}`;
     if (navigator.share) await navigator.share({ text });
     else {
       await navigator.clipboard.writeText(text);
@@ -310,7 +316,19 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
       <section className="rounded-3xl bg-white p-5 shadow-soft">
         <div className="mb-4 flex items-center gap-2"><Dice5 size={20} /><h2 className="text-xl font-black">2. Kies je voorkeur</h2></div>
-        <p className="mb-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">De spellen voor deze avond zijn gekozen bij het aanmaken. BGG wordt in deze flow niet meer aangesproken.</p>
+        <div className="mb-4 rounded-2xl bg-slate-50 px-4 py-3">
+          <p className="mb-3 text-sm text-slate-600">
+            Iedereen die meedoet kan nog spellen toevoegen aan deze avond.
+          </p>
+          <BggGameSearch
+            sessionId={sessionId}
+            playerId={currentPlayerId}
+            onAdded={async () => {
+              setMessage('Spel toegevoegd aan de lijst.');
+              await refresh(false);
+            }}
+          />
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {games.map((game) => {
             const score = myScore(game.id);
@@ -318,12 +336,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             const badge = score === null
               ? { label: 'Nog niet gekozen', className: 'bg-white text-slate-600 ring-1 ring-slate-200' }
               : SCORE_BADGES[visibleScore];
+            const addedByName = playerName(game.added_by);
             return (
               <article key={game.id} className="relative flex min-h-[31rem] flex-col rounded-[1.35rem] border border-slate-200 bg-gradient-to-br from-red-950/10 via-white to-emerald-700/10 p-4 shadow-sm">
                 {isAdmin && <button onClick={() => deleteGame(game.id)} className="absolute right-3 top-3 rounded-xl bg-white/85 p-2 text-slate-500 shadow-sm hover:bg-white" title="Verwijderen"><Trash2 size={17} /></button>}
                 <div className="min-h-16 pr-9 text-center">
                   <h3 className="line-clamp-2 text-lg font-black leading-tight">{game.title}</h3>
                   <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{formatGameMeta(game) || 'Geen extra info'}</p>
+                  {addedByName && <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-400">Toegevoegd door {addedByName}</p>}
                 </div>
                 <div className="mt-3 flex flex-1 flex-col">
                   {game.image_url ? (
