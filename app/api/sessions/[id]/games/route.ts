@@ -4,9 +4,6 @@ import { serializeGame } from '@/lib/serializers';
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const body = await request.json().catch(() => ({}));
-  const title = String(body.title ?? '').trim();
-  if (!title) return NextResponse.json({ error: 'Spelnaam is verplicht.' }, { status: 400 });
-
   const addedBy = String(body.added_by ?? '').trim();
   if (!addedBy) return NextResponse.json({ error: 'Je moet deelnemen om een spel toe te voegen.' }, { status: 403 });
 
@@ -15,26 +12,34 @@ export async function POST(request: Request, { params }: { params: { id: string 
   });
   if (!player) return NextResponse.json({ error: 'Alleen spelers van deze avond kunnen spellen toevoegen.' }, { status: 403 });
 
+  const collectionGameId = String(body.collection_game_id ?? '').trim();
+  if (!collectionGameId) return NextResponse.json({ error: 'Kies een spel uit de gesynchroniseerde lijst.' }, { status: 400 });
+
+  const collectionGame = await prisma.collectionGame.findFirst({
+    where: { id: collectionGameId, hidden: false }
+  });
+  if (!collectionGame) return NextResponse.json({ error: 'Spel niet gevonden in de gesynchroniseerde lijst.' }, { status: 404 });
+
   const duplicate = await prisma.game.findFirst({
-    where: { sessionId: params.id, title: { equals: title, mode: 'insensitive' } }
+    where: { sessionId: params.id, title: { equals: collectionGame.title, mode: 'insensitive' } }
   });
   if (duplicate) return NextResponse.json({ error: 'Dit spel staat al in de lijst.' }, { status: 409 });
 
   const game = await prisma.game.create({
     data: {
       sessionId: params.id,
-      title,
-      bggId: typeof body.bgg_id === 'number' ? body.bgg_id : null,
-      yearPublished: typeof body.year_published === 'number' ? body.year_published : null,
-      imageUrl: body.image_url ?? null,
-      minPlayers: typeof body.min_players === 'number' ? body.min_players : null,
-      maxPlayers: typeof body.max_players === 'number' ? body.max_players : null,
-      playingTime: typeof body.playing_time === 'number' ? body.playing_time : null,
-      bggRating: typeof body.bgg_rating === 'number' ? body.bgg_rating : null,
-      bggWeight: typeof body.bgg_weight === 'number' ? body.bgg_weight : null,
-      mechanics: Array.isArray(body.mechanics) ? body.mechanics.map(String) : [],
-      playMode: body.play_mode === 'cooperative' || body.play_mode === 'competitive' ? body.play_mode : null,
-      communityPlayers: Array.isArray(body.community_players) ? body.community_players.map(Number).filter(Number.isInteger) : [],
+      title: collectionGame.title,
+      bggId: collectionGame.bggId,
+      yearPublished: collectionGame.yearPublished,
+      imageUrl: collectionGame.imageUrl,
+      minPlayers: collectionGame.minPlayers,
+      maxPlayers: collectionGame.maxPlayers,
+      playingTime: collectionGame.playingTime,
+      bggRating: collectionGame.bggRating,
+      bggWeight: collectionGame.bggWeight,
+      mechanics: collectionGame.mechanics,
+      playMode: collectionGame.playMode,
+      communityPlayers: collectionGame.communityPlayers,
       addedBy
     }
   });

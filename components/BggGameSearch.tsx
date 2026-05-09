@@ -1,58 +1,47 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import { api } from '@/lib/api';
-import { BggGameDetails, BggSearchResult } from '@/lib/types';
+import { CollectionBundle, CollectionGameDto } from '@/lib/types';
 
 export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessionId: string; playerId: string | null; onAdded: () => void }) {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<BggSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [addingId, setAddingId] = useState<number | null>(null);
+  const [collection, setCollection] = useState<CollectionGameDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addingId, setAddingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<CollectionBundle>('/api/collection/games')
+      .then((data) => setCollection(data.games))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Spellenlijst laden mislukt.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return collection.filter((game) => game.title.toLowerCase().includes(q)).slice(0, 20);
+  }, [collection, query]);
 
   async function search(event: React.FormEvent) {
     event.preventDefault();
-    if (query.trim().length < 2) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api<{ results: BggSearchResult[] }>(`/api/bgg/search?q=${encodeURIComponent(query)}`);
-      setResults(data.results ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Zoeken mislukt.');
-    } finally {
-      setLoading(false);
-    }
   }
 
-  async function addFromBgg(result: BggSearchResult) {
+  async function addFromCollection(game: CollectionGameDto) {
     if (!playerId) return;
-    setAddingId(result.bggId);
+    setAddingId(game.id);
     setError(null);
     try {
-      const details = await api<BggGameDetails>(`/api/bgg/thing/${result.bggId}`);
       await api(`/api/sessions/${sessionId}/games`, {
         method: 'POST',
         body: JSON.stringify({
-          title: details.title,
-          bgg_id: details.bggId,
-          year_published: details.yearPublished,
-          image_url: details.imageUrl,
-          min_players: details.minPlayers,
-          max_players: details.maxPlayers,
-          playing_time: details.playingTime,
-          bgg_rating: details.averageRating,
-          bgg_weight: details.averageWeight,
-          mechanics: details.mechanics,
-          play_mode: details.playMode,
-          community_players: details.communityPlayers,
+          collection_game_id: game.id,
           added_by: playerId
         })
       });
       setQuery('');
-      setResults([]);
       onAdded();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Toevoegen mislukt.');
@@ -67,7 +56,7 @@ export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessio
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Zoek op BoardGameGeek"
+          placeholder="Zoek in de gesynchroniseerde spellenlijst"
           className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400"
         />
         <button disabled={loading || !playerId} className="rounded-2xl bg-slate-950 px-4 font-bold text-white disabled:opacity-50" title={!playerId ? 'Vul eerst je naam in' : undefined}>
@@ -75,17 +64,23 @@ export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessio
         </button>
       </form>
       {error && <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {!loading && query.trim().length >= 2 && !results.length && <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-sm text-slate-500">Geen spel gevonden in de gesynchroniseerde lijst.</p>}
       {!!results.length && (
         <div className="mt-3 space-y-2">
-          {results.map((result) => (
+          {results.map((game) => (
             <button
-              key={result.bggId}
-              onClick={() => addFromBgg(result)}
+              key={game.id}
+              onClick={() => addFromCollection(game)}
               disabled={addingId !== null}
-              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left disabled:opacity-50"
+              className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left disabled:opacity-50"
+              type="button"
             >
-              <b>{result.title}</b>{result.yearPublished ? <span className="text-slate-500"> · {result.yearPublished}</span> : null}
-              {addingId === result.bggId && <span className="ml-2 text-sm text-slate-500">toevoegen...</span>}
+              {game.image_url ? <img src={game.image_url} alt="" className="h-11 w-11 rounded-xl object-cover" /> : <div className="h-11 w-11 rounded-xl bg-slate-100" />}
+              <span className="min-w-0 flex-1">
+                <b className="block truncate">{game.title}</b>
+                {game.year_published ? <span className="text-sm text-slate-500">{game.year_published}</span> : null}
+              </span>
+              {addingId === game.id && <span className="text-sm text-slate-500">toevoegen...</span>}
             </button>
           ))}
         </div>
