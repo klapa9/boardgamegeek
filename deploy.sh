@@ -9,7 +9,8 @@ git pull origin main
 echo "App rebuilden..."
 docker-compose build app
 
-echo "Containers starten..."
+echo "Containers herstarten..."
+docker-compose down --remove-orphans
 docker-compose up -d
 
 echo "Database migraties uitvoeren..."
