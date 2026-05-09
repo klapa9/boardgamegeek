@@ -7,8 +7,11 @@ services:
       - "3000:3000"
     env_file:
       - .env
+<<<<<<< HEAD
     environment:
       DATABASE_URL: postgresql://gamenight:gamenight@postgres:5432/gamenight?schema=public
+=======
+>>>>>>> d5edb9f (Add production deployment setup)
     depends_on:
       - postgres
 
