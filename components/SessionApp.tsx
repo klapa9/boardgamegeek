@@ -158,34 +158,50 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
   async function toggleAvailability(day: DayKey) {
     if (!currentPlayerId) return;
-    setSaving(true);
+    const playerId = currentPlayerId;
+    const available = !isAvailable(day);
+    const previousAvailability = availability;
+    setError(null);
+    setAvailability((items) => {
+      const existing = items.some((item) => item.player_id === playerId && item.day === day);
+      if (existing) {
+        return items.map((item) => (
+          item.player_id === playerId && item.day === day ? { ...item, available } : item
+        ));
+      }
+      return [...items, { player_id: playerId, day, available }];
+    });
+
     try {
-      await api(`/api/sessions/${sessionId}/availability`, {
+      const data = await api<{ availability: AvailabilityDto }>(`/api/sessions/${sessionId}/availability`, {
         method: 'PUT',
-        body: JSON.stringify({ player_id: currentPlayerId, day, available: !isAvailable(day) })
+        body: JSON.stringify({ player_id: playerId, day, available })
       });
-      await refresh(false);
+      setAvailability((items) => items.map((item) => (
+        item.player_id === playerId && item.day === day ? data.availability : item
+      )));
     } catch (err) {
+      setAvailability(previousAvailability);
       setError(err instanceof Error ? err.message : 'Beschikbaarheid opslaan mislukt.');
-    } finally {
-      setSaving(false);
     }
   }
 
   async function chooseDay(day: DayKey | null) {
     if (!adminToken) return;
-    setSaving(true);
+    const previousSession = session;
+    setError(null);
+    setSession((current) => current ? { ...current, chosen_day: day } : current);
+    setMessage(day ? `Dag gekozen: ${DAYS.find((d) => d.key === day)?.label}.` : 'Dag opnieuw opengezet.');
+
     try {
-      await api(`/api/sessions/${sessionId}`, {
+      const data = await api<{ session: SessionDto }>(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
         body: JSON.stringify({ admin_token: adminToken, chosen_day: day })
       });
-      setMessage(day ? `Dag gekozen: ${DAYS.find((d) => d.key === day)?.label}.` : 'Dag opnieuw opengezet.');
-      await refresh(false);
+      setSession(data.session);
     } catch (err) {
+      setSession(previousSession);
       setError(err instanceof Error ? err.message : 'Dag kiezen mislukt.');
-    } finally {
-      setSaving(false);
     }
   }
 
