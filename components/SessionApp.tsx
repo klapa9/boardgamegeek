@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { CalendarDays, Check, Copy, Dice5, Lock, Plus, RefreshCw, Share2, Trash2, Trophy, Unlock, UserRound, X } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
 import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto } from '@/lib/types';
@@ -23,6 +23,10 @@ type DateRow = SessionDto['date_options'][number] & {
 type FlowView = 'availability' | 'rating' | 'results';
 
 const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+const SESSION_REFRESH_INTERVAL_MS = 15000;
+const SCORE_AUTOSAVE_DELAY_MS = 250;
+const META_SEPARATOR = ' - ';
+const LIST_BULLET = '-';
 
 const SCORE_BADGES: Record<number, { label: string; className: string }> = {
   0: { label: 'Nooit', className: 'bg-red-950 text-white' },
@@ -60,7 +64,7 @@ function formatGameMeta(game: GameDto) {
     game.playing_time ? `${game.playing_time} min` : null,
     game.bgg_weight ? `weight ${game.bgg_weight.toFixed(1)}` : null,
     game.bgg_rating ? `BGG ${game.bgg_rating.toFixed(1)}` : null
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(META_SEPARATOR);
 }
 
 function formatDate(date: string) {
@@ -88,8 +92,18 @@ function shareSupported() {
   return typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 }
 
+function playerDateKey(playerId: string, date: string) {
+  return `${playerId}:${date}`;
+}
+
+function playerGameKey(playerId: string, gameId: string) {
+  return `${playerId}:${gameId}`;
+}
+
 export default function SessionApp({ sessionId }: { sessionId: string }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [session, setSession] = useState<SessionDto | null>(null);
   const [players, setPlayers] = useState<PlayerDto[]>([]);
   const [games, setGames] = useState<GameDto[]>([]);
@@ -107,18 +121,54 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const [addGamesOpen, setAddGamesOpen] = useState(false);
   const [selectedAddGameIds, setSelectedAddGameIds] = useState<string[]>([]);
   const [addGamesSaving, setAddGamesSaving] = useState(false);
-  const [shareModal, setShareModal] = useState<{ title: string; text: string; copiedMessage: string } | null>(null);
+  const [shareModal, setShareModal] = useState<{ title: string; text: string } | null>(null);
   const [shareTextValue, setShareTextValue] = useState('');
   const [sharing, setSharing] = useState(false);
   const scoreSaveTimers = useRef<Record<string, number>>({});
   const initialViewResolved = useRef(false);
+  const initialShareIntentHandled = useRef(false);
   const addGamesCloseButtonRef = useRef<HTMLButtonElement>(null);
 
-  const currentPlayer = players.find((player) => player.id === currentPlayerId) ?? null;
+  const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
+  const availabilityByPlayerDay = useMemo(() => {
+    const map = new Map<string, AvailabilityDto>();
+    availability.forEach((item) => {
+      map.set(playerDateKey(item.player_id, item.day), item);
+    });
+    return map;
+  }, [availability]);
+  const availablePlayerIdsByDay = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    availability.forEach((item) => {
+      if (!item.available) return;
+      const existing = map.get(item.day);
+      if (existing) {
+        existing.add(item.player_id);
+        return;
+      }
+      map.set(item.day, new Set([item.player_id]));
+    });
+    return map;
+  }, [availability]);
+  const scoreByPlayerGame = useMemo(() => {
+    const map = new Map<string, number>();
+    ratings.forEach((rating) => {
+      map.set(playerGameKey(rating.player_id, rating.game_id), rating.score);
+    });
+    return map;
+  }, [ratings]);
+  const currentPlayer = currentPlayerId ? playerById.get(currentPlayerId) ?? null : null;
   const isAdmin = Boolean(adminToken);
   const dateOptions = session?.date_options ?? [];
   const existingGameTitles = useMemo(() => games.map((game) => game.title), [games]);
   const existingBggIds = useMemo(() => games.map((game) => game.bgg_id).filter((id): id is number => id !== null), [games]);
+  const currentPlayerHasPlanning = useMemo(() => (
+    currentPlayerId ? availability.some((item) => item.player_id === currentPlayerId) : false
+  ), [availability, currentPlayerId]);
+  const currentPlayerHasUnratedGames = useMemo(() => {
+    if (!currentPlayerId) return false;
+    return games.some((game) => !scoreByPlayerGame.has(playerGameKey(currentPlayerId, game.id)));
+  }, [currentPlayerId, games, scoreByPlayerGame]);
 
   async function refresh(showMessage = false) {
     try {
@@ -143,7 +193,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     setAdminToken(adminFromUrl || localStorage.getItem(adminKey(sessionId)));
     setCurrentPlayerId(localStorage.getItem(playerKey(sessionId)));
     refresh(false);
-    const interval = window.setInterval(() => refresh(false), 15000);
+    const interval = window.setInterval(() => refresh(false), SESSION_REFRESH_INTERVAL_MS);
     return () => {
       window.clearInterval(interval);
       Object.values(scoreSaveTimers.current).forEach((timer) => window.clearTimeout(timer));
@@ -160,68 +210,79 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
 
     if (session?.locked && session.chosen_day) {
-      const hasUnratedGames = games.some((game) => !ratings.some((rating) => rating.player_id === currentPlayerId && rating.game_id === game.id));
-      setView(hasUnratedGames ? 'rating' : 'results');
+      setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
       initialViewResolved.current = true;
       return;
     }
 
-    const hasFilledPlanning = availability.some((item) => item.player_id === currentPlayerId);
-    if (!hasFilledPlanning) {
+    if (!currentPlayerHasPlanning) {
       initialViewResolved.current = true;
       return;
     }
 
-    const hasUnratedGames = games.some((game) => !ratings.some((rating) => rating.player_id === currentPlayerId && rating.game_id === game.id));
-    setView(hasUnratedGames ? 'rating' : 'results');
+    setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
     initialViewResolved.current = true;
-  }, [availability, currentPlayerId, games, loading, ratings, session?.chosen_day, session?.locked]);
+  }, [currentPlayerHasPlanning, currentPlayerHasUnratedGames, currentPlayerId, loading, session?.chosen_day, session?.locked]);
+
+  useEffect(() => {
+    if (!session || initialShareIntentHandled.current) return;
+    if (searchParams.get('share') !== 'invite') return;
+    initialShareIntentHandled.current = true;
+    openShareModal('Spelavond delen', buildInviteText());
+    clearShareIntent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, session]);
 
   const eligiblePlayers = useMemo(() => {
     if (!session?.chosen_day) return players;
-    return players.filter((player) => availability.some((item) => item.player_id === player.id && item.day === session.chosen_day && item.available));
-  }, [availability, players, session?.chosen_day]);
+    const availableIds = availablePlayerIdsByDay.get(session.chosen_day);
+    if (!availableIds) return [];
+    return players.filter((player) => availableIds.has(player.id));
+  }, [availablePlayerIdsByDay, players, session?.chosen_day]);
+  const eligiblePlayerIds = useMemo(() => new Set(eligiblePlayers.map((player) => player.id)), [eligiblePlayers]);
 
   const dateRows = useMemo<DateRow[]>(() => dateOptions.map((option) => ({
     ...option,
     display: dateParts(option.date),
     label: formatDate(option.date),
-    players: players.filter((player) => availability.some((item) => item.player_id === player.id && item.day === option.date && item.available))
-  })), [availability, dateOptions, players]);
+    players: players.filter((player) => availablePlayerIdsByDay.get(option.date)?.has(player.id))
+  })), [availablePlayerIdsByDay, dateOptions, players]);
   const chosenDateRow = session?.chosen_day ? dateRows.find((row) => row.date === session.chosen_day) : null;
 
   const results = useMemo<ResultRow[]>(() => games.map((game) => {
-    const relevantRatings = ratings.filter((rating) => rating.game_id === game.id && eligiblePlayers.some((player) => player.id === rating.player_id));
+    const relevantRatings = ratings.filter((rating) => rating.game_id === game.id && eligiblePlayerIds.has(rating.player_id));
     const total = relevantRatings.reduce((sum, rating) => sum + rating.score, 0);
     const average = relevantRatings.length ? total / relevantRatings.length : 0;
     const missing = eligiblePlayers.filter((player) => !relevantRatings.some((rating) => rating.player_id === player.id));
     return { game, total, average, count: relevantRatings.length, missing };
-  }).sort((a, b) => b.total - a.total || b.average - a.average || b.count - a.count || a.game.title.localeCompare(b.game.title)), [eligiblePlayers, games, ratings]);
+  }).sort((a, b) => b.total - a.total || b.average - a.average || b.count - a.count || a.game.title.localeCompare(b.game.title)), [eligiblePlayerIds, eligiblePlayers, games, ratings]);
 
   const winner = results[0] ?? null;
   const unratedGames = useMemo(() => (
-    currentPlayerId ? games.filter((game) => !ratings.some((rating) => rating.player_id === currentPlayerId && rating.game_id === game.id)) : []
-  ), [currentPlayerId, games, ratings]);
+    currentPlayerId ? games.filter((game) => !scoreByPlayerGame.has(playerGameKey(currentPlayerId, game.id))) : []
+  ), [currentPlayerId, games, scoreByPlayerGame]);
   const selectedGame = selectedGameId ? games.find((game) => game.id === selectedGameId) ?? null : null;
   const activeRatingGame = selectedGame ?? unratedGames[0] ?? null;
 
   function isAvailable(date: string) {
-    return availability.some((item) => item.player_id === currentPlayerId && item.day === date && item.available);
+    if (!currentPlayerId) return false;
+    return Boolean(availabilityByPlayerDay.get(playerDateKey(currentPlayerId, date))?.available);
   }
 
   function myScore(gameId: string) {
-    return ratings.find((rating) => rating.player_id === currentPlayerId && rating.game_id === gameId)?.score ?? null;
+    if (!currentPlayerId) return null;
+    return scoreByPlayerGame.get(playerGameKey(currentPlayerId, gameId)) ?? null;
   }
 
   function playerName(playerId: string | null) {
     if (!playerId) return null;
-    return players.find((player) => player.id === playerId)?.name ?? null;
+    return playerById.get(playerId)?.name ?? null;
   }
 
   function confirmAvailability() {
     if (!currentPlayer) return;
     setSelectedGameId(null);
-    setView(unratedGames.length ? 'rating' : 'results');
+    setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
   }
 
   async function joinSession(event: React.FormEvent) {
@@ -368,7 +429,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   function setScore(gameId: string, score: number) {
     if (!currentPlayerId) return;
     const playerId = currentPlayerId;
-    const timerKey = `${playerId}:${gameId}`;
+    const timerKey = playerGameKey(playerId, gameId);
 
     setRatings((items) => {
       const existing = items.some((rating) => rating.player_id === playerId && rating.game_id === gameId);
@@ -393,7 +454,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       } finally {
         delete scoreSaveTimers.current[timerKey];
       }
-    }, 250);
+    }, SCORE_AUTOSAVE_DELAY_MS);
   }
 
   function rateGame(gameId: string, score: number) {
@@ -419,10 +480,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   function buildInviteText() {
     const url = `${window.location.origin}/s/${sessionId}`;
     const dates = session?.locked && session.chosen_day
-      ? `• Vastgelegd: ${formatDate(session.chosen_day)}`
-      : dateRows.map((row) => `• ${row.label}`).join('\n') || '• datum nog te bepalen';
-    const gameList = games.slice(0, 8).map((game) => `• ${game.title}`).join('\n');
-    const extraGames = games.length > 8 ? `\n• ... en nog ${games.length - 8} spel${games.length - 8 === 1 ? '' : 'len'}` : '';
+      ? `${LIST_BULLET} Vastgelegd: ${formatDate(session.chosen_day)}`
+      : dateRows.map((row) => `${LIST_BULLET} ${row.label}`).join('\n') || `${LIST_BULLET} datum nog te bepalen`;
+    const gameList = games.slice(0, 8).map((game) => `${LIST_BULLET} ${game.title}`).join('\n');
+    const extraGames = games.length > 8 ? `\n${LIST_BULLET} ... en nog ${games.length - 8} spel${games.length - 8 === 1 ? '' : 'len'}` : '';
     const intro = session?.locked ? 'De datum ligt vast.' : 'Wanneer kan je?';
     const action = session?.locked ? 'Geef je spelvoorkeur door via:' : 'Geef je beschikbaarheid en je spelvoorkeur door via:';
     return `${session?.title ?? 'Spelavond'}\n\n${intro}\n${dates}\n\n${action}\n${url}${gameList ? `\n\nSpellen op de lijst:\n${gameList}${extraGames}` : ''}`;
@@ -436,43 +497,31 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     return `${session?.title ?? 'Spelavond'}\n\nDatum: ${dateLabel}\nSpel: ${top}\nSpelers: ${playersText}\n\n${url}`;
   }
 
-  function openShareModal(title: string, text: string, copiedMessage: string) {
-    setShareModal({ title, text, copiedMessage });
+  function clearShareIntent() {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!params.has('share')) return;
+    params.delete('share');
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }
+  function openShareModal(title: string, text: string) {
+    setShareModal({ title, text });
     setShareTextValue(text);
     setError(null);
   }
 
   function shareInvite() {
-    openShareModal('Spelavond delen', buildInviteText(), 'Uitnodiging gekopieerd.');
+    openShareModal('Spelavond delen', buildInviteText());
   }
 
   function shareResult() {
-    openShareModal('Resultaat delen', buildResultText(), 'Resultaat gekopieerd.');
+    openShareModal('Resultaat delen', buildResultText());
   }
 
   function closeShareModal() {
     if (sharing) return;
     setShareModal(null);
     setShareTextValue('');
-  }
-
-  async function copyShareText() {
-    if (!shareModal) return;
-    try {
-      await navigator.clipboard.writeText(shareTextValue);
-      setMessage(shareModal.copiedMessage);
-      closeShareModal();
-    } catch {
-      setError('Kopiëren is niet gelukt. Selecteer de tekst en kopieer ze handmatig.');
-    }
-  }
-
-  function shareViaWhatsApp() {
-    if (!shareModal) return;
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareTextValue)}`;
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    setMessage('WhatsApp is geopend met je aangepaste bericht.');
-    closeShareModal();
   }
 
   async function confirmShareText() {
@@ -484,13 +533,13 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
         setMessage('Deelvenster geopend met je aangepaste bericht.');
       } else {
         await navigator.clipboard.writeText(shareTextValue);
-        setMessage(shareModal.copiedMessage);
+        setMessage('Je toestel ondersteunt direct delen niet. Het bericht is gekopieerd.');
       }
       setShareModal(null);
       setShareTextValue('');
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      setError('Delen is niet gelukt. Je kan het bericht kopiëren of via WhatsApp delen.');
+      setError('Delen is niet gelukt. Je kan het bericht kopieren of manueel delen.');
     } finally {
       setSharing(false);
     }
@@ -506,7 +555,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Gezelschapsspelkiezer</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight">{session.title}</h1>
-            <p className="mt-2 text-sm text-slate-500">{players.length} speler{players.length === 1 ? '' : 's'} · {games.length} spel{games.length === 1 ? '' : 'len'} · {dateOptions.length} datum{dateOptions.length === 1 ? '' : 's'}</p>
+            <p className="mt-2 text-sm text-slate-500">{players.length} speler{players.length === 1 ? '' : 's'} - {games.length} spel{games.length === 1 ? '' : 'len'} - {dateOptions.length} datum{dateOptions.length === 1 ? '' : 's'}</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => refresh(true)} className="rounded-2xl border border-slate-200 p-3" title="Vernieuwen"><RefreshCw size={20} /></button>
@@ -536,7 +585,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               <div>
                 <p className="flex items-center gap-2 text-sm font-bold text-emerald-100"><Lock size={16} /> Datum vastgelegd</p>
                 <h2 className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday}</h2>
-                <p className="text-emerald-100">{chosenDateRow.display.full} · Tijd volgt</p>
+                <p className="text-emerald-100">{chosenDateRow.display.full} - Tijd volgt</p>
               </div>
             </div>
             {isAdmin && (
@@ -688,7 +737,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-bold text-slate-800">Extra spellen voorstellen?</p>
-                <p className="mt-1 text-sm text-slate-500">Voeg één of meerdere spellen toe uit de collectie van de organisator of jezelf.</p>
+                <p className="mt-1 text-sm text-slate-500">Voeg een of meerdere spellen toe uit de collectie van de organisator of jezelf.</p>
               </div>
               <button
                 type="button"
@@ -705,7 +754,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             <div className="mb-4 rounded-3xl bg-slate-950 p-5 text-white">
               <p className="text-sm font-semibold text-slate-300">Voorlopige winnaar</p>
               <h3 className="mt-1 text-2xl font-black">{winner.game.title}</h3>
-              <p className="mt-1 text-slate-300">{winner.total} punten · {winner.average.toFixed(1)} gemiddeld · {winner.count} stem{winner.count === 1 ? '' : 'men'}</p>
+              <p className="mt-1 text-slate-300">{winner.total} punten - {winner.average.toFixed(1)} gemiddeld - {winner.count} stem{winner.count === 1 ? '' : 'men'}</p>
             </div>
           )}
           <div className="space-y-2">
@@ -717,7 +766,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 type="button"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0"><b>#{index + 1} {row.game.title}</b><p className="text-sm text-slate-500">{row.count} stemmen · gemiddeld {row.average.toFixed(1)}</p></div>
+                  <div className="min-w-0"><b>#{index + 1} {row.game.title}</b><p className="text-sm text-slate-500">{row.count} stemmen - gemiddeld {row.average.toFixed(1)}</p></div>
                   <div className="text-2xl font-black">{row.total}</div>
                 </div>
                 {!!row.missing.length && <p className="mt-2 text-xs text-slate-500">Nog niet gestemd: {row.missing.map((player) => player.name).join(', ')}</p>}
@@ -793,17 +842,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 className="mt-2 min-h-[16rem] w-full resize-y whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 outline-none focus:border-slate-400 focus:bg-white"
               />
             </div>
-            <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <button type="button" onClick={copyShareText} disabled={sharing || !shareTextValue.trim()} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                Kopiëren
+            <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
+              <button type="button" onClick={closeShareModal} disabled={sharing} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Sluiten</button>
+              <button type="button" onClick={confirmShareText} disabled={sharing || !shareTextValue.trim()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-50">
+                <Share2 size={18} /> {sharing ? 'Delen...' : 'Delen'}
               </button>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={closeShareModal} disabled={sharing} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Annuleren</button>
-                <button type="button" onClick={shareViaWhatsApp} disabled={sharing || !shareTextValue.trim()} className="rounded-2xl bg-emerald-600 px-5 py-3 font-bold text-white disabled:opacity-50">WhatsApp</button>
-                <button type="button" onClick={confirmShareText} disabled={sharing || !shareTextValue.trim()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-50">
-                  <Share2 size={18} /> {sharing ? 'Delen...' : 'Delen'}
-                </button>
-              </div>
             </div>
           </div>
         </div>

@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { serializeSession } from '@/lib/serializers';
 
+type PlanningMode = 'fixed_day' | 'vote_dates';
+
 function normalizeDate(value: unknown) {
   const date = String(value ?? '').trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
+function normalizePlanningMode(value: unknown): PlanningMode {
+  return value === 'fixed_day' ? 'fixed_day' : 'vote_dates';
 }
 
 function defaultDateOptions() {
@@ -19,12 +25,16 @@ function defaultDateOptions() {
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const title = String(body.title ?? '').trim();
+  const planningMode = normalizePlanningMode(body.planning_mode);
   const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
   const providedDates = Array.isArray(body.date_options) ? body.date_options.map(normalizeDate).filter(Boolean) as string[] : [];
   const dateOptions = Array.from(new Set(providedDates.length ? providedDates : defaultDateOptions())).sort();
+  const normalizedDateOptions = planningMode === 'fixed_day' ? (dateOptions[0] ? [dateOptions[0]] : []) : dateOptions;
+  const chosenDay = planningMode === 'fixed_day' ? normalizedDateOptions[0] ?? null : null;
+  const locked = planningMode === 'fixed_day' && Boolean(chosenDay);
 
   if (!title) return NextResponse.json({ error: 'Titel is verplicht.' }, { status: 400 });
-  if (!dateOptions.length) return NextResponse.json({ error: 'Voeg minstens één datum toe.' }, { status: 400 });
+  if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
 
   const collectionGames = collectionGameIds.length
     ? await prisma.collectionGame.findMany({ where: { id: { in: collectionGameIds }, hidden: false } })
@@ -49,12 +59,15 @@ export async function POST(request: Request) {
   for (const game of gamesFromCollection) {
     allGamesByTitle.set(game.title.toLowerCase(), game);
   }
+  const gamesToCreate = Array.from(allGamesByTitle.values());
 
   const session = await prisma.session.create({
     data: {
       title,
-      dateOptions: { create: dateOptions.map((date) => ({ date })) },
-      games: { create: Array.from(allGamesByTitle.values()) }
+      chosenDay,
+      locked,
+      dateOptions: { create: normalizedDateOptions.map((date) => ({ date })) },
+      ...(gamesToCreate.length ? { games: { create: gamesToCreate } } : {})
     },
     include: { dateOptions: { orderBy: { date: 'asc' } } }
   });

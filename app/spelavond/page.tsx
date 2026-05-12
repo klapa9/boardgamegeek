@@ -1,12 +1,14 @@
 import CreateSessionForm from '@/components/CreateSessionForm';
 
-export default function GameNightPage() {
+export default function GameNightPage({ searchParams }: { searchParams?: { nieuw?: string } }) {
+  const resetDraftOnLoad = searchParams?.nieuw === '1';
+
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col px-4 py-8">
       <section className="rounded-3xl bg-white p-6 shadow-soft md:p-10">
         <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Nieuwe spelavond</p>
-        <h1 className="text-3xl font-black tracking-tight md:text-5xl">Kies naam en datum</h1>
-        <CreateSessionForm mode="details" />
+        <h1 className="text-3xl font-black tracking-tight md:text-5xl">Stap 1: Instellingen</h1>
+        <CreateSessionForm mode="details" resetDraftOnLoad={resetDraftOnLoad} />
       </section>
     </main>
   );
