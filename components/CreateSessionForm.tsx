@@ -1,51 +1,129 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
-import { CollectionBundle, CollectionGameDto } from '@/lib/types';
+import GameCollectionPicker from './GameCollectionPicker';
 
-function meta(game: CollectionGameDto) {
-  return [
-    game.year_published,
-    game.community_players.length ? `community ${game.community_players.join(', ')} spelers` : game.min_players && game.max_players ? `${game.min_players}-${game.max_players} spelers` : null,
-    game.playing_time ? `${game.playing_time} min` : null,
-    game.bgg_weight ? `complexiteit ${game.bgg_weight.toFixed(1)}` : null,
-    game.play_mode === 'cooperative' ? 'co-op' : game.play_mode === 'competitive' ? 'competitive' : null
-  ].filter(Boolean).join(' · ');
+type CalendarCell = {
+  key: string;
+  date: string | null;
+  dayNumber: string;
+  isSelectable: boolean;
+  isToday: boolean;
+};
+
+type CalendarMonth = {
+  key: string;
+  label: string;
+  weeks: CalendarCell[][];
+};
+
+const WEEKDAY_LABELS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'] as const;
+
+function isoDateAfter(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function defaultDates() {
+  return [2, 4, 6].map(isoDateAfter);
+}
+
+function dateParts(date: string) {
+  const value = new Date(`${date}T12:00:00`);
+  return {
+    full: new Intl.DateTimeFormat('nl-BE', { weekday: 'long', day: 'numeric', month: 'long' }).format(value)
+  };
+}
+
+function localDateKey(value = new Date()) {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, '0');
+  const day = `${value.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function monthDateKey(value: Date) {
+  return `${value.getFullYear()}-${`${value.getMonth() + 1}`.padStart(2, '0')}`;
+}
+
+function buildCalendarMonth(visibleMonth: Date, todayKey: string) {
+  const year = visibleMonth.getFullYear();
+  const month = visibleMonth.getMonth() + 1;
+  const monthKey = `${year}-${`${month}`.padStart(2, '0')}`;
+  const firstDay = new Date(year, month - 1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstWeekday = (firstDay.getDay() + 6) % 7;
+  const cells: CalendarCell[] = [];
+
+  for (let index = 0; index < firstWeekday; index += 1) {
+    cells.push({
+      key: `${monthKey}-blank-start-${index}`,
+      date: null,
+      dayNumber: '',
+      isSelectable: false,
+      isToday: false
+    });
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = `${monthKey}-${`${day}`.padStart(2, '0')}`;
+    cells.push({
+      key: date,
+      date,
+      dayNumber: `${day}`,
+      isSelectable: date >= todayKey,
+      isToday: date === todayKey
+    });
+  }
+
+  while (cells.length % 7 !== 0) {
+    const index = cells.length;
+    cells.push({
+      key: `${monthKey}-blank-end-${index}`,
+      date: null,
+      dayNumber: '',
+      isSelectable: false,
+      isToday: false
+    });
+  }
+
+  const weeks: CalendarCell[][] = [];
+  for (let index = 0; index < cells.length; index += 7) {
+    weeks.push(cells.slice(index, index + 7));
+  }
+
+  return {
+    key: monthKey,
+    label: new Intl.DateTimeFormat('nl-BE', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)),
+    weeks
+  };
 }
 
 export default function CreateSessionForm() {
   const router = useRouter();
   const [title, setTitle] = useState('Spelavond');
-  const [collection, setCollection] = useState<CollectionGameDto[]>([]);
+  const [dateOptions, setDateOptions] = useState<string[]>(defaultDates);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [query, setQuery] = useState('');
-  const [loadingCollection, setLoadingCollection] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visibleMonthDate, setVisibleMonthDate] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const todayKey = useMemo(() => localDateKey(), []);
+  const currentMonthKey = useMemo(() => monthDateKey(new Date()), []);
+  const visibleMonth = useMemo(() => buildCalendarMonth(visibleMonthDate, todayKey), [todayKey, visibleMonthDate]);
 
-  useEffect(() => {
-    api<CollectionBundle>('/api/collection/games')
-      .then((data) => setCollection(data.games))
-      .catch(() => setCollection([]))
-      .finally(() => setLoadingCollection(false));
-  }, []);
-
-  const filteredCollection = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return collection;
-    return collection.filter((game) => game.title.toLowerCase().includes(q));
-  }, [collection, query]);
-
-  const selectedGames = useMemo(() => {
-    const selected = new Set(selectedIds);
-    return collection.filter((game) => selected.has(game.id));
-  }, [collection, selectedIds]);
-
-  function toggleGame(id: string) {
-    setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  function toggleDate(date: string) {
+    setDateOptions((current) => (
+      current.includes(date)
+        ? current.filter((item) => item !== date)
+        : Array.from(new Set([...current, date])).sort()
+    ));
   }
 
   async function createSession(event: React.FormEvent) {
@@ -58,6 +136,7 @@ export default function CreateSessionForm() {
         method: 'POST',
         body: JSON.stringify({
           title,
+          date_options: dateOptions,
           collection_game_ids: selectedIds
         })
       });
@@ -83,49 +162,88 @@ export default function CreateSessionForm() {
         />
       </div>
 
+      <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
+        <div className="max-w-xl">
+          {visibleMonth && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVisibleMonthDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
+                  disabled={visibleMonth.key === currentMonthKey}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 disabled:opacity-40"
+                  title="Vorige maand"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <h3 className="text-xs font-black capitalize text-slate-900">{visibleMonth.label}</h3>
+                <button
+                  type="button"
+                  onClick={() => setVisibleMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 disabled:opacity-40"
+                  title="Volgende maand"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase text-slate-400">
+                {WEEKDAY_LABELS.map((label) => <span key={label} className="py-1">{label}</span>)}
+              </div>
+              <div className="mt-1 space-y-1">
+                {visibleMonth.weeks.map((week, index) => (
+                  <div key={`${visibleMonth.key}-week-${index}`} className="grid grid-cols-7 gap-1">
+                    {week.map((cell) => {
+                      if (!cell.date) {
+                        return <div key={cell.key} className="aspect-square rounded-xl bg-transparent" aria-hidden="true" />;
+                      }
+
+                      const selected = dateOptions.includes(cell.date);
+                      const display = dateParts(cell.date);
+
+                      return (
+                        <button
+                          key={cell.key}
+                          type="button"
+                          disabled={!cell.isSelectable}
+                          onClick={() => toggleDate(cell.date!)}
+                          title={display.full}
+                          className={[
+                            'relative aspect-square rounded-lg border text-left transition',
+                            cell.isSelectable ? 'border-slate-200 bg-white hover:border-slate-300' : 'border-transparent bg-slate-100/70 text-slate-300',
+                            selected ? 'border-emerald-500 bg-emerald-100 text-emerald-950' : '',
+                            cell.isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : ''
+                          ].join(' ')}
+                        >
+                          <span className="flex h-full flex-col justify-between p-1.5">
+                            <span className="flex items-start justify-between gap-1">
+                              <span className={`text-xs font-black ${cell.isSelectable ? '' : 'text-slate-300'}`}>{cell.dayNumber}</span>
+                              {selected ? <Check size={13} className="shrink-0" /> : null}
+                            </span>
+                            <span className="text-[10px] leading-none text-transparent" aria-hidden="true">.</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        {!dateOptions.length && <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">Voeg minstens een datum toe.</p>}
+      </div>
+
       <div>
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <label className="block text-sm font-semibold text-slate-700">Kies spellen uit je lokale lijst</label>
-        </div>
-        <div className="relative mb-3">
-          <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Zoek in lokale spellenlijst" className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-9 pr-4 outline-none focus:border-slate-400" />
-        </div>
-        <div className="max-h-80 space-y-2 overflow-auto rounded-3xl border border-slate-100 bg-slate-50 p-2">
-          {loadingCollection && <p className="px-3 py-4 text-center text-sm text-slate-500">Spellen laden...</p>}
-          {!loadingCollection && filteredCollection.map((game) => {
-            const selected = selectedIds.includes(game.id);
-            return (
-              <button type="button" key={game.id} onClick={() => toggleGame(game.id)} className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left ${selected ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-100 bg-white'}`}>
-                {game.image_url ? <img src={game.image_url} alt="" className="h-12 w-12 rounded-xl object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-xl">🎲</div>}
-                <span className="min-w-0 flex-1"><b className="block truncate">{game.title}</b><span className={`text-sm ${selected ? 'text-slate-300' : 'text-slate-500'}`}>{meta(game) || 'Geen extra info'}</span></span>
-                <span className="font-black">{selected ? '✓' : '+'}</span>
-              </button>
-            );
-          })}
-          {!loadingCollection && !filteredCollection.length && <p className="px-3 py-6 text-center text-sm text-slate-500">Geen spellen gevonden.</p>}
-        </div>
-        <p className="mt-2 text-sm text-slate-500">Geselecteerd: <b>{selectedIds.length}</b></p>
-        {!!selectedGames.length && (
-          <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-3">
-            <p className="mb-2 text-sm font-semibold text-slate-700">Geselecteerde spellen</p>
-            <ul className="space-y-2">
-              {selectedGames.map((game) => (
-                <li key={game.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                  {game.image_url ? <img src={game.image_url} alt="" className="h-10 w-10 rounded-lg object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-lg">🎲</div>}
-                  <span className="min-w-0 flex-1">
-                    <b className="block truncate text-sm">{game.title}</b>
-                    <span className="block truncate text-xs text-slate-500">{meta(game) || 'Geen extra info'}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <GameCollectionPicker
+          selectedIds={selectedIds}
+          onSelectedIdsChange={setSelectedIds}
+          title="Kies spellen uit je lokale lijst"
+          subtitle="Dit is dezelfde spelkiezer die deelnemers later kunnen gebruiken om extra spellen toe te voegen."
+        />
       </div>
 
       {error && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-      <button disabled={loading} className="w-full rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-60">
+      <button disabled={loading || !dateOptions.length} className="w-full rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-60">
         {loading ? 'Spelavond maken...' : 'Spelavond maken'}
       </button>
     </form>

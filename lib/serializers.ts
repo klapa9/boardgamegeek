@@ -1,12 +1,23 @@
-import { Availability, CollectionGame, CollectionSyncState, Game, Player, Rating, Session } from '@prisma/client';
+import { Availability, CollectionGame, CollectionSyncState, Game, Player, Rating, Session, SessionDateOption } from '@prisma/client';
+import { cachedImageUrl } from '@/lib/image-cache';
 
-export function serializeSession(session: Session) {
+export function serializeDateOption(option: SessionDateOption) {
+  return {
+    id: option.id,
+    session_id: option.sessionId,
+    date: option.date,
+    created_at: option.createdAt.toISOString()
+  };
+}
+
+export function serializeSession(session: Session, dateOptions: SessionDateOption[] = []) {
   return {
     id: session.id,
     title: session.title,
     chosen_day: session.chosenDay,
     locked: session.locked,
-    created_at: session.createdAt.toISOString()
+    created_at: session.createdAt.toISOString(),
+    date_options: dateOptions.map(serializeDateOption)
   };
 }
 
@@ -26,7 +37,7 @@ export function serializeGame(game: Game) {
     title: game.title,
     bgg_id: game.bggId,
     year_published: game.yearPublished,
-    image_url: game.imageUrl,
+    image_url: cachedImageUrl(game.imageUrl),
     min_players: game.minPlayers,
     max_players: game.maxPlayers,
     playing_time: game.playingTime,
@@ -46,7 +57,7 @@ export function serializeCollectionGame(game: CollectionGame) {
     bgg_id: game.bggId,
     title: game.title,
     year_published: game.yearPublished,
-    image_url: game.imageUrl,
+    image_url: cachedImageUrl(game.imageUrl),
     min_players: game.minPlayers,
     max_players: game.maxPlayers,
     playing_time: game.playingTime,

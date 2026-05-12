@@ -77,7 +77,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     bggId: id,
     title: primaryName(item.name),
     yearPublished: item.yearpublished?.value ? Number(item.yearpublished.value) : null,
-    imageUrl: item.thumbnail ?? item.image ?? null,
+    imageUrl: item.image ?? item.thumbnail ?? null,
     minPlayers: item.minplayers?.value ? Number(item.minplayers.value) : null,
     maxPlayers: item.maxplayers?.value ? Number(item.maxplayers.value) : null,
     playingTime: item.playingtime?.value ? Number(item.playingtime.value) : null,

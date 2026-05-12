@@ -1,21 +1,17 @@
-export type DayKey = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
-
-export const DAYS: { key: DayKey; label: string; short: string }[] = [
-  { key: 'monday', label: 'Maandag', short: 'Ma' },
-  { key: 'tuesday', label: 'Dinsdag', short: 'Di' },
-  { key: 'wednesday', label: 'Woensdag', short: 'Wo' },
-  { key: 'thursday', label: 'Donderdag', short: 'Do' },
-  { key: 'friday', label: 'Vrijdag', short: 'Vr' },
-  { key: 'saturday', label: 'Zaterdag', short: 'Za' },
-  { key: 'sunday', label: 'Zondag', short: 'Zo' }
-];
+export type PlannerDateDto = {
+  id: string;
+  session_id: string;
+  date: string;
+  created_at: string;
+};
 
 export type SessionDto = {
   id: string;
   title: string;
-  chosen_day: DayKey | null;
+  chosen_day: string | null;
   locked: boolean;
   created_at: string;
+  date_options: PlannerDateDto[];
 };
 
 export type PlayerDto = {
@@ -71,7 +67,7 @@ export type CollectionSyncStateDto = {
 
 export type AvailabilityDto = {
   player_id: string;
-  day: DayKey;
+  day: string;
   available: boolean;
 };
 

@@ -126,6 +126,7 @@ function parseThingDetails(xml: string): Map<number, Partial<ParsedCollectionIte
     const mechanics = mechanicsFromLinks(item.link);
     const ratings = item.statistics?.ratings;
     details.set(bggId, {
+      imageUrl: item.image ?? item.thumbnail ?? null,
       minPlayers: num(item.minplayers?.value),
       maxPlayers: num(item.maxplayers?.value),
       playingTime: num(item.playingtime?.value),

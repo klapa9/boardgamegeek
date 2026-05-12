@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CollectionBundle, CollectionGameDto } from '@/lib/types';
 
@@ -21,8 +21,8 @@ export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessio
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (q.length < 2) return [];
-    return collection.filter((game) => game.title.toLowerCase().includes(q)).slice(0, 20);
+    if (!q) return collection.slice(0, 50);
+    return collection.filter((game) => game.title.toLowerCase().includes(q)).slice(0, 50);
   }, [collection, query]);
 
   async function search(event: React.FormEvent) {
@@ -64,7 +64,8 @@ export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessio
         </button>
       </form>
       {error && <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-      {!loading && query.trim().length >= 2 && !results.length && <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-sm text-slate-500">Geen spel gevonden in de gesynchroniseerde lijst.</p>}
+      {!loading && !results.length && <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-sm text-slate-500">Geen spel gevonden in de gesynchroniseerde lijst.</p>}
+      {!loading && !query.trim() && !!results.length && <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Alle spellen uit de lijst</p>}
       {!!results.length && (
         <div className="mt-3 space-y-2">
           {results.map((game) => (
@@ -80,7 +81,7 @@ export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessio
                 <b className="block truncate">{game.title}</b>
                 {game.year_published ? <span className="text-sm text-slate-500">{game.year_published}</span> : null}
               </span>
-              {addingId === game.id && <span className="text-sm text-slate-500">toevoegen...</span>}
+              {addingId === game.id ? <span className="text-sm text-slate-500">toevoegen...</span> : <Plus size={18} className="text-slate-400" />}
             </button>
           ))}
         </div>
