@@ -15,6 +15,7 @@ export function serializeSession(session: Session, dateOptions: SessionDateOptio
     id: session.id,
     title: session.title,
     chosen_day: session.chosenDay,
+    chosen_game_id: session.chosenGameId,
     locked: session.locked,
     created_at: session.createdAt.toISOString(),
     date_options: dateOptions.map(serializeDateOption)

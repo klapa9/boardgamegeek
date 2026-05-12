@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, Plus } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
+import { sessionPath } from '@/lib/session-link';
 import { GameDto, PlayerDto, SessionDto } from '@/lib/types';
 import GameCollectionPicker from './GameCollectionPicker';
 
@@ -78,7 +79,7 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
   return (
     <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 pb-16">
       <header className="rounded-3xl bg-white p-5 shadow-soft">
-        <Link href={`/s/${sessionId}`} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
+        <Link href={sessionPath(sessionId, session.title)} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
           <ArrowLeft size={16} /> Terug naar spelavond
         </Link>
         <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -107,7 +108,7 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
           maxHeightClassName="max-h-[32rem]"
         />
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Link href={`/s/${sessionId}`} className="rounded-2xl border border-slate-200 px-5 py-3 text-center font-bold text-slate-700 hover:bg-slate-50">Annuleren</Link>
+          <Link href={sessionPath(sessionId, session.title)} className="rounded-2xl border border-slate-200 px-5 py-3 text-center font-bold text-slate-700 hover:bg-slate-50">Annuleren</Link>
           <button
             type="button"
             onClick={addSelectedGames}

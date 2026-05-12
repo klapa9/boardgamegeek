@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { CalendarDays, Check, Copy, Dice5, Lock, Plus, RefreshCw, Share2, Trash2, Trophy, Unlock, UserRound, X } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Check, Dice5, Lock, Plus, RefreshCw, Settings2, Share2, Trash2, Trophy, Unlock, UserRound, X } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
 import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto } from '@/lib/types';
+import { sessionUrl } from '@/lib/session-link';
 import GameCollectionPicker from './GameCollectionPicker';
 
 type ResultRow = {
@@ -20,13 +22,46 @@ type DateRow = SessionDto['date_options'][number] & {
   label: string;
   players: PlayerDto[];
 };
-type FlowView = 'availability' | 'rating' | 'results';
+type FlowView = 'availability' | 'rating' | 'results' | 'chosen_game';
 
 const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 const SESSION_REFRESH_INTERVAL_MS = 15000;
 const SCORE_AUTOSAVE_DELAY_MS = 250;
 const META_SEPARATOR = ' - ';
 const LIST_BULLET = '-';
+
+type InviteTemplateInput = {
+  title: string;
+  dateLabel: string;
+  dateOptions: string;
+  chosenGameTitle: string;
+  url: string;
+  gameListWithOverflow: string;
+};
+
+function inviteTemplateGameFixedDateFixed({ title, dateLabel, chosenGameTitle, url }: InviteTemplateInput) {
+  return `${title}\n\nOp ${dateLabel} spelen we het spel: ${chosenGameTitle}.\n\nBevestig je aanwezigheid via:\n${url}`;
+}
+
+function inviteTemplateGameFixedDateOpen({ title, dateOptions, chosenGameTitle, url }: InviteTemplateInput) {
+  return `${title}\n\nWe gaan ${chosenGameTitle} spelen. Wie kan wanneer?\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
+}
+
+function inviteTemplateGameOpenDateFixedWithList({ title, dateLabel, url, gameListWithOverflow }: InviteTemplateInput) {
+  return `${title}\n\nOp ${dateLabel} ligt de datum vast. Welk spel zie jij zitten?\n\nGeef je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
+}
+
+function inviteTemplateGameOpenDateOpenWithList({ title, dateOptions, url, gameListWithOverflow }: InviteTemplateInput) {
+  return `${title}\n\nWie kan wanneer?\n${dateOptions}\n\nGeef je beschikbaarheid en je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
+}
+
+function inviteTemplateNoPreselectDateFixed({ title, dateLabel, url }: InviteTemplateInput) {
+  return `${title}\n\nOp ${dateLabel} ligt de datum vast. Het spel kiezen we samen.\n\nGeef je spelvoorkeur door via:\n${url}`;
+}
+
+function inviteTemplateNoPreselectDateOpen({ title, dateOptions, url }: InviteTemplateInput) {
+  return `${title}\n\nHet spel kiezen we samen. Wie kan wanneer?\n${dateOptions}\n\nGeef je beschikbaarheid en je spelvoorkeur door via:\n${url}`;
+}
 
 const SCORE_BADGES: Record<number, { label: string; className: string }> = {
   0: { label: 'Nooit', className: 'bg-red-950 text-white' },
@@ -165,6 +200,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const currentPlayerHasPlanning = useMemo(() => (
     currentPlayerId ? availability.some((item) => item.player_id === currentPlayerId) : false
   ), [availability, currentPlayerId]);
+  const currentPlayerChosenDayAvailability = useMemo(() => {
+    if (!currentPlayerId || !session?.chosen_day) return null;
+    return availabilityByPlayerDay.get(playerDateKey(currentPlayerId, session.chosen_day)) ?? null;
+  }, [availabilityByPlayerDay, currentPlayerId, session?.chosen_day]);
   const currentPlayerHasUnratedGames = useMemo(() => {
     if (!currentPlayerId) return false;
     return games.some((game) => !scoreByPlayerGame.has(playerGameKey(currentPlayerId, game.id)));
@@ -209,8 +248,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       return;
     }
 
+    const nextView: FlowView = session?.chosen_game_id ? 'chosen_game' : (currentPlayerHasUnratedGames ? 'rating' : 'results');
+
     if (session?.locked && session.chosen_day) {
-      setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
+      if (!currentPlayerChosenDayAvailability) {
+        initialViewResolved.current = true;
+        return;
+      }
+      setView(nextView);
       initialViewResolved.current = true;
       return;
     }
@@ -220,9 +265,25 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       return;
     }
 
-    setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
+    setView(nextView);
     initialViewResolved.current = true;
-  }, [currentPlayerHasPlanning, currentPlayerHasUnratedGames, currentPlayerId, loading, session?.chosen_day, session?.locked]);
+  }, [currentPlayerChosenDayAvailability, currentPlayerHasPlanning, currentPlayerHasUnratedGames, currentPlayerId, loading, session?.chosen_day, session?.chosen_game_id, session?.locked]);
+
+  useEffect(() => {
+    if (loading || !currentPlayerId) return;
+    if (!(session?.locked && session.chosen_day)) return;
+    if (currentPlayerChosenDayAvailability) return;
+    setView('availability');
+  }, [currentPlayerChosenDayAvailability, currentPlayerId, loading, session?.chosen_day, session?.locked]);
+
+  useEffect(() => {
+    if (loading || !currentPlayerId) return;
+    if (session?.chosen_game_id) return;
+    if (view !== 'results') return;
+    if (!currentPlayerHasUnratedGames) return;
+    setSelectedGameId(null);
+    setView('rating');
+  }, [currentPlayerHasUnratedGames, currentPlayerId, loading, session?.chosen_game_id, view]);
 
   useEffect(() => {
     if (!session || initialShareIntentHandled.current) return;
@@ -282,7 +343,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   function confirmAvailability() {
     if (!currentPlayer) return;
     setSelectedGameId(null);
-    setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
+    setView(session?.chosen_game_id ? 'chosen_game' : (currentPlayerHasUnratedGames ? 'rating' : 'results'));
   }
 
   async function joinSession(event: React.FormEvent) {
@@ -308,10 +369,9 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
-  async function toggleAvailability(date: string) {
-    if (!currentPlayerId || session?.locked) return;
+  async function setAvailabilityForDay(date: string, available: boolean) {
+    if (!currentPlayerId) return;
     const playerId = currentPlayerId;
-    const available = !isAvailable(date);
     const previousAvailability = availability;
     setError(null);
     setAvailability((items) => {
@@ -338,10 +398,15 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
+  async function toggleAvailability(date: string) {
+    await setAvailabilityForDay(date, !isAvailable(date));
+  }
+
   async function chooseDate(date: string | null, locked = Boolean(date)) {
     if (!adminToken) return;
     const previousSession = session;
     setError(null);
+    setSaving(true);
     setSession((current) => current ? { ...current, chosen_day: date, locked: date ? locked : false } : current);
     setMessage(date ? `Datum vastgelegd: ${formatDate(date)}.` : 'Planning opnieuw opengezet.');
 
@@ -354,6 +419,55 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     } catch (err) {
       setSession(previousSession);
       setError(err instanceof Error ? err.message : 'Datum kiezen mislukt.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function chooseGame(gameId: string | null) {
+    if (!adminToken) return;
+    const previousSession = session;
+    const gameTitle = gameId ? games.find((game) => game.id === gameId)?.title ?? 'Het gekozen spel' : null;
+    setError(null);
+    setSaving(true);
+    setSession((current) => current ? { ...current, chosen_game_id: gameId } : current);
+    setMessage(gameId ? `${gameTitle} ligt nu vast voor deze spelavond.` : 'Spelkeuze opnieuw opengezet.');
+
+    try {
+      const data = await api<{ session: SessionDto }>(`/api/sessions/${sessionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ admin_token: adminToken, chosen_game_id: gameId })
+      });
+      setSession(data.session);
+      setSelectedGameId(gameId);
+      if (gameId) setView('chosen_game');
+      else setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
+    } catch (err) {
+      setSession(previousSession);
+      setError(err instanceof Error ? err.message : 'Spel vastzetten mislukt.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteSession() {
+    if (!adminToken) return;
+    const confirmed = window.confirm(
+      'Deze spelavond wordt definitief verwijderd.\n\nAlle deelnemers, planning, scores en spellen in deze spelavond gaan onomkeerbaar verloren.\n\nWeet je zeker dat je wil doorgaan?'
+    );
+    if (!confirmed) return;
+
+    setError(null);
+    setSaving(true);
+    try {
+      await api(`/api/sessions/${sessionId}?admin_token=${encodeURIComponent(adminToken)}`, { method: 'DELETE' });
+      localStorage.removeItem(adminKey(sessionId));
+      localStorage.removeItem(playerKey(sessionId));
+      router.push('/spelavonden');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Spelavond verwijderen mislukt.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -418,7 +532,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       if (addedCount && skippedCount) setMessage(`${addedCount} spel${addedCount === 1 ? '' : 'len'} toegevoegd. ${skippedCount} stond${skippedCount === 1 ? '' : 'en'} al in de lijst.`);
       else if (addedCount) setMessage(`${addedCount} spel${addedCount === 1 ? '' : 'len'} toegevoegd aan de spelavond.`);
       else setMessage('Geen nieuwe spellen toegevoegd: deze spellen stonden al in de lijst.');
-      setView('results');
+      setSelectedGameId(null);
+      setView(addedCount > 0 ? 'rating' : 'results');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Spellen toevoegen mislukt.');
     } finally {
@@ -463,7 +578,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
     if (selectedGameId === gameId && wasAlreadyRated) {
       setSelectedGameId(null);
-      setView('results');
+      setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
       return;
     }
 
@@ -478,23 +593,40 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }
 
   function buildInviteText() {
-    const url = `${window.location.origin}/s/${sessionId}`;
-    const dates = session?.locked && session.chosen_day
-      ? `${LIST_BULLET} Vastgelegd: ${formatDate(session.chosen_day)}`
-      : dateRows.map((row) => `${LIST_BULLET} ${row.label}`).join('\n') || `${LIST_BULLET} datum nog te bepalen`;
+    const url = sessionUrl(window.location.origin, sessionId, session?.title);
+    const dateLabel = session?.chosen_day ? formatDate(session.chosen_day) : 'datum nog te bepalen';
+    const dateOptions = dateRows.map((row) => `${LIST_BULLET} ${row.label}`).join('\n') || `${LIST_BULLET} datum nog te bepalen`;
+    const chosenGame = session?.chosen_game_id ? games.find((game) => game.id === session.chosen_game_id) ?? null : null;
+    const chosenGameTitle = chosenGame?.title ?? 'dit spel';
     const gameList = games.slice(0, 8).map((game) => `${LIST_BULLET} ${game.title}`).join('\n');
     const extraGames = games.length > 8 ? `\n${LIST_BULLET} ... en nog ${games.length - 8} spel${games.length - 8 === 1 ? '' : 'len'}` : '';
-    const intro = session?.locked ? 'De datum ligt vast.' : 'Wanneer kan je?';
-    const action = session?.locked ? 'Geef je spelvoorkeur door via:' : 'Geef je beschikbaarheid en je spelvoorkeur door via:';
-    return `${session?.title ?? 'Spelavond'}\n\n${intro}\n${dates}\n\n${action}\n${url}${gameList ? `\n\nSpellen op de lijst:\n${gameList}${extraGames}` : ''}`;
-  }
+    const hasGameOptions = Boolean(gameList);
+    const gameListWithOverflow = `${gameList}${extraGames}`;
+    const input: InviteTemplateInput = {
+      title: session?.title ?? 'Spelavond',
+      dateLabel,
+      dateOptions,
+      chosenGameTitle,
+      url,
+      gameListWithOverflow
+    };
 
-  function buildResultText() {
-    const url = `${window.location.origin}/s/${sessionId}`;
-    const dateLabel = session?.chosen_day ? formatDate(session.chosen_day) : 'datum nog te kiezen';
-    const top = winner ? `${winner.game.title} (${winner.total} punten, ${winner.average.toFixed(1)} gemiddeld)` : 'nog geen winnaar';
-    const playersText = eligiblePlayers.map((player) => player.name).join(', ') || 'nog niemand';
-    return `${session?.title ?? 'Spelavond'}\n\nDatum: ${dateLabel}\nSpel: ${top}\nSpelers: ${playersText}\n\n${url}`;
+    if (chosenGame && session?.locked) {
+      return inviteTemplateGameFixedDateFixed(input);
+    }
+    if (chosenGame) {
+      return inviteTemplateGameFixedDateOpen(input);
+    }
+    if (session?.locked && hasGameOptions) {
+      return inviteTemplateGameOpenDateFixedWithList(input);
+    }
+    if (!session?.locked && hasGameOptions) {
+      return inviteTemplateGameOpenDateOpenWithList(input);
+    }
+    if (session?.locked) {
+      return inviteTemplateNoPreselectDateFixed(input);
+    }
+    return inviteTemplateNoPreselectDateOpen(input);
   }
 
   function clearShareIntent() {
@@ -512,10 +644,6 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
   function shareInvite() {
     openShareModal('Spelavond delen', buildInviteText());
-  }
-
-  function shareResult() {
-    openShareModal('Resultaat delen', buildResultText());
   }
 
   function closeShareModal() {
@@ -548,16 +676,42 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   if (loading) return <main className="mx-auto max-w-4xl px-4 py-8">Laden...</main>;
   if (!session) return <main className="mx-auto max-w-4xl px-4 py-8">Sessie niet gevonden.</main>;
 
+  const chosenGame = session.chosen_game_id ? games.find((game) => game.id === session.chosen_game_id) ?? null : null;
+  const summaryParts = [`${players.length} speler${players.length === 1 ? '' : 's'}`];
+  if (chosenGame) summaryParts.push(chosenGame.title);
+  if (session.chosen_day) summaryParts.push(formatDate(session.chosen_day));
+
   return (
     <main className="mx-auto max-w-6xl space-y-5 px-4 py-6 pb-16">
       <header className="rounded-3xl bg-white p-5 shadow-soft">
-        <div className="flex items-start justify-between gap-3">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 underline">
+          <ArrowLeft size={16} />
+          Terug naar hoofdpagina
+        </Link>
+        <div className="mt-3 flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Gezelschapsspelkiezer</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Spelkeuze</p>
             <h1 className="mt-1 text-3xl font-black tracking-tight">{session.title}</h1>
-            <p className="mt-2 text-sm text-slate-500">{players.length} speler{players.length === 1 ? '' : 's'} - {games.length} spel{games.length === 1 ? '' : 'len'} - {dateOptions.length} datum{dateOptions.length === 1 ? '' : 's'}</p>
+            <p className="mt-2 text-sm text-slate-500">{summaryParts.join(' - ')}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            {isAdmin && (
+              <Link href={`/spelavond?bewerk=${sessionId}`} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-700">
+                <Settings2 size={18} /> Instellingen wijzigen
+              </Link>
+            )}
+            <button onClick={() => setView('availability')} className="rounded-2xl border border-slate-200 p-3" title="Planning"><CalendarDays size={20} /></button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={deleteSession}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-3 py-3 text-sm font-bold text-red-700 disabled:opacity-60"
+                title="Spelavond definitief verwijderen"
+              >
+                <Trash2 size={18} /> Verwijderen
+              </button>
+            )}
             <button onClick={() => refresh(true)} className="rounded-2xl border border-slate-200 p-3" title="Vernieuwen"><RefreshCw size={20} /></button>
             <button onClick={shareInvite} className="rounded-2xl border border-slate-200 p-3" title="Spelavond delen"><Share2 size={20} /></button>
           </div>
@@ -574,29 +728,6 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
         {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       </header>
 
-      {session.locked && session.chosen_day && chosenDateRow && (
-        <section className="rounded-3xl bg-emerald-950 p-5 text-white shadow-soft">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-white text-emerald-950">
-                <span className="text-xs font-black uppercase">{chosenDateRow.display.month}</span>
-                <span className="text-2xl font-black leading-none">{chosenDateRow.display.day}</span>
-              </div>
-              <div>
-                <p className="flex items-center gap-2 text-sm font-bold text-emerald-100"><Lock size={16} /> Datum vastgelegd</p>
-                <h2 className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday}</h2>
-                <p className="text-emerald-100">{chosenDateRow.display.full} - Tijd volgt</p>
-              </div>
-            </div>
-            {isAdmin && (
-              <button onClick={() => chooseDate(null)} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-emerald-950 disabled:opacity-60">
-                <Unlock size={18} /> Planning heropenen
-              </button>
-            )}
-          </div>
-        </section>
-      )}
-
       {view === 'availability' && (
         <section className="rounded-3xl bg-white p-5 shadow-soft">
           <div className="mb-4 flex items-center gap-2"><CalendarDays size={20} /><h2 className="text-xl font-black">Wanneer kan je?</h2></div>
@@ -605,6 +736,30 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               <p className="text-sm font-bold">De organisator heeft de datum gekozen.</p>
               <p className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday}</p>
               <p>{chosenDateRow.display.full} - Tijd volgt</p>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={!currentPlayer || saving}
+                  onClick={() => {
+                    if (!session.chosen_day) return;
+                    setAvailabilityForDay(session.chosen_day, true);
+                  }}
+                  className={`rounded-2xl border px-4 py-3 text-left font-bold ${currentPlayerChosenDayAvailability?.available ? 'border-emerald-700 bg-emerald-200 text-emerald-950' : 'border-emerald-200 bg-white text-emerald-900'}`}
+                >
+                  {currentPlayerChosenDayAvailability?.available ? 'Aanwezig bevestigd' : 'Ik ben aanwezig'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!currentPlayer || saving}
+                  onClick={() => {
+                    if (!session.chosen_day) return;
+                    setAvailabilityForDay(session.chosen_day, false);
+                  }}
+                  className={`rounded-2xl border px-4 py-3 text-left font-bold ${currentPlayerChosenDayAvailability && !currentPlayerChosenDayAvailability.available ? 'border-slate-700 bg-slate-200 text-slate-950' : 'border-slate-200 bg-white text-slate-700'}`}
+                >
+                  {currentPlayerChosenDayAvailability && !currentPlayerChosenDayAvailability.available ? 'Afwezig bevestigd' : 'Ik kan niet'}
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -614,41 +769,52 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   const isToday = row.date === localDateKey();
                   const needsLoginHint = !currentPlayer;
                   const availableNames = row.players.map((player) => player.name);
+                  const cardClassName = [
+                    'rounded-2xl border p-4 transition',
+                    selected ? 'border-emerald-500 bg-emerald-100 text-emerald-950' : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300',
+                    isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
+                    saving ? 'opacity-60' : ''
+                  ].join(' ');
 
                   return (
-                    <button
-                      key={row.date}
-                      type="button"
-                      disabled={saving}
-                      onClick={() => {
-                        if (!currentPlayer) return;
-                        toggleAvailability(row.date);
-                      }}
-                      title={needsLoginHint ? 'vul eerst je naam in of log in' : row.label}
-                      className={[
-                        'rounded-2xl border p-4 text-left transition',
-                        selected ? 'border-emerald-500 bg-emerald-100 text-emerald-950' : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300',
-                        isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
-                        needsLoginHint ? 'cursor-help' : '',
-                        saving ? 'disabled:opacity-60' : ''
-                      ].join(' ')}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="text-base font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
-                          <p className={`mt-1 text-xs font-bold ${selected ? 'text-emerald-700' : 'text-slate-500'}`}>
-                            {selected ? 'Jij bent beschikbaar' : 'Klik om beschikbaar te zijn'}
+                    <div key={row.date} className={cardClassName}>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => {
+                          if (!currentPlayer) return;
+                          toggleAvailability(row.date);
+                        }}
+                        title={needsLoginHint ? 'vul eerst je naam in of log in' : row.label}
+                        className={`w-full text-left ${needsLoginHint ? 'cursor-help' : ''}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="text-base font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
+                            <p className={`mt-1 text-xs font-bold ${selected ? 'text-emerald-700' : 'text-slate-500'}`}>
+                              {selected ? 'Jij bent beschikbaar' : 'Klik om beschikbaar te zijn'}
+                            </p>
+                          </div>
+                          {selected ? <Check size={16} className="shrink-0" /> : null}
+                        </div>
+                        <div className="mt-3">
+                          <p className={`text-xs font-bold uppercase ${selected ? 'text-emerald-700' : 'text-slate-500'}`}>Deelnemers</p>
+                          <p className={`mt-1 text-sm leading-6 ${selected ? 'text-emerald-900' : 'text-slate-600'}`}>
+                            {availableNames.length ? availableNames.join(', ') : 'Nog niemand'}
                           </p>
                         </div>
-                        {selected ? <Check size={16} className="shrink-0" /> : null}
-                      </div>
-                      <div className="mt-3">
-                        <p className={`text-xs font-bold uppercase ${selected ? 'text-emerald-700' : 'text-slate-500'}`}>Deelnemers</p>
-                        <p className={`mt-1 text-sm leading-6 ${selected ? 'text-emerald-900' : 'text-slate-600'}`}>
-                          {availableNames.length ? availableNames.join(', ') : 'Nog niemand'}
-                        </p>
-                      </div>
-                    </button>
+                      </button>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => chooseDate(row.date)}
+                          disabled={saving}
+                          className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50"
+                        >
+                          <Lock size={16} /> Zet deze dag vast
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -659,17 +825,52 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               </div>
             </>
           )}
-          <button onClick={confirmAvailability} disabled={!currentPlayer} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-4 font-black text-white disabled:opacity-50">
-            <Check size={20} /> {session.locked ? 'Verder naar scores' : 'Bevestig aanwezigheid'}
+          <button onClick={confirmAvailability} disabled={!currentPlayer || Boolean(session.locked && session.chosen_day && !currentPlayerChosenDayAvailability)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-4 font-black text-white disabled:opacity-50">
+            <Check size={20} /> {session.locked ? 'Bevestig aanwezigheid en ga verder' : 'Bevestig aanwezigheid'}
           </button>
         </section>
       )}
 
-      {view === 'rating' && (
+      {view === 'chosen_game' && chosenGame && (
+        <section className="mx-auto max-w-2xl rounded-3xl bg-white p-5 shadow-soft">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><Dice5 size={20} /><h2 className="text-xl font-black">Spel ligt vast</h2></div>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => chooseGame(null)}
+                disabled={saving}
+                className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold disabled:opacity-60"
+              >
+                <Unlock size={16} className="inline" /> Spelkeuze heropenen
+              </button>
+            )}
+          </div>
+          <article className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+            {chosenGame.image_url ? (
+              <img src={chosenGame.image_url} alt={chosenGame.title} className="aspect-[16/11] w-full rounded-2xl bg-white object-cover shadow-sm" />
+            ) : (
+              <div className="flex aspect-[16/11] w-full items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm"><Dice5 size={64} /></div>
+            )}
+            <div className="mt-4">
+              <h3 className="text-2xl font-black leading-tight">{chosenGame.title}</h3>
+              <p className="mt-2 text-sm text-slate-600">{formatGameMeta(chosenGame) || 'Geen extra info beschikbaar'}</p>
+              {chosenGame.mechanics.length > 0 && (
+                <p className="mt-2 text-sm text-slate-600">Mechanieken: {chosenGame.mechanics.join(', ')}</p>
+              )}
+              <p className="mt-2 text-sm text-slate-600">Community spelers: {chosenGame.community_players.length ? chosenGame.community_players.join(', ') : 'niet gekend'}</p>
+            </div>
+          </article>
+        </section>
+      )}
+
+      {view === 'rating' && !chosenGame && (
         <section className="mx-auto max-w-xl rounded-3xl bg-white p-5 shadow-soft">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2"><Dice5 size={20} /><h2 className="text-xl font-black">Geef je score</h2></div>
-            <button onClick={() => { setSelectedGameId(null); setView('results'); }} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold">Tabel</button>
+            {!currentPlayerHasUnratedGames && (
+              <button onClick={() => { setSelectedGameId(null); setView('results'); }} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold">Tabel</button>
+            )}
           </div>
           {activeRatingGame ? (() => {
             const game = activeRatingGame;
@@ -712,6 +913,16 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                     ))}
                   </div>
                 </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => chooseGame(game.id)}
+                    disabled={saving}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                  >
+                    <Lock size={18} /> Zet dit spel vast
+                  </button>
+                )}
               </article>
             );
           })() : (
@@ -723,22 +934,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
         </section>
       )}
 
-      {view === 'results' && (
+      {view === 'results' && !chosenGame && (
         <section className="rounded-3xl bg-white p-5 shadow-soft">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2"><Trophy size={20} /><h2 className="text-xl font-black">Scoretabel</h2></div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => setView('availability')} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold"><CalendarDays size={16} className="inline" /> Planning</button>
-              <button onClick={shareInvite} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold"><Share2 size={16} className="inline" /> Spelavond delen</button>
-              <button onClick={shareResult} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold"><Copy size={16} className="inline" /> Resultaat delen</button>
-            </div>
-          </div>
-          <div className="mb-4 rounded-2xl bg-slate-50 px-4 py-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-bold text-slate-800">Extra spellen voorstellen?</p>
-                <p className="mt-1 text-sm text-slate-500">Voeg een of meerdere spellen toe uit de collectie van de organisator of jezelf.</p>
-              </div>
+            <div>
               <button
                 type="button"
                 onClick={openAddGamesModal}
@@ -759,18 +959,29 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           )}
           <div className="space-y-2">
             {results.map((row, index) => (
-              <button
-                key={row.game.id}
-                onClick={() => { setSelectedGameId(row.game.id); setView('rating'); }}
-                className="w-full rounded-2xl bg-slate-50 px-4 py-3 text-left hover:bg-slate-100"
-                type="button"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0"><b>#{index + 1} {row.game.title}</b><p className="text-sm text-slate-500">{row.count} stemmen - gemiddeld {row.average.toFixed(1)}</p></div>
-                  <div className="text-2xl font-black">{row.total}</div>
-                </div>
-                {!!row.missing.length && <p className="mt-2 text-xs text-slate-500">Nog niet gestemd: {row.missing.map((player) => player.name).join(', ')}</p>}
-              </button>
+              <div key={row.game.id} className="rounded-2xl bg-slate-50 px-4 py-3">
+                <button
+                  onClick={() => { setSelectedGameId(row.game.id); setView('rating'); }}
+                  className="w-full text-left"
+                  type="button"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0"><b>#{index + 1} {row.game.title}</b><p className="text-sm text-slate-500">{row.count} stemmen - gemiddeld {row.average.toFixed(1)}</p></div>
+                    <div className="text-2xl font-black">{row.total}</div>
+                  </div>
+                  {!!row.missing.length && <p className="mt-2 text-xs text-slate-500">Nog niet gestemd: {row.missing.map((player) => player.name).join(', ')}</p>}
+                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => chooseGame(row.game.id)}
+                    disabled={saving}
+                    className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-50"
+                  >
+                    <Lock size={16} /> Zet dit spel vast
+                  </button>
+                )}
+              </div>
             ))}
             {!results.length && <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-slate-500">Nog geen resultaat.</p>}
           </div>

@@ -28,6 +28,8 @@ type GameCollectionPickerProps = {
   disabledIds?: string[];
   disabledTitles?: string[];
   disabledBggIds?: number[];
+  autoSelectTitles?: string[];
+  autoSelectBggIds?: number[];
   disabledReason?: string;
   title?: string;
   subtitle?: string;
@@ -41,6 +43,8 @@ export default function GameCollectionPicker({
   disabledIds = [],
   disabledTitles = [],
   disabledBggIds = [],
+  autoSelectTitles = [],
+  autoSelectBggIds = [],
   disabledReason = 'Dit spel staat al in de lijst.',
   title = 'Kies spellen uit je lokale lijst',
   subtitle = 'Je kan meerdere spellen selecteren.',
@@ -56,6 +60,7 @@ export default function GameCollectionPicker({
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<number | null>(null);
+  const autoSelectApplied = useRef(false);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const disabledIdSet = useMemo(() => new Set(disabledIds), [disabledIds]);
@@ -68,6 +73,10 @@ export default function GameCollectionPicker({
       .catch((err) => setError(err instanceof Error ? err.message : 'Spellenlijst laden mislukt.'))
       .finally(() => setLoadingCollection(false));
   }, []);
+
+  useEffect(() => {
+    autoSelectApplied.current = false;
+  }, [autoSelectBggIds, autoSelectTitles]);
 
   const filteredCollection = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -87,6 +96,21 @@ export default function GameCollectionPicker({
   const selectedGames = useMemo(() => {
     return collection.filter((game) => selectedIdSet.has(game.id));
   }, [collection, selectedIdSet]);
+
+  useEffect(() => {
+    if (loadingCollection || autoSelectApplied.current) return;
+    autoSelectApplied.current = true;
+    if (!autoSelectTitles.length && !autoSelectBggIds.length) return;
+
+    const titleSet = new Set(autoSelectTitles.map(normalizeTitle));
+    const bggIdSet = new Set(autoSelectBggIds);
+    const autoSelectedIds = collection
+      .filter((game) => titleSet.has(normalizeTitle(game.title)) || (game.bgg_id !== null && bggIdSet.has(game.bgg_id)))
+      .map((game) => game.id);
+
+    if (!autoSelectedIds.length) return;
+    onSelectedIdsChange(Array.from(new Set([...selectedIds, ...autoSelectedIds])));
+  }, [autoSelectBggIds, autoSelectTitles, collection, loadingCollection, onSelectedIdsChange, selectedIds]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);

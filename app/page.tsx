@@ -18,7 +18,7 @@ export default function HomePage() {
             <ExternalLink size={20} />
           </a>
           <Link
-            href="/games"
+            href="/collectie"
             className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 font-black text-slate-950 transition hover:border-slate-300 hover:bg-white"
           >
             <span>Bekijk mijn collectie</span>

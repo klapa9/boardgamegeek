@@ -9,6 +9,7 @@ export type SessionDto = {
   id: string;
   title: string;
   chosen_day: string | null;
+  chosen_game_id: string | null;
   locked: boolean;
   created_at: string;
   date_options: PlannerDateDto[];

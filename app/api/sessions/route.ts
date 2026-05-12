@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { serializeSession } from '@/lib/serializers';
 
 type PlanningMode = 'fixed_day' | 'vote_dates';
+type GameSelectionMode = 'no_preselect' | 'host_pick' | 'players_pick';
 
 function normalizeDate(value: unknown) {
   const date = String(value ?? '').trim();
@@ -11,6 +12,12 @@ function normalizeDate(value: unknown) {
 
 function normalizePlanningMode(value: unknown): PlanningMode {
   return value === 'fixed_day' ? 'fixed_day' : 'vote_dates';
+}
+
+function normalizeGameSelectionMode(value: unknown): GameSelectionMode {
+  if (value === 'host_pick') return 'host_pick';
+  if (value === 'no_preselect') return 'no_preselect';
+  return 'players_pick';
 }
 
 function defaultDateOptions() {
@@ -26,6 +33,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const title = String(body.title ?? '').trim();
   const planningMode = normalizePlanningMode(body.planning_mode);
+  const gameSelectionMode = normalizeGameSelectionMode(body.game_selection_mode);
   const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
   const providedDates = Array.isArray(body.date_options) ? body.date_options.map(normalizeDate).filter(Boolean) as string[] : [];
   const dateOptions = Array.from(new Set(providedDates.length ? providedDates : defaultDateOptions())).sort();
@@ -69,8 +77,23 @@ export async function POST(request: Request) {
       dateOptions: { create: normalizedDateOptions.map((date) => ({ date })) },
       ...(gamesToCreate.length ? { games: { create: gamesToCreate } } : {})
     },
-    include: { dateOptions: { orderBy: { date: 'asc' } } }
+    include: {
+      dateOptions: { orderBy: { date: 'asc' } },
+      games: { orderBy: { createdAt: 'asc' } }
+    }
   });
 
-  return NextResponse.json({ session: serializeSession(session, session.dateOptions), admin_token: session.adminToken });
+  let responseSession = session;
+  if (gameSelectionMode === 'host_pick' && session.games.length === 1) {
+    responseSession = await prisma.session.update({
+      where: { id: session.id },
+      data: { chosenGameId: session.games[0].id },
+      include: {
+        dateOptions: { orderBy: { date: 'asc' } },
+        games: { orderBy: { createdAt: 'asc' } }
+      }
+    });
+  }
+
+  return NextResponse.json({ session: serializeSession(responseSession, responseSession.dateOptions), admin_token: responseSession.adminToken });
 }

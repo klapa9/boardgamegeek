@@ -1,23 +1,18 @@
 import Link from 'next/link';
-import { CalendarPlus, ChevronRight } from 'lucide-react';
+import { CalendarPlus } from 'lucide-react';
 import { prisma } from '@/lib/db';
+import { sessionPath } from '@/lib/session-link';
+import SessionsOverviewList, { SessionOverviewListItem } from '@/components/SessionsOverviewList';
 
 export const dynamic = 'force-dynamic';
-
-function formatDisplayDate(value: string | Date) {
-  const date = typeof value === 'string' ? new Date(`${value}T12:00:00`) : value;
-  return new Intl.DateTimeFormat('nl-BE', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  }).format(date);
-}
 
 export default async function SessionsOverviewPage() {
   const sessions = await prisma.session.findMany({
     include: {
-      dateOptions: { orderBy: { date: 'asc' } },
+      dateOptions: { orderBy: { date: 'asc' }, select: { date: true } },
+      games: { select: { id: true } },
+      ratings: { select: { playerId: true, gameId: true } },
+      availability: { select: { playerId: true, day: true, available: true } },
       _count: { select: { players: true, games: true } }
     }
   });
@@ -28,6 +23,19 @@ export default async function SessionsOverviewPage() {
     if (leftSortKey !== rightSortKey) return rightSortKey.localeCompare(leftSortKey);
     return right.createdAt.getTime() - left.createdAt.getTime();
   });
+  const sessionItems: SessionOverviewListItem[] = sortedSessions.map((session) => ({
+    id: session.id,
+    title: session.title,
+    chosenDay: session.chosenDay,
+    createdAt: session.createdAt.toISOString(),
+    dateOptions: session.dateOptions.map((option) => option.date),
+    playersCount: session._count.players,
+    gamesCount: session._count.games,
+    path: sessionPath(session.id, session.title),
+    games: session.games.map((game) => ({ id: game.id })),
+    ratings: session.ratings.map((rating) => ({ playerId: rating.playerId, gameId: rating.gameId })),
+    availability: session.availability.map((item) => ({ playerId: item.playerId, day: item.day, available: item.available }))
+  }));
 
   return (
     <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 pb-16">
@@ -45,38 +53,11 @@ export default async function SessionsOverviewPage() {
       </header>
 
       <section className="rounded-3xl bg-white p-5 shadow-soft">
-        {!sortedSessions.length && (
+        {!sessionItems.length && (
           <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-slate-500">Nog geen spelavonden gevonden.</p>
         )}
 
-        {!!sortedSessions.length && (
-          <div className="space-y-2">
-            {sortedSessions.map((session) => {
-              const dateSummary = session.chosenDay
-                ? `Vastgelegd op ${formatDisplayDate(session.chosenDay)}`
-                : `${session.dateOptions.length} voorgestelde datum${session.dateOptions.length === 1 ? '' : 's'}`;
-
-              return (
-                <Link
-                  key={session.id}
-                  href={`/s/${session.id}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 transition hover:bg-slate-100"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-lg font-black text-slate-900">{session.title}</p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      {dateSummary} - {session._count.players} deelnemer{session._count.players === 1 ? '' : 's'} - {session._count.games} spel{session._count.games === 1 ? '' : 'len'}
-                    </p>
-                    <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Aangemaakt op {formatDisplayDate(session.createdAt)}
-                    </p>
-                  </div>
-                  <ChevronRight size={20} className="shrink-0 text-slate-500" />
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        {!!sessionItems.length && <SessionsOverviewList sessions={sessionItems} />}
       </section>
     </main>
   );

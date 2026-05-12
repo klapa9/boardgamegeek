@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, loadSessionBundle } from '@/lib/api';
+import { sessionPath } from '@/lib/session-link';
 import GameCollectionPicker from './GameCollectionPicker';
 
 type CalendarCell = {
@@ -121,9 +122,27 @@ function readLastMeetingTime() {
   }
 }
 
-function readSessionDraft(): SessionDraft | null {
+function sessionDraftKey(editSessionId?: string | null) {
+  return editSessionId ? `${SESSION_DRAFT_KEY}-${editSessionId}` : SESSION_DRAFT_KEY;
+}
+
+function adminKey(sessionId: string) {
+  return `gsk-admin-${sessionId}`;
+}
+
+function inferPlanningMode(dateOptions: string[]) {
+  return dateOptions.length === 1 ? 'fixed_day' : 'vote_dates';
+}
+
+function inferGameSelectionMode(gameCount: number, chosenGameId: string | null): GameSelectionMode {
+  if (!gameCount) return 'no_preselect';
+  if (gameCount === 1 && chosenGameId) return 'host_pick';
+  return 'players_pick';
+}
+
+function readSessionDraft(draftKey: string): SessionDraft | null {
   try {
-    const raw = localStorage.getItem(SESSION_DRAFT_KEY);
+    const raw = localStorage.getItem(draftKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SessionDraft>;
     if (typeof parsed.title !== 'string') return null;
@@ -143,8 +162,8 @@ function readSessionDraft(): SessionDraft | null {
   }
 }
 
-function writeSessionDraft(draft: SessionDraft) {
-  localStorage.setItem(SESSION_DRAFT_KEY, JSON.stringify(draft));
+function writeSessionDraft(draftKey: string, draft: SessionDraft) {
+  localStorage.setItem(draftKey, JSON.stringify(draft));
 }
 
 function formatMeetingTime(value: string) {
@@ -153,7 +172,15 @@ function formatMeetingTime(value: string) {
   return minutes === '00' ? `${Number(hours)}u` : `${Number(hours)}u${minutes}`;
 }
 
-export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad = false }: { mode?: CreateSessionFormMode; resetDraftOnLoad?: boolean }) {
+export default function CreateSessionForm({
+  mode = 'details',
+  resetDraftOnLoad = false,
+  editSessionId = null
+}: {
+  mode?: CreateSessionFormMode;
+  resetDraftOnLoad?: boolean;
+  editSessionId?: string | null;
+}) {
   const router = useRouter();
   const [title, setTitle] = useState('Spelavond');
   const [planningMode, setPlanningMode] = useState<PlanningMode>('vote_dates');
@@ -161,7 +188,10 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
   const [meetingTime, setMeetingTime] = useState(DEFAULT_MEETING_TIME);
   const [dateOptions, setDateOptions] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [initialGameTitles, setInitialGameTitles] = useState<string[]>([]);
+  const [initialGameBggIds, setInitialGameBggIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleMonthDate, setVisibleMonthDate] = useState(() => {
     const today = new Date();
@@ -170,39 +200,97 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
   const todayKey = useMemo(() => localDateKey(), []);
   const currentMonthKey = useMemo(() => monthDateKey(new Date()), []);
   const visibleMonth = useMemo(() => buildCalendarMonth(visibleMonthDate, todayKey), [todayKey, visibleMonthDate]);
+  const draftKey = useMemo(() => sessionDraftKey(editSessionId), [editSessionId]);
+  const backToPlanningHref = editSessionId ? `/planning?bewerk=${editSessionId}` : '/planning';
 
   useEffect(() => {
-    if (mode === 'details') {
-      if (resetDraftOnLoad) localStorage.removeItem(SESSION_DRAFT_KEY);
-      const draft = resetDraftOnLoad ? null : readSessionDraft();
-      const defaultMeetingTime = readLastMeetingTime();
-      setTitle(draft?.title.trim() || 'Spelavond');
-      setPlanningMode(draft?.planningMode ?? 'vote_dates');
-      setGameSelectionMode(draft?.gameSelectionMode ?? 'players_pick');
-      setMeetingTime(draft?.meetingTime ?? defaultMeetingTime);
-      setDateOptions(draft?.dateOptions ?? []);
+    let cancelled = false;
+
+    async function initialize() {
+      setInitializing(true);
+      setError(null);
+
+      if (mode === 'details' && editSessionId) {
+        try {
+          const data = await loadSessionBundle(editSessionId);
+          if (cancelled) return;
+          const defaultMeetingTime = readLastMeetingTime();
+          const nextDateOptions = data.session.date_options.map((option) => option.date);
+          setTitle(data.session.title.trim() || 'Spelavond');
+          setPlanningMode(inferPlanningMode(nextDateOptions));
+          setGameSelectionMode(inferGameSelectionMode(data.games.length, data.session.chosen_game_id));
+          setMeetingTime(defaultMeetingTime);
+          setDateOptions(nextDateOptions);
+          setSelectedIds([]);
+          setInitialGameTitles(data.games.map((game) => game.title));
+          setInitialGameBggIds(data.games.map((game) => game.bgg_id).filter((id): id is number => id !== null));
+        } catch (err) {
+          if (cancelled) return;
+          setError(err instanceof Error ? err.message : 'Sessie laden mislukt.');
+        } finally {
+          if (!cancelled) setInitializing(false);
+        }
+        return;
+      }
+
+      if (mode === 'details') {
+        if (resetDraftOnLoad) localStorage.removeItem(draftKey);
+        const draft = resetDraftOnLoad ? null : readSessionDraft(draftKey);
+        const defaultMeetingTime = readLastMeetingTime();
+        setTitle(draft?.title.trim() || 'Spelavond');
+        setPlanningMode(draft?.planningMode ?? 'vote_dates');
+        setGameSelectionMode(draft?.gameSelectionMode ?? 'players_pick');
+        setMeetingTime(draft?.meetingTime ?? defaultMeetingTime);
+        setDateOptions(draft?.dateOptions ?? []);
+        setSelectedIds([]);
+        setInitialGameTitles([]);
+        setInitialGameBggIds([]);
+        if (!cancelled) setInitializing(false);
+        return;
+      }
+
+      const draft = readSessionDraft(draftKey);
+      if (!draft) {
+        router.replace(editSessionId ? `/spelavond?bewerk=${editSessionId}` : '/spelavond?nieuw=1');
+        return;
+      }
+
+      if (mode === 'games' && draft.gameSelectionMode === 'no_preselect') {
+        router.replace(backToPlanningHref);
+        return;
+      }
+
+      setTitle(draft.title.trim() || 'Spelavond');
+      setPlanningMode(draft.planningMode);
+      setGameSelectionMode(draft.gameSelectionMode);
+      setMeetingTime(draft.meetingTime);
+      setDateOptions(draft.dateOptions);
       setSelectedIds([]);
-      return;
+
+      if (mode === 'games' && editSessionId) {
+        try {
+          const data = await loadSessionBundle(editSessionId);
+          if (cancelled) return;
+          setInitialGameTitles(data.games.map((game) => game.title));
+          setInitialGameBggIds(data.games.map((game) => game.bgg_id).filter((id): id is number => id !== null));
+        } catch (err) {
+          if (cancelled) return;
+          setError(err instanceof Error ? err.message : 'Sessie laden mislukt.');
+        }
+      } else {
+        setInitialGameTitles([]);
+        setInitialGameBggIds([]);
+      }
+
+      if (!cancelled) setInitializing(false);
     }
 
-    const draft = readSessionDraft();
-    if (!draft) {
-      router.replace('/spelavond?nieuw=1');
-      return;
-    }
+    void initialize();
 
-    if (mode === 'games' && draft.gameSelectionMode === 'no_preselect') {
-      router.replace('/planning');
-      return;
-    }
-
-    setTitle(draft.title.trim() || 'Spelavond');
-    setPlanningMode(draft.planningMode);
-    setGameSelectionMode(draft.gameSelectionMode);
-    setMeetingTime(draft.meetingTime);
-    setDateOptions(draft.dateOptions);
-    setSelectedIds([]);
-  }, [mode, resetDraftOnLoad, router]);
+    return () => {
+      cancelled = true;
+    };
+  }, [backToPlanningHref, draftKey, editSessionId, mode, resetDraftOnLoad, router]);
 
   function toggleDate(date: string) {
     setDateOptions((current) => {
@@ -216,7 +304,7 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
     });
   }
 
-  async function createSession(selectedGameIds: string[], customDraft?: SessionDraft) {
+  async function submitSession(selectedGameIds: string[], customDraft?: SessionDraft) {
     const draft = customDraft ?? {
       title: title.trim() || 'Spelavond',
       planningMode,
@@ -233,24 +321,46 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
         ? (draft.dateOptions[0] ? [draft.dateOptions[0]] : [])
         : draft.dateOptions;
 
-      const data = await api<{ session: { id: string }; admin_token: string }>('/api/sessions', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: draft.title,
-          date_options: payloadDateOptions,
-          collection_game_ids: selectedGameIds,
-          planning_mode: draft.planningMode,
-          game_selection_mode: draft.gameSelectionMode,
-          meeting_time: draft.meetingTime
-        })
-      });
+      if (editSessionId) {
+        const currentAdminToken = localStorage.getItem(adminKey(editSessionId));
+        if (!currentAdminToken) {
+          throw new Error('Alleen de organisator kan deze spelavond wijzigen.');
+        }
 
-      localStorage.setItem(`gsk-admin-${data.session.id}`, data.admin_token);
+        await api(`/api/sessions/${editSessionId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            admin_token: currentAdminToken,
+            title: draft.title,
+            date_options: payloadDateOptions,
+            collection_game_ids: selectedGameIds,
+            planning_mode: draft.planningMode,
+            game_selection_mode: draft.gameSelectionMode,
+            meeting_time: draft.meetingTime
+          })
+        });
+      } else {
+        const data = await api<{ session: { id: string }; admin_token: string }>('/api/sessions', {
+          method: 'POST',
+          body: JSON.stringify({
+            title: draft.title,
+            date_options: payloadDateOptions,
+            collection_game_ids: selectedGameIds,
+            planning_mode: draft.planningMode,
+            game_selection_mode: draft.gameSelectionMode,
+            meeting_time: draft.meetingTime
+          })
+        });
+
+        localStorage.setItem(adminKey(data.session.id), data.admin_token);
+        router.push(`${sessionPath(data.session.id, draft.title)}?admin=${data.admin_token}&share=invite`);
+      }
+
       localStorage.setItem(LAST_MEETING_TIME_KEY, draft.meetingTime);
-      localStorage.removeItem(SESSION_DRAFT_KEY);
-      router.push(`/s/${data.session.id}?admin=${data.admin_token}&share=invite`);
+      localStorage.removeItem(draftKey);
+      if (editSessionId) router.push(sessionPath(editSessionId, draft.title));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sessie maken mislukt.');
+      setError(err instanceof Error ? err.message : editSessionId ? 'Sessie wijzigen mislukt.' : 'Sessie maken mislukt.');
     } finally {
       setLoading(false);
     }
@@ -279,9 +389,9 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
       dateOptions: normalizedDateOptions
     };
 
-    writeSessionDraft(draft);
+    writeSessionDraft(draftKey, draft);
     localStorage.setItem(LAST_MEETING_TIME_KEY, meetingTime);
-    router.push('/planning');
+    router.push(backToPlanningHref);
   }
 
   async function confirmPlanning(event: React.FormEvent) {
@@ -302,14 +412,14 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
       dateOptions: normalizedDateOptions
     };
 
-    writeSessionDraft(draft);
+    writeSessionDraft(draftKey, draft);
 
     if (gameSelectionMode === 'no_preselect') {
-      await createSession([], draft);
+      await submitSession([], draft);
       return;
     }
 
-    router.push('/spelkeuze');
+    router.push(editSessionId ? `/spelkeuze?bewerk=${editSessionId}` : '/spelkeuze');
   }
 
   async function confirmGames(event: React.FormEvent) {
@@ -331,7 +441,7 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
       return;
     }
 
-    await createSession(selectedIds);
+    await submitSession(selectedIds);
   }
 
   const onSubmit = mode === 'details' ? confirmDetails : mode === 'planning' ? confirmPlanning : confirmGames;
@@ -342,13 +452,17 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
       ? 'Organisator kiest 1 spel'
       : 'Spelers krijgen meerdere opties';
   const planningButtonLabel = gameSelectionMode === 'no_preselect'
-    ? (loading ? 'Spelavond maken...' : 'Spelavond maken')
+    ? (loading ? (editSessionId ? 'Spelavond wijzigen...' : 'Spelavond maken...') : (editSessionId ? 'Spelavond wijzigen' : 'Spelavond maken'))
     : 'Bevestig planning';
   const gamePickerTitle = gameSelectionMode === 'host_pick' ? 'Kies 1 spel uit je lokale lijst' : 'Kies meerdere spellen uit je lokale lijst';
   const gamePickerSubtitle = gameSelectionMode === 'host_pick'
     ? 'Dit spel staat vast voor deze spelavond.'
     : 'Deze lijst wordt straks de stemlijst voor de spelers.';
   const hostPickHasTooManySelected = gameSelectionMode === 'host_pick' && selectedIds.length > 1;
+
+  if (initializing) {
+    return <div className="mt-8 rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">Instellingen laden...</div>;
+  }
 
   return (
     <form onSubmit={onSubmit} className="mt-8 space-y-5">
@@ -542,6 +656,8 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
           <GameCollectionPicker
             selectedIds={selectedIds}
             onSelectedIdsChange={setSelectedIds}
+            autoSelectTitles={initialGameTitles}
+            autoSelectBggIds={initialGameBggIds}
             title={gamePickerTitle}
             subtitle={gamePickerSubtitle}
           />
@@ -561,6 +677,7 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
       <button
         disabled={
           loading
+          || initializing
           || (mode === 'planning' && !dateOptions.length)
           || (mode === 'games' && gameSelectionMode === 'host_pick' && selectedIds.length < 1)
           || (mode === 'games' && gameSelectionMode === 'players_pick' && selectedIds.length < 1)
@@ -569,7 +686,7 @@ export default function CreateSessionForm({ mode = 'details', resetDraftOnLoad =
       >
         {mode === 'details' && 'Bevestig keuzes'}
         {mode === 'planning' && planningButtonLabel}
-        {mode === 'games' && (loading ? 'Spelavond maken...' : 'Spelavond maken')}
+        {mode === 'games' && (loading ? (editSessionId ? 'Spelavond wijzigen...' : 'Spelavond maken...') : (editSessionId ? 'Spelavond wijzigen' : 'Spelavond maken'))}
       </button>
     </form>
   );

@@ -12,12 +12,14 @@ model Session {
   title      String
   adminToken String   @unique @default(cuid())
   chosenDay  String?
+  chosenGameId String?
   locked     Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   players      Player[]
-  games        Game[]
+  games        Game[] @relation("SessionGames")
+  chosenGame   Game?  @relation("SessionChosenGame", fields: [chosenGameId], references: [id], onDelete: SetNull)
   availability Availability[]
   ratings      Rating[]
   dateOptions  SessionDateOption[]
@@ -70,7 +72,8 @@ model Game {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  session       Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session       Session @relation("SessionGames", fields: [sessionId], references: [id], onDelete: Cascade)
+  chosenForSessions Session[] @relation("SessionChosenGame")
   addedByPlayer Player? @relation("GameAddedBy", fields: [addedBy], references: [id], onDelete: SetNull)
   ratings       Rating[]
 
