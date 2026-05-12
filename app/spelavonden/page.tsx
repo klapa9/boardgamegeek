@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { CalendarPlus, ChevronRight } from 'lucide-react';
 import { prisma } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 function formatDisplayDate(value: string | Date) {
   const date = typeof value === 'string' ? new Date(`${value}T12:00:00`) : value;
   return new Intl.DateTimeFormat('nl-BE', {
