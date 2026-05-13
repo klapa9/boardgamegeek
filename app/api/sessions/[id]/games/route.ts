@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
 import { serializeGame } from '@/lib/serializers';
+import { ensureSessionOrganizerAccess } from '@/lib/session-organizer';
 
 type AddSessionGamesBody = {
   added_by?: unknown;
@@ -76,10 +77,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   const { searchParams } = new URL(request.url);
   const gameId = searchParams.get('game_id') ?? '';
-  const adminToken = searchParams.get('admin_token') ?? '';
-  const session = await prisma.session.findUnique({ where: { id: params.id } });
+  const session = await prisma.session.findUnique({
+    where: { id: params.id },
+    select: { id: true, organizerUserProfileId: true }
+  });
   if (!session) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
-  if (adminToken !== session.adminToken) return NextResponse.json({ error: 'Alleen de organisator mag spellen verwijderen.' }, { status: 403 });
+  const access = await ensureSessionOrganizerAccess(session);
+  if (!access.ok) return NextResponse.json({ error: 'Alleen de organisator mag spellen verwijderen.' }, { status: 403 });
 
   const game = await prisma.game.findFirst({ where: { id: gameId, sessionId: params.id } });
   if (!game) return NextResponse.json({ error: 'Spel niet gevonden.' }, { status: 404 });

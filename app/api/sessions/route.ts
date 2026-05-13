@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
+import { requireSignedInUser } from '@/lib/clerk-auth';
 import { serializeSession } from '@/lib/serializers';
+import { getCurrentUserProfile } from '@/lib/user-profile';
 
 type PlanningMode = 'fixed_day' | 'vote_dates';
 type GameSelectionMode = 'no_preselect' | 'host_pick' | 'players_pick';
@@ -31,6 +33,13 @@ function defaultDateOptions() {
 }
 
 export async function POST(request: Request) {
+  const unauthorizedResponse = await requireSignedInUser();
+  if (unauthorizedResponse) return unauthorizedResponse;
+  const viewerProfile = await getCurrentUserProfile();
+  if (!viewerProfile) {
+    return NextResponse.json({ error: 'Je moet eerst inloggen om deze actie uit te voeren.' }, { status: 401 });
+  }
+
   const body = await request.json().catch(() => ({}));
   const title = String(body.title ?? '').trim();
   const planningMode = normalizePlanningMode(body.planning_mode);
@@ -59,6 +68,7 @@ export async function POST(request: Request) {
   const session = await prisma.session.create({
     data: {
       title,
+      organizerUserProfileId: viewerProfile.id,
       chosenDay,
       locked,
       dateOptions: { create: normalizedDateOptions.map((date) => ({ date })) },
@@ -82,6 +92,6 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json({ session: serializeSession(responseSession, responseSession.dateOptions), admin_token: responseSession.adminToken });
+  return NextResponse.json({ session: serializeSession(responseSession, responseSession.dateOptions) });
 }
 

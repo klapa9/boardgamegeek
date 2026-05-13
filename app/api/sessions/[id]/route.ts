@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
 import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
-import { serializeAvailability, serializeGame, serializePlayer, serializeRating, serializeSession } from '@/lib/serializers';
+import { serializeAvailability, serializeGame, serializePlayer, serializeRating, serializeSession, serializeUserProfile } from '@/lib/serializers';
+import { getOrCreateUserProfile } from '@/lib/user-profile';
+import { ensureSessionOrganizerAccess, viewerIsOrganizer } from '@/lib/session-organizer';
 
 function normalizeDate(value: unknown) {
   const date = String(value ?? '').trim();
@@ -19,11 +22,14 @@ function normalizeGameSelectionMode(value: unknown) {
 }
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
+  const { userId } = await auth();
   const session = await prisma.session.findUnique({
     where: { id: params.id },
     include: { dateOptions: { orderBy: { date: 'asc' } } }
   });
   if (!session) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
+
+  const viewerProfile = userId ? await getOrCreateUserProfile(userId) : null;
 
   const [players, games, availability, ratings] = await Promise.all([
     prisma.player.findMany({ where: { sessionId: params.id }, orderBy: { createdAt: 'asc' } }),
@@ -37,19 +43,22 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     players: players.map(serializePlayer),
     games: games.map(serializeGame),
     availability: availability.map(serializeAvailability),
-    ratings: ratings.map(serializeRating)
+    ratings: ratings.map(serializeRating),
+    viewer_profile: viewerProfile ? serializeUserProfile(viewerProfile) : null,
+    viewer_player_id: viewerProfile ? players.find((player) => player.userProfileId === viewerProfile.id)?.id ?? null : null,
+    viewer_is_organizer: viewerIsOrganizer(session, viewerProfile?.id ?? null)
   });
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const body = await request.json().catch(() => ({}));
-  const adminToken = String(body.admin_token ?? '').trim();
   const session = await prisma.session.findUnique({
     where: { id: params.id },
     include: { dateOptions: true }
   });
   if (!session) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
-  if (adminToken !== session.adminToken) return NextResponse.json({ error: 'Alleen de organisator mag dit aanpassen.' }, { status: 403 });
+  const access = await ensureSessionOrganizerAccess(session);
+  if (!access.ok) return NextResponse.json({ error: 'Alleen de organisator mag dit aanpassen.' }, { status: 403 });
 
   const isSettingsUpdate = (
     body.title !== undefined
@@ -167,17 +176,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  const { searchParams } = new URL(request.url);
-  const adminToken = String(searchParams.get('admin_token') ?? '').trim();
-  if (!adminToken) return NextResponse.json({ error: 'Admin token ontbreekt.' }, { status: 400 });
-
   const session = await prisma.session.findUnique({
     where: { id: params.id },
-    select: { id: true, adminToken: true }
+    select: { id: true, organizerUserProfileId: true }
   });
 
   if (!session) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
-  if (adminToken !== session.adminToken) return NextResponse.json({ error: 'Alleen de organisator mag deze spelavond verwijderen.' }, { status: 403 });
+  const access = await ensureSessionOrganizerAccess(session);
+  if (!access.ok) return NextResponse.json({ error: 'Alleen de organisator mag deze spelavond verwijderen.' }, { status: 403 });
 
   await prisma.session.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });

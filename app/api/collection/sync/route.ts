@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
+import { requireSignedInUser } from '@/lib/clerk-auth';
 import { DEFAULT_BGG_USERNAME } from '@/lib/defaults';
 import { startCollectionSync } from '@/lib/bgg-sync';
 
 export async function POST(request: Request) {
+  const unauthorizedResponse = await requireSignedInUser();
+  if (unauthorizedResponse) return unauthorizedResponse;
+
   const body = await request.json().catch(() => ({}));
   const requestedUsername = String(body.username ?? '').trim();
   const username = requestedUsername || DEFAULT_BGG_USERNAME;

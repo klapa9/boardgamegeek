@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, Plus } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
-import { GameDto, PlayerDto, SessionDto } from '@/lib/types';
+import { GameDto, PlayerDto, SessionDto, UserProfileDto } from '@/lib/types';
 import GameCollectionPicker from './GameCollectionPicker';
 
 type AddState = 'idle' | 'saving' | 'done';
@@ -19,6 +19,7 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
   const [players, setPlayers] = useState<PlayerDto[]>([]);
   const [games, setGames] = useState<GameDto[]>([]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+  const [viewerProfile, setViewerProfile] = useState<UserProfileDto | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [state, setState] = useState<AddState>('idle');
   const [loading, setLoading] = useState(true);
@@ -35,6 +36,11 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
       setSession(data.session);
       setPlayers(data.players);
       setGames(data.games);
+      setViewerProfile(data.viewer_profile);
+      if (data.viewer_player_id) {
+        localStorage.setItem(playerKey(sessionId), data.viewer_player_id);
+        setCurrentPlayerId(data.viewer_player_id);
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sessie laden mislukt.');
@@ -92,7 +98,7 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
             Nu in lijst: <b>{games.length}</b>
           </div>
         </div>
-        {currentPlayer ? <p className="mt-4 rounded-2xl bg-slate-100 px-4 py-3 text-sm">Je voegt spellen toe als <b>{currentPlayer.name}</b>.</p> : <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Vul eerst je naam in op de spelavondpagina. Daarna kan je spellen toevoegen.</p>}
+        {currentPlayer ? <p className="mt-4 rounded-2xl bg-slate-100 px-4 py-3 text-sm">Je voegt spellen toe als <b>{currentPlayer.name}</b>.</p> : <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{viewerProfile ? `Doe eerst mee aan deze spelavond als ${viewerProfile.display_name}. Daarna kan je spellen toevoegen.` : 'Vul eerst je naam in op de spelavondpagina. Daarna kan je spellen toevoegen.'}</p>}
         {message && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</p>}
         {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       </header>

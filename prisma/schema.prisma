@@ -11,18 +11,22 @@ model Session {
   id           String   @id @default(cuid())
   title        String
   adminToken   String   @unique @default(cuid())
+  organizerUserProfileId String?
   chosenDay    String?
   chosenGameId String?
   locked       Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  organizer      UserProfile? @relation("OrganizerSessions", fields: [organizerUserProfileId], references: [id], onDelete: SetNull)
   players        Player[]
-  games          Game[] @relation("SessionGames")
-  chosenGame     Game?  @relation("SessionChosenGame", fields: [chosenGameId], references: [id], onDelete: SetNull)
+  games          Game[]       @relation("SessionGames")
+  chosenGame     Game?        @relation("SessionChosenGame", fields: [chosenGameId], references: [id], onDelete: SetNull)
   availability   Availability[]
   ratings        Rating[]
   dateOptions    SessionDateOption[]
+
+  @@index([organizerUserProfileId])
 }
 
 model SessionDateOption {
@@ -41,16 +45,20 @@ model SessionDateOption {
 model Player {
   id        String   @id @default(cuid())
   sessionId String
+  userProfileId String?
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  session      Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session      Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userProfile  UserProfile? @relation(fields: [userProfileId], references: [id], onDelete: SetNull)
   availability Availability[]
   ratings      Rating[]
-  gamesAdded   Game[]  @relation("GameAddedBy")
+  gamesAdded   Game[]       @relation("GameAddedBy")
 
   @@index([sessionId])
+  @@index([userProfileId])
+  @@unique([sessionId, userProfileId])
 }
 
 model Game {
@@ -163,6 +171,17 @@ model CollectionSyncState {
   totalGames     Int      @default(0)
   processedGames Int      @default(0)
   updatedAt      DateTime @updatedAt
+}
+
+model UserProfile {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  displayName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  players           Player[]
+  organizedSessions Session[] @relation("OrganizerSessions")
 }
 
 model CollectionGroup {

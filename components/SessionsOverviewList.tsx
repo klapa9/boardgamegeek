@@ -24,6 +24,7 @@ type SessionAvailabilitySummary = {
 export type SessionOverviewListItem = {
   id: string;
   title: string;
+  isOrganizer: boolean;
   chosenDay: string | null;
   createdAt: string;
   dateOptions: string[];
@@ -44,10 +45,6 @@ type PersonalStatus = {
 
 function playerKey(sessionId: string) {
   return `gsk-player-${sessionId}`;
-}
-
-function adminKey(sessionId: string) {
-  return `gsk-admin-${sessionId}`;
 }
 
 function formatDisplayDate(value: string) {
@@ -108,26 +105,20 @@ function toPersonalStatus(session: SessionOverviewListItem): PersonalStatus {
 export default function SessionsOverviewList({ sessions }: { sessions: SessionOverviewListItem[] }) {
   const router = useRouter();
   const [statusBySessionId, setStatusBySessionId] = useState<Record<string, PersonalStatus>>({});
-  const [adminBySessionId, setAdminBySessionId] = useState<Record<string, boolean>>({});
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [hiddenSessionIds, setHiddenSessionIds] = useState<Record<string, true>>({});
 
   useEffect(() => {
     const nextStatuses: Record<string, PersonalStatus> = {};
-    const nextAdmins: Record<string, boolean> = {};
     sessions.forEach((session) => {
       nextStatuses[session.id] = toPersonalStatus(session);
-      nextAdmins[session.id] = typeof window !== 'undefined' && Boolean(window.localStorage.getItem(adminKey(session.id)));
     });
     setStatusBySessionId(nextStatuses);
-    setAdminBySessionId(nextAdmins);
   }, [sessions]);
 
   async function deleteSession(event: React.MouseEvent<HTMLButtonElement>, session: SessionOverviewListItem) {
     event.preventDefault();
     event.stopPropagation();
-    const adminToken = window.localStorage.getItem(adminKey(session.id));
-    if (!adminToken) return;
     const confirmed = window.confirm(
       `Deze spelavond wordt definitief verwijderd.\n\n"${session.title}" en alle bijhorende planning, deelnemers en scores gaan onomkeerbaar verloren.\n\nWeet je zeker dat je wil doorgaan?`
     );
@@ -135,8 +126,7 @@ export default function SessionsOverviewList({ sessions }: { sessions: SessionOv
 
     setDeletingSessionId(session.id);
     try {
-      await api(`/api/sessions/${session.id}?admin_token=${encodeURIComponent(adminToken)}`, { method: 'DELETE' });
-      window.localStorage.removeItem(adminKey(session.id));
+      await api(`/api/sessions/${session.id}`, { method: 'DELETE' });
       window.localStorage.removeItem(playerKey(session.id));
       setHiddenSessionIds((current) => ({ ...current, [session.id]: true }));
       router.refresh();
@@ -157,8 +147,8 @@ export default function SessionsOverviewList({ sessions }: { sessions: SessionOv
     const dateSummary = session.chosenDay
       ? `Vastgelegd op ${formatDisplayDate(session.chosenDay)}`
       : `${session.dateOptions.length} voorgestelde datum${session.dateOptions.length === 1 ? '' : 's'}`;
-    return { session, status, dateSummary, isAdmin: adminBySessionId[session.id] ?? false };
-  }), [adminBySessionId, hiddenSessionIds, sessions, statusBySessionId]);
+    return { session, status, dateSummary, isAdmin: session.isOrganizer };
+  }), [hiddenSessionIds, sessions, statusBySessionId]);
 
   return (
     <div className="space-y-2">

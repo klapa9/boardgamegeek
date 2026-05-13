@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { collectionGroupInclude } from '@/lib/collection-groups';
 import { prisma } from '@/lib/db';
+import { requireSignedInUser } from '@/lib/clerk-auth';
 import { serializeCollectionGroup } from '@/lib/serializers';
 
 function normalizeName(value: unknown) {
@@ -22,6 +23,9 @@ function isReservedName(name: string) {
 }
 
 export async function POST(request: Request) {
+  const unauthorizedResponse = await requireSignedInUser();
+  if (unauthorizedResponse) return unauthorizedResponse;
+
   const body = await request.json().catch(() => ({}));
   const name = normalizeName(body.name);
   const gameIds = normalizeIdList(body.game_ids);

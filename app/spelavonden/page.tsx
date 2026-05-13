@@ -3,10 +3,12 @@ import { CalendarPlus } from 'lucide-react';
 import { prisma } from '@/lib/db';
 import { sessionPath } from '@/lib/session-link';
 import SessionsOverviewList, { SessionOverviewListItem } from '@/components/SessionsOverviewList';
+import { getCurrentUserProfile } from '@/lib/user-profile';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SessionsOverviewPage() {
+  const viewerProfile = await getCurrentUserProfile();
   const sessions = await prisma.session.findMany({
     include: {
       dateOptions: { orderBy: { date: 'asc' }, select: { date: true } },
@@ -26,6 +28,7 @@ export default async function SessionsOverviewPage() {
   const sessionItems: SessionOverviewListItem[] = sortedSessions.map((session) => ({
     id: session.id,
     title: session.title,
+    isOrganizer: viewerProfile ? session.organizerUserProfileId === viewerProfile.id : false,
     chosenDay: session.chosenDay,
     createdAt: session.createdAt.toISOString(),
     dateOptions: session.dateOptions.map((option) => option.date),

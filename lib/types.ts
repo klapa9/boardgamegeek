@@ -26,6 +26,7 @@ export type PlannerDateDto = {
 export type SessionDto = {
   id: string;
   title: string;
+  organizer_user_profile_id: string | null;
   chosen_day: string | null;
   chosen_game_id: string | null;
   locked: boolean;
@@ -36,8 +37,17 @@ export type SessionDto = {
 export type PlayerDto = {
   id: string;
   session_id: string;
+  user_profile_id: string | null;
   name: string;
   created_at: string;
+};
+
+export type UserProfileDto = {
+  id: string;
+  clerk_user_id: string;
+  display_name: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type GameDto = {
@@ -132,6 +142,9 @@ export type SessionBundle = {
   games: GameDto[];
   availability: AvailabilityDto[];
   ratings: RatingDto[];
+  viewer_profile: UserProfileDto | null;
+  viewer_player_id: string | null;
+  viewer_is_organizer: boolean;
 };
 
 export type CollectionBundle = {

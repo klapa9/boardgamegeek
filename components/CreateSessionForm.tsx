@@ -126,10 +126,6 @@ function sessionDraftKey(editSessionId?: string | null) {
   return editSessionId ? `${SESSION_DRAFT_KEY}-${editSessionId}` : SESSION_DRAFT_KEY;
 }
 
-function adminKey(sessionId: string) {
-  return `gsk-admin-${sessionId}`;
-}
-
 function inferPlanningMode(dateOptions: string[]) {
   return dateOptions.length === 1 ? 'fixed_day' : 'vote_dates';
 }
@@ -214,6 +210,11 @@ export default function CreateSessionForm({
         try {
           const data = await loadSessionBundle(editSessionId);
           if (cancelled) return;
+          if (!data.viewer_is_organizer) {
+            setError('Alleen de organisator kan deze spelavond wijzigen.');
+            setInitializing(false);
+            return;
+          }
           const defaultMeetingTime = readLastMeetingTime();
           const nextDateOptions = data.session.date_options.map((option) => option.date);
           setTitle(data.session.title.trim() || 'Spelavond');
@@ -271,6 +272,11 @@ export default function CreateSessionForm({
         try {
           const data = await loadSessionBundle(editSessionId);
           if (cancelled) return;
+          if (!data.viewer_is_organizer) {
+            setError('Alleen de organisator kan deze spelavond wijzigen.');
+            setInitializing(false);
+            return;
+          }
           setInitialGameTitles(data.games.map((game) => game.title));
           setInitialGameBggIds(data.games.map((game) => game.bgg_id).filter((id): id is number => id !== null));
         } catch (err) {
@@ -322,15 +328,9 @@ export default function CreateSessionForm({
         : draft.dateOptions;
 
       if (editSessionId) {
-        const currentAdminToken = localStorage.getItem(adminKey(editSessionId));
-        if (!currentAdminToken) {
-          throw new Error('Alleen de organisator kan deze spelavond wijzigen.');
-        }
-
         await api(`/api/sessions/${editSessionId}`, {
           method: 'PATCH',
           body: JSON.stringify({
-            admin_token: currentAdminToken,
             title: draft.title,
             date_options: payloadDateOptions,
             collection_game_ids: selectedGameIds,
@@ -340,7 +340,7 @@ export default function CreateSessionForm({
           })
         });
       } else {
-        const data = await api<{ session: { id: string }; admin_token: string }>('/api/sessions', {
+        const data = await api<{ session: { id: string } }>('/api/sessions', {
           method: 'POST',
           body: JSON.stringify({
             title: draft.title,
@@ -352,8 +352,7 @@ export default function CreateSessionForm({
           })
         });
 
-        localStorage.setItem(adminKey(data.session.id), data.admin_token);
-        router.push(`${sessionPath(data.session.id, draft.title)}?admin=${data.admin_token}&share=invite`);
+        router.push(`${sessionPath(data.session.id, draft.title)}?share=invite`);
       }
 
       localStorage.setItem(LAST_MEETING_TIME_KEY, draft.meetingTime);

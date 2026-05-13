@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { collectionGroupInclude } from '@/lib/collection-groups';
 import { prisma } from '@/lib/db';
+import { requireSignedInUser } from '@/lib/clerk-auth';
 import { collectionGameInclude } from '@/lib/collection-games';
 import { DEFAULT_BGG_USERNAME } from '@/lib/defaults';
 import { serializeCollectionGame, serializeCollectionGroup, serializeCollectionSyncState } from '@/lib/serializers';
@@ -46,6 +47,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const unauthorizedResponse = await requireSignedInUser();
+  if (unauthorizedResponse) return unauthorizedResponse;
+
   const body = await request.json().catch(() => ({}));
   const title = String(body.title ?? '').trim();
   if (!title) return NextResponse.json({ error: 'Spelnaam is verplicht.' }, { status: 400 });
@@ -63,6 +67,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const unauthorizedResponse = await requireSignedInUser();
+  if (unauthorizedResponse) return unauthorizedResponse;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id') ?? '';
   if (!id) return NextResponse.json({ error: 'Game id ontbreekt.' }, { status: 400 });
@@ -95,6 +102,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const unauthorizedResponse = await requireSignedInUser();
+  if (unauthorizedResponse) return unauthorizedResponse;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id') ?? '';
   if (!id) return NextResponse.json({ error: 'Game id ontbreekt.' }, { status: 400 });

@@ -1,4 +1,4 @@
-import { Availability, CollectionSyncState, Game, Player, Rating, Session, SessionDateOption } from '@prisma/client';
+import { Availability, CollectionSyncState, Game, Player, Rating, Session, SessionDateOption, UserProfile } from '@prisma/client';
 import { collectionGameCategoryNames, collectionGameMechanicNames, CollectionGameWithRelations } from '@/lib/collection-games';
 import { CollectionGroupWithRelations } from '@/lib/collection-groups';
 import { cachedImageUrl } from '@/lib/image-cache';
@@ -63,6 +63,7 @@ export function serializeSession(session: Session, dateOptions: SessionDateOptio
   return {
     id: session.id,
     title: session.title,
+    organizer_user_profile_id: session.organizerUserProfileId,
     chosen_day: session.chosenDay,
     chosen_game_id: session.chosenGameId,
     locked: session.locked,
@@ -75,8 +76,19 @@ export function serializePlayer(player: Player) {
   return {
     id: player.id,
     session_id: player.sessionId,
+    user_profile_id: player.userProfileId,
     name: player.name,
     created_at: player.createdAt.toISOString()
+  };
+}
+
+export function serializeUserProfile(profile: UserProfile) {
+  return {
+    id: profile.id,
+    clerk_user_id: profile.clerkUserId,
+    display_name: profile.displayName,
+    created_at: profile.createdAt.toISOString(),
+    updated_at: profile.updatedAt.toISOString()
   };
 }
 

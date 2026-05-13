@@ -298,8 +298,8 @@ export default function CollectionOverview() {
       <section id="nieuwe-indeling" className="rounded-3xl bg-white p-5 shadow-soft">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xl font-black">Mijn indeling</h2>
-            <p className="text-sm text-slate-500">Je ziet hier standaard Alle spellen en daarnaast je eigen lijsten.</p>
+            <h2 className="text-xl font-black">Mijn collectie</h2>
+            <p className="text-sm text-slate-500">Maak je eigen groepen om je collectie in te verdelen en gemakkelijk spellen te kiezen bij een spelavond.</p>
           </div>
           <button
             type="button"

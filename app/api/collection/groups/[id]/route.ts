@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { collectionGroupInclude } from '@/lib/collection-groups';
 import { prisma } from '@/lib/db';
+import { requireSignedInUser } from '@/lib/clerk-auth';
 import { serializeCollectionGroup } from '@/lib/serializers';
 
 function normalizeName(value: unknown) {
@@ -22,6 +23,9 @@ function isReservedName(name: string) {
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  const unauthorizedResponse = await requireSignedInUser();
+  if (unauthorizedResponse) return unauthorizedResponse;
+
   const body = await request.json().catch(() => ({}));
   const nextName = body.name === undefined ? undefined : normalizeName(body.name);
   const gameIds = body.game_ids === undefined ? undefined : normalizeIdList(body.game_ids);
@@ -80,6 +84,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 }
 
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+  const unauthorizedResponse = await requireSignedInUser();
+  if (unauthorizedResponse) return unauthorizedResponse;
+
   const group = await prisma.collectionGroup.findUnique({ where: { id: params.id }, select: { id: true } });
   if (!group) return NextResponse.json({ error: 'Indeling niet gevonden.' }, { status: 404 });
 

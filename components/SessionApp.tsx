@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { SignIn, useUser } from '@clerk/nextjs';
 import { ArrowLeft, CalendarDays, Check, Dice5, Lock, Plus, RefreshCw, Settings2, Share2, Trash2, Trophy, Unlock, UserRound, X } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
-import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto } from '@/lib/types';
+import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto, UserProfileDto } from '@/lib/types';
 import { sessionUrl } from '@/lib/session-link';
 import GameCollectionPicker from './GameCollectionPicker';
 
@@ -88,10 +89,6 @@ function playerKey(sessionId: string) {
   return `gsk-player-${sessionId}`;
 }
 
-function adminKey(sessionId: string) {
-  return `gsk-admin-${sessionId}`;
-}
-
 function formatGameMeta(game: GameDto) {
   return [
     game.year_published,
@@ -147,13 +144,15 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { isLoaded: isClerkLoaded, isSignedIn } = useUser();
   const [session, setSession] = useState<SessionDto | null>(null);
   const [players, setPlayers] = useState<PlayerDto[]>([]);
   const [games, setGames] = useState<GameDto[]>([]);
   const [availability, setAvailability] = useState<AvailabilityDto[]>([]);
   const [ratings, setRatings] = useState<RatingDto[]>([]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
-  const [adminToken, setAdminToken] = useState<string | null>(null);
+  const [viewerProfile, setViewerProfile] = useState<UserProfileDto | null>(null);
+  const [viewerIsOrganizer, setViewerIsOrganizer] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -165,11 +164,13 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const [selectedAddGameIds, setSelectedAddGameIds] = useState<string[]>([]);
   const [addGamesSaving, setAddGamesSaving] = useState(false);
   const [shareModal, setShareModal] = useState<{ title: string; text: string } | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareTextValue, setShareTextValue] = useState('');
   const [sharing, setSharing] = useState(false);
   const scoreSaveTimers = useRef<Record<string, number>>({});
   const initialViewResolved = useRef(false);
   const initialShareIntentHandled = useRef(false);
+  const autoJoinAttemptedSessionId = useRef<string | null>(null);
   const addGamesCloseButtonRef = useRef<HTMLButtonElement>(null);
 
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
@@ -201,7 +202,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     return map;
   }, [ratings]);
   const currentPlayer = currentPlayerId ? playerById.get(currentPlayerId) ?? null : null;
-  const isAdmin = Boolean(adminToken);
+  const isAdmin = viewerIsOrganizer;
   const dateOptions = session?.date_options ?? [];
   const existingGameTitles = useMemo(() => games.map((game) => game.title), [games]);
   const existingBggIds = useMemo(() => games.map((game) => game.bgg_id).filter((id): id is number => id !== null), [games]);
@@ -225,6 +226,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       setGames(data.games);
       setAvailability(data.availability);
       setRatings(data.ratings);
+      setViewerProfile(data.viewer_profile);
+      setViewerIsOrganizer(data.viewer_is_organizer);
+      if (data.viewer_player_id) {
+        localStorage.setItem(playerKey(sessionId), data.viewer_player_id);
+        setCurrentPlayerId(data.viewer_player_id);
+      }
       setError(null);
       if (showMessage) setMessage('Alles is bijgewerkt.');
     } catch (err) {
@@ -235,14 +242,16 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }
 
   useEffect(() => {
-    const adminFromUrl = searchParams.get('admin');
-    if (adminFromUrl) localStorage.setItem(adminKey(sessionId), adminFromUrl);
-    setAdminToken(adminFromUrl || localStorage.getItem(adminKey(sessionId)));
     setCurrentPlayerId(localStorage.getItem(playerKey(sessionId)));
     refresh(false);
     const interval = window.setInterval(() => refresh(false), SESSION_REFRESH_INTERVAL_MS);
+    const handleProfileUpdated = () => {
+      void refresh(false);
+    };
+    window.addEventListener('gsk-profile-updated', handleProfileUpdated);
     return () => {
       window.clearInterval(interval);
+      window.removeEventListener('gsk-profile-updated', handleProfileUpdated);
       Object.values(scoreSaveTimers.current).forEach((timer) => window.clearTimeout(timer));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -302,6 +311,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, session]);
 
+  useEffect(() => {
+    if (loading || !viewerProfile || currentPlayer || saving) return;
+    if (autoJoinAttemptedSessionId.current === sessionId) return;
+
+    autoJoinAttemptedSessionId.current = sessionId;
+    void joinSession(undefined, { silent: true });
+  }, [currentPlayer, loading, saving, sessionId, viewerProfile]);
+
   const eligiblePlayers = useMemo(() => {
     if (!session?.chosen_day) return players;
     const availableIds = availablePlayerIdsByDay.get(session.chosen_day);
@@ -332,6 +349,19 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   ), [currentPlayerId, games, scoreByPlayerGame]);
   const selectedGame = selectedGameId ? games.find((game) => game.id === selectedGameId) ?? null : null;
   const activeRatingGame = selectedGame ?? unratedGames[0] ?? null;
+  const joinPromptLabel = viewerProfile
+    ? `doe eerst mee als ${viewerProfile.display_name}`
+    : 'vul eerst je naam in of log in';
+  const currentSessionUrl = useMemo(() => {
+    const query = searchParams.toString();
+    return query ? `${pathname}?${query}` : pathname;
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (!authModalOpen || !isClerkLoaded || !isSignedIn) return;
+    setAuthModalOpen(false);
+    void refresh(false);
+  }, [authModalOpen, isClerkLoaded, isSignedIn]);
 
   function isAvailable(date: string) {
     if (!currentPlayerId) return false;
@@ -354,21 +384,23 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     setView(session?.chosen_game_id ? 'chosen_game' : (currentPlayerHasUnratedGames ? 'rating' : 'results'));
   }
 
-  async function joinSession(event: React.FormEvent) {
-    event.preventDefault();
-    const name = nameInput.trim();
-    if (!name) return;
+  async function joinSession(event?: React.FormEvent, options?: { silent?: boolean }) {
+    event?.preventDefault();
+    const guestName = nameInput.trim();
+    if (!viewerProfile && !guestName) return;
     setSaving(true);
     setError(null);
     try {
       const data = await api<{ player: PlayerDto }>(`/api/sessions/${sessionId}/players`, {
         method: 'POST',
-        body: JSON.stringify({ name })
+        body: JSON.stringify(viewerProfile ? {} : { name: guestName })
       });
       localStorage.setItem(playerKey(sessionId), data.player.id);
       setCurrentPlayerId(data.player.id);
       setNameInput('');
-      setMessage(`Welkom, ${data.player.name}!`);
+      if (!options?.silent) {
+        setMessage(`Welkom, ${data.player.name}!`);
+      }
       await refresh(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Deelnemen mislukt.');
@@ -411,7 +443,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }
 
   async function chooseDate(date: string | null, locked = Boolean(date)) {
-    if (!adminToken) return;
+    if (!isAdmin) return;
     const previousSession = session;
     setError(null);
     setSaving(true);
@@ -421,7 +453,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     try {
       const data = await api<{ session: SessionDto }>(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ admin_token: adminToken, chosen_day: date, locked: date ? locked : false })
+        body: JSON.stringify({ chosen_day: date, locked: date ? locked : false })
       });
       setSession(data.session);
     } catch (err) {
@@ -433,7 +465,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }
 
   async function chooseGame(gameId: string | null) {
-    if (!adminToken) return;
+    if (!isAdmin) return;
     const previousSession = session;
     const gameTitle = gameId ? games.find((game) => game.id === gameId)?.title ?? 'Het gekozen spel' : null;
     setError(null);
@@ -444,7 +476,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     try {
       const data = await api<{ session: SessionDto }>(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ admin_token: adminToken, chosen_game_id: gameId })
+        body: JSON.stringify({ chosen_game_id: gameId })
       });
       setSession(data.session);
       setSelectedGameId(gameId);
@@ -459,7 +491,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }
 
   async function deleteSession() {
-    if (!adminToken) return;
+    if (!isAdmin) return;
     const confirmed = window.confirm(
       'Deze spelavond wordt definitief verwijderd.\n\nAlle deelnemers, planning, scores en spellen in deze spelavond gaan onomkeerbaar verloren.\n\nWeet je zeker dat je wil doorgaan?'
     );
@@ -468,8 +500,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     setError(null);
     setSaving(true);
     try {
-      await api(`/api/sessions/${sessionId}?admin_token=${encodeURIComponent(adminToken)}`, { method: 'DELETE' });
-      localStorage.removeItem(adminKey(sessionId));
+      await api(`/api/sessions/${sessionId}`, { method: 'DELETE' });
       localStorage.removeItem(playerKey(sessionId));
       router.push('/spelavonden');
     } catch (err) {
@@ -480,10 +511,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }
 
   async function deleteGame(gameId: string) {
-    if (!adminToken || !window.confirm('Dit spel verwijderen?')) return;
+    if (!isAdmin || !window.confirm('Dit spel verwijderen?')) return;
     setSaving(true);
     try {
-      await api(`/api/sessions/${sessionId}/games?game_id=${gameId}&admin_token=${adminToken}`, { method: 'DELETE' });
+      await api(`/api/sessions/${sessionId}/games?game_id=${gameId}`, { method: 'DELETE' });
       setSelectedGameId(null);
       await refresh(false);
     } catch (err) {
@@ -495,7 +526,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
   function openAddGamesModal() {
     if (!currentPlayerId) {
-      setError('Vul eerst je naam in om spellen toe te voegen.');
+      setError(viewerProfile ? `Doe eerst mee als ${viewerProfile.display_name} om spellen toe te voegen.` : 'Vul eerst je naam in om spellen toe te voegen.');
       return;
     }
     setSelectedAddGameIds([]);
@@ -692,7 +723,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   return (
     <main className="mx-auto max-w-6xl space-y-5 px-4 py-6 pb-16">
       <header className="rounded-3xl bg-white p-5 shadow-soft">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 underline">
+        <Link href="/" prefetch={false} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 underline">
           <ArrowLeft size={16} />
           Terug naar hoofdpagina
         </Link>
@@ -704,7 +735,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             {isAdmin && (
-              <Link href={`/spelavond?bewerk=${sessionId}`} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-700">
+              <Link href={`/spelavond?bewerk=${sessionId}`} prefetch={false} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-700">
                 <Settings2 size={18} /> Instellingen wijzigen
               </Link>
             )}
@@ -724,14 +755,26 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             <button onClick={shareInvite} className="rounded-2xl border border-slate-200 p-3" title="Spelavond delen"><Share2 size={20} /></button>
           </div>
         </div>
-        {isAdmin && <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Je bent organisator. Deel de gewone link met spelers; hou de admin-link voor jezelf.</p>}
-        {!currentPlayer && (
-          <form onSubmit={joinSession} className="mt-5 flex gap-2">
-            <input value={nameInput} onChange={(event) => setNameInput(event.target.value)} placeholder="Jouw naam" className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400" />
-            <button disabled={saving} className="rounded-2xl bg-slate-950 px-4 font-bold text-white disabled:opacity-60">Meedoen</button>
-          </form>
+        {isAdmin && <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Je bent organisator van deze spelavond.</p>}
+        {!currentPlayer && !viewerProfile && (
+          <div className="mt-5">
+            <form onSubmit={joinSession} className="flex gap-2">
+              <input value={nameInput} onChange={(event) => setNameInput(event.target.value)} placeholder="Jouw naam" className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400" />
+              <button disabled={saving} className="rounded-2xl bg-slate-950 px-4 font-bold text-white disabled:opacity-60">Meedoen</button>
+            </form>
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+              <p>Heb je een account? Log dan in of registreer je, dan gebruiken we automatisch je profielnaam.</p>
+              <button
+                type="button"
+                onClick={() => setAuthModalOpen(true)}
+                className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 font-bold text-slate-800 hover:bg-slate-100"
+              >
+                <UserRound size={16} /> Log in of registreer
+              </button>
+            </div>
+          </div>
         )}
-        {currentPlayer && <p className="mt-4 flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm"><UserRound size={18} /> Je doet mee als <b>{currentPlayer.name}</b>.</p>}
+        {currentPlayer && !isAdmin && <p className="mt-4 flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm"><UserRound size={18} /> Je doet mee als <b>{currentPlayer.name}</b>.</p>}
         {message && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</p>}
         {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       </header>
@@ -793,7 +836,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                           if (!currentPlayer) return;
                           toggleAvailability(row.date);
                         }}
-                        title={needsLoginHint ? 'vul eerst je naam in of log in' : row.label}
+                        title={needsLoginHint ? joinPromptLabel : row.label}
                         className={`w-full text-left ${needsLoginHint ? 'cursor-help' : ''}`}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -952,7 +995,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 onClick={openAddGamesModal}
                 disabled={!currentPlayerId}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-200 disabled:text-slate-500"
-                title={!currentPlayerId ? 'Vul eerst je naam in' : undefined}
+                title={!currentPlayerId ? (viewerProfile ? `Doe eerst mee als ${viewerProfile.display_name}` : 'Vul eerst je naam in') : undefined}
               >
                 <Plus size={18} /> Spellen toevoegen
               </button>
@@ -1097,6 +1140,33 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               <button type="button" onClick={confirmShareText} disabled={sharing || !shareTextValue.trim()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-50">
                 <Share2 size={18} /> {sharing ? 'Delen...' : 'Delen'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {authModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+          <div className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Account</p>
+                <h3 id="auth-modal-title" className="mt-1 text-2xl font-black tracking-tight">Log in of registreer</h3>
+                <p className="mt-1 text-sm text-slate-500">Na het inloggen blijf je op deze spelavond en vullen we automatisch je profielnaam in.</p>
+              </div>
+              <button type="button" onClick={() => setAuthModalOpen(false)} className="rounded-2xl border border-slate-200 p-3 text-slate-600 hover:bg-slate-50" title="Sluiten">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="px-5 py-4">
+              <SignIn
+                routing="virtual"
+                withSignUp
+                forceRedirectUrl={currentSessionUrl}
+                fallbackRedirectUrl={currentSessionUrl}
+                signUpForceRedirectUrl={currentSessionUrl}
+                signUpFallbackRedirectUrl={currentSessionUrl}
+              />
             </div>
           </div>
         </div>
