@@ -106,6 +106,10 @@ function gameLargeImageUrl(game: GameDto) {
   return game.image_url ?? game.thumbnail_url;
 }
 
+function gameThumbnailUrl(game: GameDto) {
+  return game.thumbnail_url ?? game.image_url;
+}
+
 function formatDate(date: string) {
   return new Intl.DateTimeFormat('nl-BE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${date}T12:00:00`));
 }
@@ -941,7 +945,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       {view === 'results' && !chosenGame && (
         <section className="rounded-3xl bg-white p-5 shadow-soft">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2"><Trophy size={20} /><h2 className="text-xl font-black">Scoretabel</h2></div>
+            <div className="flex items-center gap-2"><Trophy size={20} /><h2 className="text-xl font-black">Welk spel gaan we spelen?</h2></div>
             <div>
               <button
                 type="button"
@@ -957,8 +961,23 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           {winner && (
             <div className="mb-4 rounded-3xl bg-slate-950 p-5 text-white">
               <p className="text-sm font-semibold text-slate-300">Voorlopige winnaar</p>
-              <h3 className="mt-1 text-2xl font-black">{winner.game.title}</h3>
-              <p className="mt-1 text-slate-300">{winner.total} punten - {winner.average.toFixed(1)} gemiddeld - {winner.count} stem{winner.count === 1 ? '' : 'men'}</p>
+              <div className="mt-3 flex items-center gap-3">
+                {gameThumbnailUrl(winner.game) ? (
+                  <img
+                    src={gameThumbnailUrl(winner.game)!}
+                    alt={winner.game.title}
+                    className="h-14 w-14 shrink-0 rounded-xl bg-white object-cover shadow-sm"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 text-slate-300 shadow-sm">
+                    <Dice5 size={20} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h3 className="text-2xl font-black">{winner.game.title}</h3>
+                  <p className="mt-1 text-slate-300">{winner.total} punten - {winner.average.toFixed(1)} gemiddeld - {winner.count} stem{winner.count === 1 ? '' : 'men'}</p>
+                </div>
+              </div>
             </div>
           )}
           <div className="space-y-2">
@@ -970,7 +989,23 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   type="button"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0"><b>#{index + 1} {row.game.title}</b><p className="text-sm text-slate-500">{row.count} stemmen - gemiddeld {row.average.toFixed(1)}</p></div>
+                    <div className="flex min-w-0 items-center gap-3">
+                      {gameThumbnailUrl(row.game) ? (
+                        <img
+                          src={gameThumbnailUrl(row.game)!}
+                          alt={row.game.title}
+                          className="h-14 w-14 shrink-0 rounded-xl bg-white object-cover shadow-sm"
+                        />
+                      ) : (
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-slate-300 shadow-sm">
+                          <Dice5 size={20} />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <b className="block truncate">#{index + 1} {row.game.title}</b>
+                        <p className="text-sm text-slate-500">{row.count} stemmen - gemiddeld {row.average.toFixed(1)}</p>
+                      </div>
+                    </div>
                     <div className="text-2xl font-black">{row.total}</div>
                   </div>
                   {!!row.missing.length && <p className="mt-2 text-xs text-slate-500">Nog niet gestemd: {row.missing.map((player) => player.name).join(', ')}</p>}

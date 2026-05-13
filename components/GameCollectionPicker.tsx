@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Dice5, Loader2, Plus, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Dice5, Loader2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { api } from '@/lib/api';
-import { CollectionBundle, CollectionGameDto } from '@/lib/types';
+import { CollectionBundle, CollectionGameDto, CollectionSyncStateDto } from '@/lib/types';
 import GameFilterControls from '@/components/GameFilterControls';
-import { emptyGameFilters, GameFilterState, matchesGameFilters, mechanicOptions, playerCountOptions } from '@/lib/gameFilters';
+import { emptyGameFilters, GameFilterState, hasActiveGameFilters, matchesGameFilters, mechanicOptions, playerCountOptions } from '@/lib/gameFilters';
 
 const PAGE_SIZE = 30;
 
@@ -58,8 +58,10 @@ export default function GameCollectionPicker({
   maxHeightClassName = 'max-h-80'
 }: GameCollectionPickerProps) {
   const [collection, setCollection] = useState<CollectionGameDto[]>([]);
+  const [syncState, setSyncState] = useState<CollectionSyncStateDto | null>(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<GameFilterState>(emptyGameFilters);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [activeIndex, setActiveIndex] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -75,10 +77,14 @@ export default function GameCollectionPicker({
   const disabledBggIdSet = useMemo(() => new Set(disabledBggIds), [disabledBggIds]);
   const mechanics = useMemo(() => mechanicOptions(collection), [collection]);
   const playerCounts = useMemo(() => playerCountOptions(collection), [collection]);
+  const activeFilterCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
 
   useEffect(() => {
     api<CollectionBundle>('/api/collection/games')
-      .then((data) => setCollection(data.games))
+      .then((data) => {
+        setCollection(data.games);
+        setSyncState(data.sync_state);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Spellenlijst laden mislukt.'))
       .finally(() => setLoadingCollection(false));
   }, []);
@@ -97,6 +103,10 @@ export default function GameCollectionPicker({
 
   const visibleGames = useMemo(() => filteredCollection.slice(0, visibleCount), [filteredCollection, visibleCount]);
   const hiddenResultCount = Math.max(filteredCollection.length - visibleGames.length, 0);
+  const hasDurationData = useMemo(() => collection.some((game) => game.playing_time !== null), [collection]);
+  const hasComplexityData = useMemo(() => collection.some((game) => game.bgg_weight !== null), [collection]);
+  const hasPlayModeData = useMemo(() => collection.some((game) => game.play_mode !== null), [collection]);
+  const hasAnyFilterMetadata = playerCounts.length > 0 || hasDurationData || hasComplexityData || mechanics.length > 0 || hasPlayModeData;
 
   function isGameDisabled(game: CollectionGameDto) {
     return disabledIdSet.has(game.id) || disabledTitleSet.has(normalizeTitle(game.title)) || (game.bgg_id !== null && disabledBggIdSet.has(game.bgg_id));
@@ -204,18 +214,57 @@ export default function GameCollectionPicker({
         )}
       </div>
 
-      <div className="relative mb-3">
-        <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Zoek in lokale spellenlijst"
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-9 pr-10 outline-none focus:border-slate-400"
-        />
-        {(searching || loadingCollection) && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
+      <div className="mb-3 flex items-stretch gap-2">
+        <div className="relative flex-1">
+          <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Zoek in lokale spellenlijst"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-9 pr-10 outline-none focus:border-slate-400"
+          />
+          {(searching || loadingCollection) && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          aria-controls="collection-filters"
+          aria-label={filtersOpen ? 'Filters verbergen' : 'Filters tonen'}
+          title={filtersOpen ? 'Filters verbergen' : 'Filters tonen'}
+          className={`inline-flex min-w-[3.25rem] items-center justify-center rounded-2xl border px-3 transition ${filtersOpen || hasActiveGameFilters(filters) ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+        >
+          <span className="relative inline-flex">
+            <SlidersHorizontal size={18} />
+            {activeFilterCount > 0 && (
+              <span className="absolute -right-2 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1 text-[11px] font-black text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </span>
+        </button>
       </div>
 
-      <GameFilterControls filters={filters} mechanics={mechanics} playerCounts={playerCounts} onChange={setFilters} />
+      {filtersOpen && (
+        <div id="collection-filters" className="mb-3">
+          <GameFilterControls
+            filters={filters}
+            mechanics={mechanics}
+            playerCounts={playerCounts}
+            hasDurationData={hasDurationData}
+            hasComplexityData={hasComplexityData}
+            hasPlayModeData={hasPlayModeData}
+            onChange={setFilters}
+          />
+          {!loadingCollection && !hasAnyFilterMetadata && (
+            <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Filters zijn momenteel beperkt, omdat je lokale collectie nog geen speelduur-, spelers- of complexiteitsdata bevat.
+              {syncState?.last_status ? ` Laatste syncstatus: ${syncState.last_status}` : ''}
+            </p>
+          )}
+        </div>
+      )}
 
       {error && <p className="mb-3 mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
