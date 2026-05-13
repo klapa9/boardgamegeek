@@ -1,5 +1,6 @@
 import { Availability, CollectionSyncState, Game, Player, Rating, Session, SessionDateOption } from '@prisma/client';
 import { collectionGameCategoryNames, collectionGameMechanicNames, CollectionGameWithRelations } from '@/lib/collection-games';
+import { CollectionGroupWithRelations } from '@/lib/collection-groups';
 import { cachedImageUrl } from '@/lib/image-cache';
 import { BggRankDto, CommunityPlayerPollDto } from '@/lib/types';
 
@@ -134,6 +135,22 @@ export function serializeCollectionGame(game: CollectionGameWithRelations) {
     source: game.source,
     last_synced_at: game.lastSyncedAt?.toISOString() ?? null,
     created_at: game.createdAt.toISOString()
+  };
+}
+
+export function serializeCollectionGroup(group: CollectionGroupWithRelations) {
+  const visibleGames = group.games
+    .map((entry) => entry.collectionGame)
+    .filter((game) => !game.hidden)
+    .sort((left, right) => left.title.localeCompare(right.title));
+
+  return {
+    id: group.id,
+    name: group.name,
+    game_count: visibleGames.length,
+    game_ids: visibleGames.map((game) => game.id),
+    preview_games: visibleGames.slice(0, 4).map(serializeCollectionGame),
+    created_at: group.createdAt.toISOString()
   };
 }
 

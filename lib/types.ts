@@ -94,6 +94,15 @@ export type CollectionGameDto = {
   created_at: string;
 };
 
+export type CollectionGroupDto = {
+  id: string;
+  name: string;
+  game_count: number;
+  game_ids: string[];
+  preview_games: CollectionGameDto[];
+  created_at: string;
+};
+
 export type CollectionSyncStateDto = {
   bgg_username: string | null;
   last_synced_at: string | null;
@@ -127,6 +136,7 @@ export type SessionBundle = {
 
 export type CollectionBundle = {
   games: CollectionGameDto[];
+  groups: CollectionGroupDto[];
   sync_state: CollectionSyncStateDto | null;
 };
 

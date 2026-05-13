@@ -144,6 +144,7 @@ model CollectionGame {
 
   mechanics  CollectionGameMechanic[]
   categories CollectionGameCategory[]
+  groups     CollectionGroupGame[]
 
   @@index([title])
   @@index([hidden])
@@ -162,6 +163,29 @@ model CollectionSyncState {
   totalGames     Int      @default(0)
   processedGames Int      @default(0)
   updatedAt      DateTime @updatedAt
+}
+
+model CollectionGroup {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  games CollectionGroupGame[]
+
+  @@index([name])
+}
+
+model CollectionGroupGame {
+  groupId           String
+  collectionGameId  String
+  createdAt         DateTime @default(now())
+
+  group          CollectionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  collectionGame CollectionGame  @relation(fields: [collectionGameId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, collectionGameId])
+  @@index([collectionGameId])
 }
 
 model Mechanic {
