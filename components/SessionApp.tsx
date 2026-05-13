@@ -102,6 +102,10 @@ function formatGameMeta(game: GameDto) {
   ].filter(Boolean).join(META_SEPARATOR);
 }
 
+function gameLargeImageUrl(game: GameDto) {
+  return game.image_url ?? game.thumbnail_url;
+}
+
 function formatDate(date: string) {
   return new Intl.DateTimeFormat('nl-BE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${date}T12:00:00`));
 }
@@ -847,8 +851,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             )}
           </div>
           <article className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-            {chosenGame.image_url ? (
-              <img src={chosenGame.image_url} alt={chosenGame.title} className="aspect-[16/11] w-full rounded-2xl bg-white object-cover shadow-sm" />
+            {gameLargeImageUrl(chosenGame) ? (
+              <img src={gameLargeImageUrl(chosenGame)!} alt={chosenGame.title} className="aspect-[16/11] w-full rounded-2xl bg-white object-cover shadow-sm" />
             ) : (
               <div className="flex aspect-[16/11] w-full items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm"><Dice5 size={64} /></div>
             )}
@@ -891,8 +895,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   {addedByName && <p className="mt-1 line-clamp-1 text-xs font-semibold text-slate-400">Toegevoegd door {addedByName}</p>}
                 </div>
                 <div className="mt-4 flex flex-col">
-                  {game.image_url ? (
-                    <img src={game.image_url} alt="" className="aspect-[16/11] w-full rounded-2xl bg-white object-cover shadow-sm" />
+                  {gameLargeImageUrl(game) ? (
+                    <img src={gameLargeImageUrl(game)!} alt="" className="aspect-[16/11] w-full rounded-2xl bg-white object-cover shadow-sm" />
                   ) : (
                     <div className="flex aspect-[16/11] w-full items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm"><Dice5 size={56} /></div>
                   )}
@@ -1065,3 +1069,4 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     </main>
   );
 }
+

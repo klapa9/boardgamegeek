@@ -1,3 +1,21 @@
+export type BggRankDto = {
+  id: number | null;
+  name: string;
+  friendly_name: string;
+  value: number | null;
+  bayes_average: number | null;
+};
+
+export type CommunityPlayerPollDto = {
+  label: string;
+  player_count: number;
+  best_votes: number;
+  recommended_votes: number;
+  not_recommended_votes: number;
+  total_votes: number;
+  recommended: boolean;
+};
+
 export type PlannerDateDto = {
   id: string;
   session_id: string;
@@ -28,15 +46,23 @@ export type GameDto = {
   title: string;
   bgg_id: number | null;
   year_published: number | null;
+  thumbnail_url: string | null;
   image_url: string | null;
   min_players: number | null;
   max_players: number | null;
   playing_time: number | null;
+  min_age: number | null;
   bgg_rating: number | null;
+  bgg_bayes_rating: number | null;
   bgg_weight: number | null;
   mechanics: string[];
+  categories: string[];
+  designers: string[];
   play_mode: string | null;
   community_players: number[];
+  player_count_poll: CommunityPlayerPollDto[];
+  ranks: BggRankDto[];
+  last_synced_at: string | null;
   added_by: string | null;
   created_at: string;
 };
@@ -46,17 +72,25 @@ export type CollectionGameDto = {
   bgg_id: number | null;
   title: string;
   year_published: number | null;
+  thumbnail_url: string | null;
   image_url: string | null;
   min_players: number | null;
   max_players: number | null;
   playing_time: number | null;
+  min_age: number | null;
   bgg_rating: number | null;
+  bgg_bayes_rating: number | null;
   bgg_weight: number | null;
   mechanics: string[];
+  categories: string[];
+  designers: string[];
   play_mode: string | null;
   community_players: number[];
+  player_count_poll: CommunityPlayerPollDto[];
+  ranks: BggRankDto[];
   hidden: boolean;
   source: string;
+  last_synced_at: string | null;
   created_at: string;
 };
 
@@ -64,6 +98,11 @@ export type CollectionSyncStateDto = {
   bgg_username: string | null;
   last_synced_at: string | null;
   last_status: string | null;
+  sync_in_progress: boolean;
+  sync_started_at: string | null;
+  sync_finished_at: string | null;
+  total_games: number;
+  processed_games: number;
 };
 
 export type AvailabilityDto = {
@@ -98,13 +137,21 @@ export type BggSearchResult = {
 };
 
 export type BggGameDetails = BggSearchResult & {
+  thumbnailUrl: string | null;
   imageUrl: string | null;
   minPlayers: number | null;
   maxPlayers: number | null;
   playingTime: number | null;
+  minAge: number | null;
   averageRating: number | null;
+  bayesAverage: number | null;
   averageWeight: number | null;
   mechanics: string[];
+  categories: string[];
+  designers: string[];
   playMode: string | null;
   communityPlayers: number[];
+  playerCountPoll: CommunityPlayerPollDto[];
+  ranks: BggRankDto[];
 };
+

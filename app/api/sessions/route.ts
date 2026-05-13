@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
 import { serializeSession } from '@/lib/serializers';
 
 type PlanningMode = 'fixed_day' | 'vote_dates';
@@ -45,29 +46,15 @@ export async function POST(request: Request) {
   if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
 
   const collectionGames = collectionGameIds.length
-    ? await prisma.collectionGame.findMany({ where: { id: { in: collectionGameIds }, hidden: false } })
+    ? await prisma.collectionGame.findMany({
+      include: collectionGameInclude,
+      where: { id: { in: collectionGameIds }, hidden: false }
+    })
     : [];
 
-  const gamesFromCollection = collectionGames.map((game: { title: string; bggId: number | null; yearPublished: number | null; imageUrl: string | null; minPlayers: number | null; maxPlayers: number | null; playingTime: number | null; bggRating: number | null; bggWeight: number | null; mechanics: string[]; playMode: string | null; communityPlayers: number[] }) => ({
-    title: game.title,
-    bggId: game.bggId,
-    yearPublished: game.yearPublished,
-    imageUrl: game.imageUrl,
-    minPlayers: game.minPlayers,
-    maxPlayers: game.maxPlayers,
-    playingTime: game.playingTime,
-    bggRating: game.bggRating,
-    bggWeight: game.bggWeight,
-    mechanics: game.mechanics,
-    playMode: game.playMode,
-    communityPlayers: game.communityPlayers
-  }));
-
-  const allGamesByTitle = new Map<string, { title: string; bggId?: number | null; yearPublished?: number | null; imageUrl?: string | null; minPlayers?: number | null; maxPlayers?: number | null; playingTime?: number | null; bggRating?: number | null; bggWeight?: number | null; mechanics?: string[]; playMode?: string | null; communityPlayers?: number[] }>();
-  for (const game of gamesFromCollection) {
-    allGamesByTitle.set(game.title.toLowerCase(), game);
-  }
-  const gamesToCreate = Array.from(allGamesByTitle.values());
+  const gamesFromCollection = Array.from(
+    new Map(collectionGames.map((game) => [game.title.toLowerCase(), collectionGameToSessionGameData(game)])).values()
+  );
 
   const session = await prisma.session.create({
     data: {
@@ -75,7 +62,7 @@ export async function POST(request: Request) {
       chosenDay,
       locked,
       dateOptions: { create: normalizedDateOptions.map((date) => ({ date })) },
-      ...(gamesToCreate.length ? { games: { create: gamesToCreate } } : {})
+      ...(gamesFromCollection.length ? { games: { create: gamesFromCollection } } : {})
     },
     include: {
       dateOptions: { orderBy: { date: 'asc' } },
@@ -97,3 +84,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ session: serializeSession(responseSession, responseSession.dateOptions), admin_token: responseSession.adminToken });
 }
+

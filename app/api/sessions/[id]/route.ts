@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
 import { serializeAvailability, serializeGame, serializePlayer, serializeRating, serializeSession } from '@/lib/serializers';
 
 function normalizeDate(value: unknown) {
@@ -72,24 +73,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
 
     const collectionGames = collectionGameIds.length
-      ? await prisma.collectionGame.findMany({ where: { id: { in: collectionGameIds }, hidden: false } })
+      ? await prisma.collectionGame.findMany({
+        include: collectionGameInclude,
+        where: { id: { in: collectionGameIds }, hidden: false }
+      })
       : [];
 
     const gamesToCreate = Array.from(
-      new Map(collectionGames.map((game) => [game.title.toLowerCase(), {
-        title: game.title,
-        bggId: game.bggId,
-        yearPublished: game.yearPublished,
-        imageUrl: game.imageUrl,
-        minPlayers: game.minPlayers,
-        maxPlayers: game.maxPlayers,
-        playingTime: game.playingTime,
-        bggRating: game.bggRating,
-        bggWeight: game.bggWeight,
-        mechanics: game.mechanics,
-        playMode: game.playMode,
-        communityPlayers: game.communityPlayers
-      }])).values()
+      new Map(collectionGames.map((game) => [game.title.toLowerCase(), collectionGameToSessionGameData(game)])).values()
     );
 
     const updatedSession = await prisma.$transaction(async (tx) => {
@@ -191,3 +182,4 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   await prisma.session.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });
 }
+

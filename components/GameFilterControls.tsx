@@ -6,12 +6,13 @@ import { GameFilterState, emptyGameFilters, hasActiveGameFilters } from '@/lib/g
 type Props = {
   filters: GameFilterState;
   mechanics: string[];
+  playerCounts: number[];
   onChange: (filters: GameFilterState) => void;
 };
 
 const controlClass = 'rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-slate-400';
 
-export default function GameFilterControls({ filters, mechanics, onChange }: Props) {
+export default function GameFilterControls({ filters, mechanics, playerCounts, onChange }: Props) {
   function setFilter(key: keyof GameFilterState, value: string) {
     onChange({ ...filters, [key]: value });
   }
@@ -19,8 +20,8 @@ export default function GameFilterControls({ filters, mechanics, onChange }: Pro
   return (
     <div className="grid gap-2 rounded-3xl border border-slate-100 bg-white p-3 sm:grid-cols-2 lg:grid-cols-6">
       <select value={filters.players} onChange={(event) => setFilter('players', event.target.value)} className={controlClass} aria-label="Spelersaantal">
-        <option value="">Alle spelers</option>
-        {[1, 2, 3, 4, 5, 6, 7, 8].map((count) => <option key={count} value={count}>{count} speler{count === 1 ? '' : 's'}</option>)}
+        <option value="">Alle aanbevolen spelers</option>
+        {playerCounts.map((count) => <option key={count} value={count}>{count} speler{count === 1 ? '' : 's'}</option>)}
       </select>
 
       <select value={filters.duration} onChange={(event) => setFilter('duration', event.target.value)} className={controlClass} aria-label="Speelduur">
@@ -62,3 +63,4 @@ export default function GameFilterControls({ filters, mechanics, onChange }: Pro
     </div>
   );
 }
+

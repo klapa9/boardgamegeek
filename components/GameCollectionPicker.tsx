@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Dice5, Loader2, Plus, Search, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CollectionBundle, CollectionGameDto } from '@/lib/types';
+import GameFilterControls from '@/components/GameFilterControls';
+import { emptyGameFilters, GameFilterState, matchesGameFilters, mechanicOptions, playerCountOptions } from '@/lib/gameFilters';
 
 const PAGE_SIZE = 30;
 
@@ -11,10 +13,14 @@ function normalizeTitle(title: string) {
   return title.trim().toLowerCase();
 }
 
+function listImageUrl(game: CollectionGameDto) {
+  return game.thumbnail_url ?? game.image_url;
+}
+
 function gameMeta(game: CollectionGameDto) {
   return [
     game.year_published,
-    game.community_players.length ? `community ${game.community_players.join(', ')} spelers` : game.min_players && game.max_players ? `${game.min_players}-${game.max_players} spelers` : null,
+    game.community_players.length ? `aanbevolen: ${game.community_players.join(', ')} spelers` : game.min_players && game.max_players ? `${game.min_players}-${game.max_players} spelers` : null,
     game.playing_time ? `${game.playing_time} min` : null,
     game.bgg_weight ? `complexiteit ${game.bgg_weight.toFixed(1)}` : null,
     game.bgg_rating ? `BGG ${game.bgg_rating.toFixed(1)}` : null,
@@ -53,6 +59,7 @@ export default function GameCollectionPicker({
 }: GameCollectionPickerProps) {
   const [collection, setCollection] = useState<CollectionGameDto[]>([]);
   const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<GameFilterState>(emptyGameFilters);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [activeIndex, setActiveIndex] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -66,6 +73,8 @@ export default function GameCollectionPicker({
   const disabledIdSet = useMemo(() => new Set(disabledIds), [disabledIds]);
   const disabledTitleSet = useMemo(() => new Set(disabledTitles.map(normalizeTitle)), [disabledTitles]);
   const disabledBggIdSet = useMemo(() => new Set(disabledBggIds), [disabledBggIds]);
+  const mechanics = useMemo(() => mechanicOptions(collection), [collection]);
+  const playerCounts = useMemo(() => playerCountOptions(collection), [collection]);
 
   useEffect(() => {
     api<CollectionBundle>('/api/collection/games')
@@ -80,9 +89,11 @@ export default function GameCollectionPicker({
 
   const filteredCollection = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return collection;
-    return collection.filter((game) => game.title.toLowerCase().includes(q));
-  }, [collection, query]);
+    return collection.filter((game) => {
+      if (q && !game.title.toLowerCase().includes(q)) return false;
+      return matchesGameFilters(game, filters);
+    });
+  }, [collection, filters, query]);
 
   const visibleGames = useMemo(() => filteredCollection.slice(0, visibleCount), [filteredCollection, visibleCount]);
   const hiddenResultCount = Math.max(filteredCollection.length - visibleGames.length, 0);
@@ -121,7 +132,7 @@ export default function GameCollectionPicker({
     return () => {
       if (searchTimer.current) window.clearTimeout(searchTimer.current);
     };
-  }, [query]);
+  }, [filters, query]);
 
   useEffect(() => {
     setActiveIndex((index) => Math.min(index, Math.max(filteredCollection.length - 1, 0)));
@@ -204,7 +215,9 @@ export default function GameCollectionPicker({
         {(searching || loadingCollection) && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
       </div>
 
-      {error && <p className="mb-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      <GameFilterControls filters={filters} mechanics={mechanics} playerCounts={playerCounts} onChange={setFilters} />
+
+      {error && <p className="mb-3 mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
       <div
         ref={listRef}
@@ -214,7 +227,7 @@ export default function GameCollectionPicker({
         role="listbox"
         aria-label={title}
         aria-activedescendant={visibleGames[activeIndex] ? `collection-game-${visibleGames[activeIndex].id}` : undefined}
-        className={`${maxHeightClassName} space-y-2 overflow-auto rounded-3xl border border-slate-100 bg-slate-50 p-2 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-100`}
+        className={`${maxHeightClassName} mt-3 space-y-2 overflow-auto rounded-3xl border border-slate-100 bg-slate-50 p-2 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-100`}
       >
         {loadingCollection && (
           <div className="space-y-2 px-1 py-1">
@@ -234,6 +247,7 @@ export default function GameCollectionPicker({
           const selected = selectedIdSet.has(game.id);
           const disabled = isGameDisabled(game);
           const active = index === activeIndex;
+          const imageUrl = listImageUrl(game);
           return (
             <button
               id={`collection-game-${game.id}`}
@@ -247,7 +261,7 @@ export default function GameCollectionPicker({
               aria-selected={selected}
               className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed ${selected ? 'border-slate-950 bg-slate-950 text-white' : disabled ? 'border-amber-100 bg-amber-50/80 text-slate-500' : 'border-slate-100 bg-white hover:border-slate-200'} ${active ? 'ring-2 ring-slate-300' : ''}`}
             >
-              {game.image_url ? <img src={game.image_url} alt="" className="h-12 w-12 rounded-xl object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400"><Dice5 size={22} /></div>}
+              {imageUrl ? <img src={imageUrl} alt="" className="h-12 w-12 rounded-xl object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400"><Dice5 size={22} /></div>}
               <span className="min-w-0 flex-1">
                 <b className="block truncate">{game.title}</b>
                 <span className={`block truncate text-sm ${selected ? 'text-slate-300' : 'text-slate-500'}`}>{gameMeta(game) || 'Geen extra info'}</span>
@@ -285,21 +299,25 @@ export default function GameCollectionPicker({
             <button type="button" onClick={clearSelection} className="text-sm font-bold text-slate-500 hover:text-slate-800">Leegmaken</button>
           </div>
           <ul className="grid max-h-56 gap-2 overflow-auto sm:grid-cols-2">
-            {selectedGames.map((game) => (
-              <li key={game.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                {game.image_url ? <img src={game.image_url} alt="" className="h-10 w-10 rounded-lg object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400"><Dice5 size={18} /></div>}
-                <span className="min-w-0 flex-1">
-                  <b className="block truncate text-sm">{game.title}</b>
-                  <span className="block truncate text-xs text-slate-500">{gameMeta(game) || 'Geen extra info'}</span>
-                </span>
-                <button type="button" onClick={() => toggleGame(game.id)} className="rounded-lg p-2 text-slate-400 hover:bg-white hover:text-slate-700" title="Uit selectie verwijderen">
-                  <X size={15} />
-                </button>
-              </li>
-            ))}
+            {selectedGames.map((game) => {
+              const imageUrl = listImageUrl(game);
+              return (
+                <li key={game.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                  {imageUrl ? <img src={imageUrl} alt="" className="h-10 w-10 rounded-lg object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400"><Dice5 size={18} /></div>}
+                  <span className="min-w-0 flex-1">
+                    <b className="block truncate text-sm">{game.title}</b>
+                    <span className="block truncate text-xs text-slate-500">{gameMeta(game) || 'Geen extra info'}</span>
+                  </span>
+                  <button type="button" onClick={() => toggleGame(game.id)} className="rounded-lg p-2 text-slate-400 hover:bg-white hover:text-slate-700" title="Uit selectie verwijderen">
+                    <X size={15} />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
     </div>
   );
 }
+

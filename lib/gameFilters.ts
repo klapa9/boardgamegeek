@@ -20,11 +20,29 @@ export function mechanicOptions(games: CollectionGameDto[]) {
   return Array.from(new Set(games.flatMap((game) => game.mechanics))).sort((a, b) => a.localeCompare(b));
 }
 
+export function playerCountOptions(games: CollectionGameDto[]) {
+  const counts = new Set<number>();
+
+  for (const game of games) {
+    game.community_players.forEach((count) => counts.add(count));
+    if (game.min_players && game.max_players) {
+      for (let count = game.min_players; count <= game.max_players; count += 1) {
+        counts.add(count);
+      }
+    }
+  }
+
+  return Array.from(counts).sort((left, right) => left - right);
+}
+
 export function matchesGameFilters(game: CollectionGameDto, filters: GameFilterState) {
   if (filters.players) {
     const players = Number(filters.players);
-    if (game.community_players.length) return game.community_players.includes(players);
-    if (!game.min_players || !game.max_players || players < game.min_players || players > game.max_players) return false;
+    if (game.community_players.length) {
+      if (!game.community_players.includes(players)) return false;
+    } else if (!game.min_players || !game.max_players || players < game.min_players || players > game.max_players) {
+      return false;
+    }
   }
 
   if (filters.duration) {
@@ -53,3 +71,4 @@ export function matchesGameFilters(game: CollectionGameDto, filters: GameFilterS
 export function hasActiveGameFilters(filters: GameFilterState) {
   return Object.values(filters).some(Boolean);
 }
+

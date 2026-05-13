@@ -5,11 +5,15 @@ import { Search } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CollectionBundle, CollectionGameDto } from '@/lib/types';
 
+function listImageUrl(game: CollectionGameDto) {
+  return game.thumbnail_url ?? game.image_url;
+}
+
 function formatMeta(game: CollectionGameDto) {
   return [
     game.year_published,
     game.community_players.length
-      ? `community ${game.community_players.join(', ')} spelers`
+      ? `aanbevolen ${game.community_players.join(', ')} spelers`
       : game.min_players && game.max_players
         ? `${game.min_players}-${game.max_players} spelers`
         : null,
@@ -70,21 +74,24 @@ export default function CollectionOverview() {
         </div>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {filteredGames.map((game) => (
-          <article key={game.id} className="flex gap-3 rounded-3xl border border-slate-100 bg-slate-50 p-3">
-            {game.image_url ? (
-              <img src={game.image_url} alt="" className="h-20 w-20 rounded-2xl object-cover" />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-2xl">🎲</div>
-            )}
-            <div className="min-w-0 flex-1">
-              <h3 className="font-black">{game.title}</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                {formatMeta(game) || (game.source === 'manual' ? 'Manueel toegevoegd' : 'Geen extra info')}
-              </p>
-            </div>
-          </article>
-        ))}
+        {filteredGames.map((game) => {
+          const imageUrl = listImageUrl(game);
+          return (
+            <article key={game.id} className="flex gap-3 rounded-3xl border border-slate-100 bg-slate-50 p-3">
+              {imageUrl ? (
+                <img src={imageUrl} alt="" className="h-20 w-20 rounded-2xl object-cover" />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-2xl">??</div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black">{game.title}</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  {formatMeta(game) || (game.source === 'manual' ? 'Manueel toegevoegd' : 'Geen extra info')}
+                </p>
+              </div>
+            </article>
+          );
+        })}
         {!filteredGames.length && (
           <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-slate-500 sm:col-span-2">Geen spellen gevonden.</p>
         )}
@@ -92,3 +99,4 @@ export default function CollectionOverview() {
     </section>
   );
 }
+

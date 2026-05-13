@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
 import { serializeGame } from '@/lib/serializers';
 
 type AddSessionGamesBody = {
@@ -25,55 +26,36 @@ export async function POST(request: Request, { params }: { params: { id: string 
       ? [singleCollectionGameId]
       : [];
 
-  const uniqueCollectionGameIds: string[] = Array.from(new Set(collectionGameIds));
-  if (!uniqueCollectionGameIds.length) return NextResponse.json({ error: 'Kies minstens één spel uit de gesynchroniseerde lijst.' }, { status: 400 });
+  const uniqueCollectionGameIds = Array.from(new Set(collectionGameIds));
+  if (!uniqueCollectionGameIds.length) {
+    return NextResponse.json({ error: 'Kies minstens een spel uit de gesynchroniseerde lijst.' }, { status: 400 });
+  }
 
   const collectionGames = await prisma.collectionGame.findMany({
+    include: collectionGameInclude,
     where: { id: { in: uniqueCollectionGameIds }, hidden: false }
   });
   if (!collectionGames.length) return NextResponse.json({ error: 'Geen van deze spellen staat in de gesynchroniseerde lijst.' }, { status: 404 });
 
   const existingGames = await prisma.game.findMany({ where: { sessionId: params.id } });
-  const existingTitles = new Set(existingGames.map((game: { title: string }) => game.title.toLowerCase()));
-  const existingBggIds = new Set(existingGames.map((game: { bggId: number | null }) => game.bggId).filter((id: number | null): id is number => id !== null));
+  const existingTitles = new Set(existingGames.map((game) => game.title.toLowerCase()));
+  const existingBggIds = new Set(existingGames.map((game) => game.bggId).filter((id): id is number => id !== null));
 
   const skipped: string[] = [];
-  const createData = collectionGames.flatMap((collectionGame: {
-    title: string;
-    bggId: number | null;
-    yearPublished: number | null;
-    imageUrl: string | null;
-    minPlayers: number | null;
-    maxPlayers: number | null;
-    playingTime: number | null;
-    bggRating: number | null;
-    bggWeight: number | null;
-    mechanics: string[];
-    playMode: string | null;
-    communityPlayers: number[];
-  }) => {
+  const createData = collectionGames.flatMap((collectionGame) => {
     const duplicateByTitle = existingTitles.has(collectionGame.title.toLowerCase());
     const duplicateByBggId = collectionGame.bggId !== null && existingBggIds.has(collectionGame.bggId);
     if (duplicateByTitle || duplicateByBggId) {
       skipped.push(collectionGame.title);
       return [];
     }
+
     existingTitles.add(collectionGame.title.toLowerCase());
     if (collectionGame.bggId !== null) existingBggIds.add(collectionGame.bggId);
+
     return [{
       sessionId: params.id,
-      title: collectionGame.title,
-      bggId: collectionGame.bggId,
-      yearPublished: collectionGame.yearPublished,
-      imageUrl: collectionGame.imageUrl,
-      minPlayers: collectionGame.minPlayers,
-      maxPlayers: collectionGame.maxPlayers,
-      playingTime: collectionGame.playingTime,
-      bggRating: collectionGame.bggRating,
-      bggWeight: collectionGame.bggWeight,
-      mechanics: collectionGame.mechanics,
-      playMode: collectionGame.playMode,
-      communityPlayers: collectionGame.communityPlayers,
+      ...collectionGameToSessionGameData(collectionGame),
       addedBy
     }];
   });
@@ -84,7 +66,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   const added = await prisma.$transaction(
-    createData.map((data: typeof createData[number]) => prisma.game.create({ data }))
+    createData.map((data) => prisma.game.create({ data }))
   );
 
   if (singleCollectionGameId) return NextResponse.json({ game: serializeGame(added[0]) });
@@ -104,3 +86,4 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   await prisma.game.delete({ where: { id: gameId } });
   return NextResponse.json({ ok: true });
 }
+

@@ -8,21 +8,21 @@ datasource db {
 }
 
 model Session {
-  id         String   @id @default(cuid())
-  title      String
-  adminToken String   @unique @default(cuid())
-  chosenDay  String?
+  id           String   @id @default(cuid())
+  title        String
+  adminToken   String   @unique @default(cuid())
+  chosenDay    String?
   chosenGameId String?
-  locked     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  locked       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  players      Player[]
-  games        Game[] @relation("SessionGames")
-  chosenGame   Game?  @relation("SessionChosenGame", fields: [chosenGameId], references: [id], onDelete: SetNull)
-  availability Availability[]
-  ratings      Rating[]
-  dateOptions  SessionDateOption[]
+  players        Player[]
+  games          Game[] @relation("SessionGames")
+  chosenGame     Game?  @relation("SessionChosenGame", fields: [chosenGameId], references: [id], onDelete: SetNull)
+  availability   Availability[]
+  ratings        Rating[]
+  dateOptions    SessionDateOption[]
 }
 
 model SessionDateOption {
@@ -54,28 +54,36 @@ model Player {
 }
 
 model Game {
-  id            String   @id @default(cuid())
-  sessionId     String
-  title         String
-  bggId         Int?
-  yearPublished Int?
-  imageUrl      String?
-  minPlayers    Int?
-  maxPlayers    Int?
-  playingTime   Int?
-  bggRating     Float?
-  bggWeight     Float?
-  mechanics     String[] @default([])
-  playMode      String?
-  communityPlayers Int[] @default([])
-  addedBy       String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  sessionId        String
+  title            String
+  bggId            Int?
+  yearPublished    Int?
+  thumbnailUrl     String?
+  imageUrl         String?
+  minPlayers       Int?
+  maxPlayers       Int?
+  playingTime      Int?
+  minAge           Int?
+  bggRating        Float?
+  bggBayesRating   Float?
+  bggWeight        Float?
+  mechanics        String[] @default([])
+  categories       String[] @default([])
+  designers        String[] @default([])
+  playMode         String?
+  communityPlayers Int[]    @default([])
+  playerCountPoll  Json?
+  ranks            Json?
+  lastSyncedAt     DateTime?
+  addedBy          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  session       Session @relation("SessionGames", fields: [sessionId], references: [id], onDelete: Cascade)
+  session           Session   @relation("SessionGames", fields: [sessionId], references: [id], onDelete: Cascade)
   chosenForSessions Session[] @relation("SessionChosenGame")
-  addedByPlayer Player? @relation("GameAddedBy", fields: [addedBy], references: [id], onDelete: SetNull)
-  ratings       Rating[]
+  addedByPlayer     Player?   @relation("GameAddedBy", fields: [addedBy], references: [id], onDelete: SetNull)
+  ratings           Rating[]
 
   @@index([sessionId])
 }
@@ -110,32 +118,87 @@ model Rating {
 }
 
 model CollectionGame {
-  id            String   @id @default(cuid())
-  bggId         Int?     @unique
-  title         String
-  yearPublished Int?
-  imageUrl      String?
-  minPlayers    Int?
-  maxPlayers    Int?
-  playingTime   Int?
-  bggRating     Float?
-  bggWeight     Float?
-  mechanics     String[] @default([])
-  playMode      String?
-  communityPlayers Int[] @default([])
-  hidden        Boolean  @default(false)
-  source        String   @default("manual")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default(cuid())
+  bggId            Int?     @unique
+  title            String
+  yearPublished    Int?
+  thumbnailUrl     String?
+  imageUrl         String?
+  minPlayers       Int?
+  maxPlayers       Int?
+  playingTime      Int?
+  minAge           Int?
+  bggRating        Float?
+  bggBayesRating   Float?
+  bggWeight        Float?
+  designers        String[] @default([])
+  playMode         String?
+  communityPlayers Int[]    @default([])
+  playerCountPoll  Json?
+  ranks            Json?
+  hidden           Boolean  @default(false)
+  source           String   @default("manual")
+  lastSyncedAt     DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  mechanics  CollectionGameMechanic[]
+  categories CollectionGameCategory[]
 
   @@index([title])
   @@index([hidden])
+  @@index([source])
+  @@index([lastSyncedAt])
 }
 
 model CollectionSyncState {
-  id           String    @id @default("default")
-  bggUsername  String?
-  lastSyncedAt DateTime?
-  lastStatus   String?
-  updatedAt    DateTime  @updatedAt
+  id             String   @id @default("default")
+  bggUsername    String?
+  lastSyncedAt   DateTime?
+  lastStatus     String?
+  syncInProgress Boolean  @default(false)
+  syncStartedAt  DateTime?
+  syncFinishedAt DateTime?
+  totalGames     Int      @default(0)
+  processedGames Int      @default(0)
+  updatedAt      DateTime @updatedAt
 }
+
+model Mechanic {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  collectionGames CollectionGameMechanic[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  collectionGames CollectionGameCategory[]
+}
+
+model CollectionGameMechanic {
+  collectionGameId String
+  mechanicId       String
+
+  collectionGame CollectionGame @relation(fields: [collectionGameId], references: [id], onDelete: Cascade)
+  mechanic       Mechanic       @relation(fields: [mechanicId], references: [id], onDelete: Cascade)
+
+  @@id([collectionGameId, mechanicId])
+  @@index([mechanicId])
+}
+
+model CollectionGameCategory {
+  collectionGameId String
+  categoryId       String
+
+  collectionGame CollectionGame @relation(fields: [collectionGameId], references: [id], onDelete: Cascade)
+  category       Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([collectionGameId, categoryId])
+  @@index([categoryId])
+}
+

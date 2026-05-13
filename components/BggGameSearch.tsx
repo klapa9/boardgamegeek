@@ -5,6 +5,10 @@ import { Plus, Search } from 'lucide-react';
 import { api } from '@/lib/api';
 import { CollectionBundle, CollectionGameDto } from '@/lib/types';
 
+function listImageUrl(game: CollectionGameDto) {
+  return game.thumbnail_url ?? game.image_url;
+}
+
 export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessionId: string; playerId: string | null; onAdded: () => void }) {
   const [query, setQuery] = useState('');
   const [collection, setCollection] = useState<CollectionGameDto[]>([]);
@@ -68,24 +72,28 @@ export default function BggGameSearch({ sessionId, playerId, onAdded }: { sessio
       {!loading && !query.trim() && !!results.length && <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Alle spellen uit de lijst</p>}
       {!!results.length && (
         <div className="mt-3 space-y-2">
-          {results.map((game) => (
-            <button
-              key={game.id}
-              onClick={() => addFromCollection(game)}
-              disabled={addingId !== null}
-              className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left disabled:opacity-50"
-              type="button"
-            >
-              {game.image_url ? <img src={game.image_url} alt="" className="h-11 w-11 rounded-xl object-cover" /> : <div className="h-11 w-11 rounded-xl bg-slate-100" />}
-              <span className="min-w-0 flex-1">
-                <b className="block truncate">{game.title}</b>
-                {game.year_published ? <span className="text-sm text-slate-500">{game.year_published}</span> : null}
-              </span>
-              {addingId === game.id ? <span className="text-sm text-slate-500">toevoegen...</span> : <Plus size={18} className="text-slate-400" />}
-            </button>
-          ))}
+          {results.map((game) => {
+            const imageUrl = listImageUrl(game);
+            return (
+              <button
+                key={game.id}
+                onClick={() => addFromCollection(game)}
+                disabled={addingId !== null}
+                className="flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left disabled:opacity-50"
+                type="button"
+              >
+                {imageUrl ? <img src={imageUrl} alt="" className="h-11 w-11 rounded-xl object-cover" /> : <div className="h-11 w-11 rounded-xl bg-slate-100" />}
+                <span className="min-w-0 flex-1">
+                  <b className="block truncate">{game.title}</b>
+                  {game.year_published ? <span className="text-sm text-slate-500">{game.year_published}</span> : null}
+                </span>
+                {addingId === game.id ? <span className="text-sm text-slate-500">toevoegen...</span> : <Plus size={18} className="text-slate-400" />}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
+
