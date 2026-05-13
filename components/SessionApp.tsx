@@ -712,8 +712,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
-  if (loading) return <main className="mx-auto max-w-4xl px-4 py-8">Laden...</main>;
-  if (!session) return <main className="mx-auto max-w-4xl px-4 py-8">Sessie niet gevonden.</main>;
+  if (loading) return <main className="app-shell"><div className="mx-auto max-w-4xl px-4 py-8"><div className="page-card p-5">Laden...</div></div></main>;
+  if (!session) return <main className="app-shell"><div className="mx-auto max-w-4xl px-4 py-8"><div className="page-card p-5">Sessie niet gevonden.</div></div></main>;
 
   const chosenGame = session.chosen_game_id ? games.find((game) => game.id === session.chosen_game_id) ?? null : null;
   const summaryParts = [`${players.length} speler${players.length === 1 ? '' : 's'}`];
@@ -721,66 +721,67 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   if (session.chosen_day) summaryParts.push(formatDate(session.chosen_day));
 
   return (
-    <main className="mx-auto max-w-6xl space-y-5 px-4 py-6 pb-16">
-      <header className="rounded-3xl bg-white p-5 shadow-soft">
-        <Link href="/" prefetch={false} className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 underline">
+    <main className="app-shell">
+      <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 pb-16">
+      <header className="page-card page-card-sky p-5">
+        <Link href="/" prefetch={false} className="neo-button neo-button-ghost text-sm">
           <ArrowLeft size={16} />
           Terug naar hoofdpagina
         </Link>
         <div className="mt-3 flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Spelkeuze</p>
-            <h1 className="mt-1 text-3xl font-black tracking-tight">{session.title}</h1>
-            <p className="mt-2 text-sm text-slate-500">{summaryParts.join(' - ')}</p>
+            <p className="page-chip w-fit">Spelkeuze</p>
+            <h1 className="mt-3 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">{session.title}</h1>
+            <p className="mt-3 text-sm text-slate-600">{summaryParts.join(' - ')}</p>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             {isAdmin && (
-              <Link href={`/spelavond?bewerk=${sessionId}`} prefetch={false} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-700">
+              <Link href={`/spelavond?bewerk=${sessionId}`} prefetch={false} className="neo-button neo-button-ghost text-sm">
                 <Settings2 size={18} /> Instellingen wijzigen
               </Link>
             )}
-            <button onClick={() => setView('availability')} className="rounded-2xl border border-slate-200 p-3" title="Planning"><CalendarDays size={20} /></button>
+            <button onClick={() => setView('availability')} className="neo-button neo-button-ghost p-3" title="Planning"><CalendarDays size={20} /></button>
             {isAdmin && (
               <button
                 type="button"
                 onClick={deleteSession}
                 disabled={saving}
-                className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-3 py-3 text-sm font-bold text-red-700 disabled:opacity-60"
+                className="neo-button neo-button-danger text-sm disabled:opacity-60"
                 title="Spelavond definitief verwijderen"
               >
                 <Trash2 size={18} /> Verwijderen
               </button>
             )}
-            <button onClick={() => refresh(true)} className="rounded-2xl border border-slate-200 p-3" title="Vernieuwen"><RefreshCw size={20} /></button>
-            <button onClick={shareInvite} className="rounded-2xl border border-slate-200 p-3" title="Spelavond delen"><Share2 size={20} /></button>
+            <button onClick={() => refresh(true)} className="neo-button neo-button-ghost p-3" title="Vernieuwen"><RefreshCw size={20} /></button>
+            <button onClick={shareInvite} className="neo-button neo-button-ghost p-3" title="Spelavond delen"><Share2 size={20} /></button>
           </div>
         </div>
         {isAdmin && <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Je bent organisator van deze spelavond.</p>}
         {!currentPlayer && !viewerProfile && (
           <div className="mt-5">
             <form onSubmit={joinSession} className="flex gap-2">
-              <input value={nameInput} onChange={(event) => setNameInput(event.target.value)} placeholder="Jouw naam" className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400" />
-              <button disabled={saving} className="rounded-2xl bg-slate-950 px-4 font-bold text-white disabled:opacity-60">Meedoen</button>
+              <input value={nameInput} onChange={(event) => setNameInput(event.target.value)} placeholder="Jouw naam" className="neo-input min-w-0 flex-1" />
+              <button disabled={saving} className="neo-button neo-button-primary disabled:opacity-60">Meedoen</button>
             </form>
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+            <div className="page-subcard mt-3 px-4 py-3 text-sm text-slate-600">
               <p>Heb je een account? Log dan in of registreer je, dan gebruiken we automatisch je profielnaam.</p>
               <button
                 type="button"
                 onClick={() => setAuthModalOpen(true)}
-                className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 font-bold text-slate-800 hover:bg-slate-100"
+                className="neo-button neo-button-ghost mt-3"
               >
                 <UserRound size={16} /> Log in of registreer
               </button>
             </div>
           </div>
         )}
-        {currentPlayer && !isAdmin && <p className="mt-4 flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm"><UserRound size={18} /> Je doet mee als <b>{currentPlayer.name}</b>.</p>}
+        {currentPlayer && !isAdmin && <p className="neo-muted-panel mt-4 flex items-center gap-2 text-sm"><UserRound size={18} /> Je doet mee als <b>{currentPlayer.name}</b>.</p>}
         {message && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</p>}
         {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       </header>
 
       {view === 'availability' && (
-        <section className="rounded-3xl bg-white p-5 shadow-soft">
+        <section className="page-card page-card-lime p-5">
           <div className="mb-4 flex items-center gap-2"><CalendarDays size={20} /><h2 className="text-xl font-black">Wanneer kan je?</h2></div>
           {session.locked && chosenDateRow ? (
             <div className="rounded-2xl bg-emerald-50 px-4 py-5 text-emerald-950">
@@ -821,8 +822,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   const needsLoginHint = !currentPlayer;
                   const availableNames = row.players.map((player) => player.name);
                   const cardClassName = [
-                    'rounded-2xl border p-4 transition',
-                    selected ? 'border-emerald-500 bg-emerald-100 text-emerald-950' : 'border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300',
+                    'rounded-2xl border-2 p-4 transition',
+                    selected ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950' : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
                     isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
                     saving ? 'opacity-60' : ''
                   ].join(' ');
@@ -860,7 +861,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                           type="button"
                           onClick={() => chooseDate(row.date)}
                           disabled={saving}
-                          className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50"
+                          className="neo-button neo-button-primary mt-4 text-sm disabled:opacity-50"
                         >
                           <Lock size={16} /> Zet deze dag vast
                         </button>
@@ -870,20 +871,20 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 })}
               </div>
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/75 px-3 py-2">
                   <CalendarDays size={14} /> Klik op meerdere dagen die voor jou passen
                 </span>
               </div>
             </>
           )}
-          <button onClick={confirmAvailability} disabled={!currentPlayer || Boolean(session.locked && session.chosen_day && !currentPlayerChosenDayAvailability)} className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-4 font-black text-white disabled:opacity-50">
+          <button onClick={confirmAvailability} disabled={!currentPlayer || Boolean(session.locked && session.chosen_day && !currentPlayerChosenDayAvailability)} className="neo-button neo-button-primary mt-5 flex w-full disabled:opacity-50">
             <Check size={20} /> {session.locked ? 'Bevestig aanwezigheid en ga verder' : 'Bevestig aanwezigheid'}
           </button>
         </section>
       )}
 
       {view === 'chosen_game' && chosenGame && (
-        <section className="mx-auto max-w-2xl rounded-3xl bg-white p-5 shadow-soft">
+        <section className="page-card page-card-sky mx-auto max-w-2xl p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2"><Dice5 size={20} /><h2 className="text-xl font-black">Spel ligt vast</h2></div>
             {isAdmin && (
@@ -891,13 +892,13 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 type="button"
                 onClick={() => chooseGame(null)}
                 disabled={saving}
-                className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold disabled:opacity-60"
+                className="neo-button neo-button-ghost text-sm disabled:opacity-60"
               >
                 <Unlock size={16} className="inline" /> Spelkeuze heropenen
               </button>
             )}
           </div>
-          <article className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+          <article className="page-subcard p-4">
             {gameLargeImageUrl(chosenGame) ? (
               <img src={gameLargeImageUrl(chosenGame)!} alt={chosenGame.title} className="aspect-[16/11] w-full rounded-2xl bg-white object-cover shadow-sm" />
             ) : (
@@ -916,11 +917,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       )}
 
       {view === 'rating' && !chosenGame && (
-        <section className="mx-auto max-w-xl rounded-3xl bg-white p-5 shadow-soft">
+        <section className="page-card page-card-peach mx-auto max-w-xl p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2"><Dice5 size={20} /><h2 className="text-xl font-black">Geef je score</h2></div>
             {!currentPlayerHasUnratedGames && (
-              <button onClick={() => { setSelectedGameId(null); setView('results'); }} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold">Tabel</button>
+              <button onClick={() => { setSelectedGameId(null); setView('results'); }} className="neo-button neo-button-ghost text-sm">Tabel</button>
             )}
           </div>
           {activeRatingGame ? (() => {
@@ -933,7 +934,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             const addedByName = playerName(game.added_by);
             const ratingHeader = score === null ? `${unratedGames.length} te beoordelen` : 'Score aanpassen';
             return (
-              <article className="relative flex flex-col rounded-[1.35rem] border border-slate-200 bg-gradient-to-br from-red-950/10 via-white to-emerald-700/10 p-4 shadow-sm">
+              <article className="page-subcard relative flex flex-col bg-gradient-to-br from-red-950/10 via-white to-emerald-700/10 p-4">
                 {isAdmin && <button onClick={() => deleteGame(game.id)} className="absolute right-3 top-3 rounded-xl bg-white/85 p-2 text-slate-500 shadow-sm hover:bg-white" title="Verwijderen"><Trash2 size={17} /></button>}
                 <p className="mb-3 text-center text-sm font-bold text-slate-500">{ratingHeader}</p>
                 <div className="pr-9 text-center">
@@ -969,7 +970,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                     type="button"
                     onClick={() => chooseGame(game.id)}
                     disabled={saving}
-                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+                    className="neo-button neo-button-primary mt-4 text-sm disabled:opacity-50"
                   >
                     <Lock size={18} /> Zet dit spel vast
                   </button>
@@ -977,16 +978,16 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               </article>
             );
           })() : (
-            <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-slate-500">
+            <div className="neo-muted-panel text-center text-slate-500">
               Geen onbeoordeelde spellen meer.
-              <button onClick={() => setView('results')} className="mt-4 block w-full rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white">Bekijk scoretabel</button>
+              <button onClick={() => setView('results')} className="neo-button neo-button-primary mt-4 flex w-full">Bekijk scoretabel</button>
             </div>
           )}
         </section>
       )}
 
       {view === 'results' && !chosenGame && (
-        <section className="rounded-3xl bg-white p-5 shadow-soft">
+        <section className="page-card p-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2"><Trophy size={20} /><h2 className="text-xl font-black">Welk spel gaan we spelen?</h2></div>
             <div>
@@ -994,7 +995,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 type="button"
                 onClick={openAddGamesModal}
                 disabled={!currentPlayerId}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-200 disabled:text-slate-500"
+                className="neo-button neo-button-primary text-sm disabled:bg-slate-200 disabled:text-slate-500"
                 title={!currentPlayerId ? (viewerProfile ? `Doe eerst mee als ${viewerProfile.display_name}` : 'Vul eerst je naam in') : undefined}
               >
                 <Plus size={18} /> Spellen toevoegen
@@ -1002,7 +1003,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             </div>
           </div>
           {winner && (
-            <div className="mb-4 rounded-3xl bg-slate-950 p-5 text-white">
+            <div className="page-card-dark mb-4 p-5">
               <p className="text-sm font-semibold text-slate-300">Voorlopige winnaar</p>
               <div className="mt-3 flex items-center gap-3">
                 {gameThumbnailUrl(winner.game) ? (
@@ -1025,7 +1026,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           )}
           <div className="space-y-2">
             {results.map((row, index) => (
-              <div key={row.game.id} className="rounded-2xl bg-slate-50 px-4 py-3">
+              <div key={row.game.id} className="page-subcard px-4 py-3">
                 <button
                   onClick={() => { setSelectedGameId(row.game.id); setView('rating'); }}
                   className="w-full text-left"
@@ -1058,28 +1059,28 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                     type="button"
                     onClick={() => chooseGame(row.game.id)}
                     disabled={saving}
-                    className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 disabled:opacity-50"
+                    className="neo-button neo-button-ghost mt-3 text-sm disabled:opacity-50"
                   >
                     <Lock size={16} /> Zet dit spel vast
                   </button>
                 )}
               </div>
             ))}
-            {!results.length && <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-slate-500">Nog geen resultaat.</p>}
+            {!results.length && <p className="neo-muted-panel text-center text-slate-500">Nog geen resultaat.</p>}
           </div>
         </section>
       )}
 
       {addGamesOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="add-games-title">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+          <div className="page-card page-card-peach max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
+            <div className="page-band flex items-start justify-between gap-4 px-5 py-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Spellen toevoegen</p>
-                <h3 id="add-games-title" className="mt-1 text-2xl font-black tracking-tight">Kies extra spellen</h3>
-                <p className="mt-1 text-sm text-slate-500">Selecteer spellen die je wil toevoegen aan de spelavond.</p>
+                <h3 id="add-games-title" className="mt-1 font-poster text-3xl uppercase leading-none text-slate-950">Kies extra spellen</h3>
+                <p className="mt-1 text-sm text-slate-700">Selecteer spellen die je wil toevoegen aan de spelavond.</p>
               </div>
-              <button ref={addGamesCloseButtonRef} type="button" onClick={closeAddGamesModal} disabled={addGamesSaving} className="rounded-2xl border border-slate-200 p-3 text-slate-600 hover:bg-slate-50 disabled:opacity-50" title="Sluiten">
+              <button ref={addGamesCloseButtonRef} type="button" onClick={closeAddGamesModal} disabled={addGamesSaving} className="neo-button neo-button-ghost p-3 text-slate-600 disabled:opacity-50" title="Sluiten">
                 <X size={20} />
               </button>
             </div>
@@ -1094,15 +1095,15 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 maxHeightClassName="max-h-[26rem]"
               />
             </div>
-            <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 border-t border-slate-950/10 bg-white/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-slate-500">{selectedAddGameIds.length} spel{selectedAddGameIds.length === 1 ? '' : 'len'} geselecteerd</p>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={closeAddGamesModal} disabled={addGamesSaving} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Annuleren</button>
+                <button type="button" onClick={closeAddGamesModal} disabled={addGamesSaving} className="neo-button neo-button-ghost disabled:opacity-50">Annuleren</button>
                 <button
                   type="button"
                   onClick={addSelectedGames}
                   disabled={!selectedAddGameIds.length || addGamesSaving}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-50"
+                  className="neo-button neo-button-primary disabled:opacity-50"
                 >
                   {addGamesSaving ? 'Toevoegen...' : <><Plus size={18} /> Toevoegen aan spelavond</>}
                 </button>
@@ -1115,14 +1116,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
       {shareModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="share-modal-title">
-          <div className="w-full max-w-2xl overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+          <div className="page-card page-card-sky w-full max-w-2xl overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
+            <div className="page-band flex items-start justify-between gap-4 px-5 py-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Bericht controleren</p>
-                <h3 id="share-modal-title" className="mt-1 text-2xl font-black tracking-tight">{shareModal.title}</h3>
-                <p className="mt-1 text-sm text-slate-500">Pas het bericht eventueel aan voordat je het deelt.</p>
+                <h3 id="share-modal-title" className="mt-1 font-poster text-3xl uppercase leading-none text-slate-950">{shareModal.title}</h3>
+                <p className="mt-1 text-sm text-slate-700">Pas het bericht eventueel aan voordat je het deelt.</p>
               </div>
-              <button type="button" onClick={closeShareModal} disabled={sharing} className="rounded-2xl border border-slate-200 p-3 text-slate-600 hover:bg-slate-50 disabled:opacity-50" title="Sluiten">
+              <button type="button" onClick={closeShareModal} disabled={sharing} className="neo-button neo-button-ghost p-3 text-slate-600 disabled:opacity-50" title="Sluiten">
                 <X size={20} />
               </button>
             </div>
@@ -1132,12 +1133,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 id="share-message"
                 value={shareTextValue}
                 onChange={(event) => setShareTextValue(event.target.value)}
-                className="mt-2 min-h-[16rem] w-full resize-y whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 outline-none focus:border-slate-400 focus:bg-white"
+                className="neo-input mt-2 min-h-[16rem] resize-y whitespace-pre-wrap text-sm leading-6"
               />
             </div>
-            <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
-              <button type="button" onClick={closeShareModal} disabled={sharing} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Sluiten</button>
-              <button type="button" onClick={confirmShareText} disabled={sharing || !shareTextValue.trim()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-50">
+            <div className="flex flex-col gap-2 border-t border-slate-950/10 bg-white/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-end">
+              <button type="button" onClick={closeShareModal} disabled={sharing} className="neo-button neo-button-ghost disabled:opacity-50">Sluiten</button>
+              <button type="button" onClick={confirmShareText} disabled={sharing || !shareTextValue.trim()} className="neo-button neo-button-primary disabled:opacity-50">
                 <Share2 size={18} /> {sharing ? 'Delen...' : 'Delen'}
               </button>
             </div>
@@ -1147,14 +1148,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
       {authModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-          <div className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+          <div className="page-card page-card-lime w-full max-w-md overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
+            <div className="page-band flex items-start justify-between gap-4 px-5 py-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Account</p>
-                <h3 id="auth-modal-title" className="mt-1 text-2xl font-black tracking-tight">Log in of registreer</h3>
-                <p className="mt-1 text-sm text-slate-500">Na het inloggen blijf je op deze spelavond en vullen we automatisch je profielnaam in.</p>
+                <h3 id="auth-modal-title" className="mt-1 font-poster text-3xl uppercase leading-none text-slate-950">Log in of registreer</h3>
+                <p className="mt-1 text-sm text-slate-700">Na het inloggen blijf je op deze spelavond en vullen we automatisch je profielnaam in.</p>
               </div>
-              <button type="button" onClick={() => setAuthModalOpen(false)} className="rounded-2xl border border-slate-200 p-3 text-slate-600 hover:bg-slate-50" title="Sluiten">
+              <button type="button" onClick={() => setAuthModalOpen(false)} className="neo-button neo-button-ghost p-3 text-slate-600" title="Sluiten">
                 <X size={20} />
               </button>
             </div>
@@ -1171,6 +1172,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       )}
+      </div>
     </main>
   );
 }

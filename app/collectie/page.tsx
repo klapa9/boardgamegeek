@@ -3,29 +3,29 @@ import CollectionOverview from '@/components/CollectionOverview';
 
 export default function CollectionPage() {
   return (
-    <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 pb-16">
-      <header className="rounded-3xl bg-white p-5 shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link href="/" className="text-sm font-bold text-slate-500 underline">&lt;- Terug naar start</Link>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="#nieuwe-indeling"
-              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-50"
-            >
-              + Nieuw
-            </Link>
-            <Link
-              href="/games"
-              className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-black text-white transition hover:bg-slate-800"
-            >
-              Synchroniseren
-            </Link>
+    <main className="app-shell">
+      <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 pb-16">
+        <header className="page-card page-card-sky p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link href="/" className="neo-button neo-button-ghost text-sm">&lt;- Terug naar start</Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="#nieuwe-indeling" className="neo-button neo-button-ghost text-sm">
+                + Nieuw
+              </Link>
+              <Link href="/games" className="neo-button neo-button-primary text-sm">
+                Synchroniseren
+              </Link>
+            </div>
           </div>
-        </div>
-        <h1 className="mt-3 text-3xl font-black tracking-tight">Mijn collectie</h1>
-        <p className="mt-2 text-slate-600">Bouw hier je eigen indeling bovenop je collectie en blader via kaarten met spelvoorbeelden.</p>
-      </header>
-      <CollectionOverview />
+          <p className="page-chip mt-4 w-fit">Mijn bgg-hoek</p>
+          <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Mijn collectie</h1>
+          <p className="mt-3 max-w-2xl text-slate-700">
+            Bouw hier je eigen indeling bovenop je collectie en blader via kaarten met spelvoorbeelden.
+          </p>
+        </header>
+
+        <CollectionOverview />
+      </div>
     </main>
   );
 }

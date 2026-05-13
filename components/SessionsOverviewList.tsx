@@ -153,13 +153,13 @@ export default function SessionsOverviewList({ sessions }: { sessions: SessionOv
   return (
     <div className="space-y-2">
       {decoratedSessions.map(({ session, status, dateSummary, isAdmin }) => (
-        <div key={session.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3 transition hover:bg-slate-100">
+        <div key={session.id} className="page-subcard flex items-center gap-3 px-4 py-3 transition hover:-translate-y-1">
           <Link href={session.path} className="flex min-w-0 flex-1 items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <p className="truncate text-lg font-black text-slate-900">{session.title}</p>
                 {isAdmin && (
-                  <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">
+                  <span className="shrink-0 rounded-full bg-[#fff2bd] px-2.5 py-1 text-xs font-bold text-amber-900">
                     Organisator
                   </span>
                 )}
@@ -197,7 +197,7 @@ export default function SessionsOverviewList({ sessions }: { sessions: SessionOv
               type="button"
               onClick={(event) => void deleteSession(event, session)}
               disabled={deletingSessionId === session.id}
-              className="shrink-0 rounded-xl border border-red-200 bg-white p-2 text-red-700 disabled:opacity-50"
+              className="neo-button neo-button-danger shrink-0 p-2 disabled:opacity-50"
               title="Spelavond definitief verwijderen"
             >
               <Trash2 size={16} />

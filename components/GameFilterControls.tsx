@@ -13,7 +13,7 @@ type Props = {
   onChange: (filters: GameFilterState) => void;
 };
 
-const controlClass = 'rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-slate-400';
+const controlClass = 'neo-input text-sm';
 
 export default function GameFilterControls({
   filters,
@@ -29,7 +29,7 @@ export default function GameFilterControls({
   }
 
   return (
-    <div className="grid gap-2 rounded-3xl border border-slate-100 bg-white p-3 sm:grid-cols-2 lg:grid-cols-6">
+    <div className="grid gap-2 rounded-[1.6rem] border-2 border-slate-950 bg-[rgba(255,255,255,0.8)] p-3 sm:grid-cols-2 lg:grid-cols-6">
       <select value={filters.players} onChange={(event) => setFilter('players', event.target.value)} disabled={!playerCounts.length} className={controlClass} aria-label="Spelersaantal">
         <option value="">{playerCounts.length ? 'Alle aanbevolen spelers' : 'Geen spelersdata beschikbaar'}</option>
         {playerCounts.map((count) => <option key={count} value={count}>{count} speler{count === 1 ? '' : 's'}</option>)}
@@ -65,7 +65,7 @@ export default function GameFilterControls({
           type="button"
           onClick={() => onChange(emptyGameFilters)}
           disabled={!hasActiveGameFilters(filters)}
-          className="rounded-2xl border border-slate-200 px-3 text-slate-500 disabled:opacity-40"
+          className="neo-button neo-button-ghost px-3 text-slate-500 disabled:opacity-40"
           title="Filters wissen"
         >
           <RotateCcw size={16} />

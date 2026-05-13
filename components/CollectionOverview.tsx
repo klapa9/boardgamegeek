@@ -53,14 +53,14 @@ function buildGroups(games: CollectionGameDto[], groups: CollectionGroupDto[]): 
 function GameFan({ games }: { games: CollectionGameDto[] }) {
   if (!games.length) {
     return (
-      <div className="flex h-28 items-center justify-center rounded-[1.75rem] border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-400">
+      <div className="flex h-28 items-center justify-center rounded-[1.75rem] border-2 border-dashed border-slate-950/20 bg-white/70 text-sm text-slate-500">
         Nog geen spellen
       </div>
     );
   }
 
   return (
-    <div className="relative h-28 overflow-hidden rounded-[1.75rem] bg-slate-100 px-4 py-3">
+    <div className="relative h-28 overflow-hidden rounded-[1.75rem] bg-[rgba(255,255,255,0.58)] px-4 py-3">
       {games.slice(0, 4).map((game, index) => {
         const imageUrl = listImageUrl(game);
         const rotation = (index - 1.5) * 6;
@@ -290,21 +290,21 @@ export default function CollectionOverview() {
     }
   }
 
-  if (loading) return <section className="rounded-3xl bg-white p-5 shadow-soft">Laden...</section>;
-  if (!selectedGroup) return <section className="rounded-3xl bg-white p-5 shadow-soft">Geen collectie gevonden.</section>;
+  if (loading) return <section className="page-card p-5">Laden...</section>;
+  if (!selectedGroup) return <section className="page-card p-5">Geen collectie gevonden.</section>;
 
   return (
     <div className="space-y-5">
-      <section id="nieuwe-indeling" className="rounded-3xl bg-white p-5 shadow-soft">
+      <section id="nieuwe-indeling" className="page-card page-card-peach p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-xl font-black">Mijn collectie</h2>
-            <p className="text-sm text-slate-500">Maak je eigen groepen om je collectie in te verdelen en gemakkelijk spellen te kiezen bij een spelavond.</p>
+            <h2 className="font-poster text-3xl uppercase leading-none text-slate-950">Mijn collectie</h2>
+            <p className="mt-2 text-sm text-slate-700">Maak je eigen groepen om je collectie in te verdelen en gemakkelijk spellen te kiezen bij een spelavond.</p>
           </div>
           <button
             type="button"
             onClick={() => setShowCreateForm((current) => !current)}
-            className="inline-flex items-center gap-2 self-start rounded-2xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+            className="neo-button neo-button-ghost self-start text-sm"
           >
             <Plus size={16} />
             Nieuw
@@ -329,10 +329,10 @@ export default function CollectionOverview() {
                 setManageQuery('');
                 setRenaming(false);
               }}
-              className={`rounded-[2rem] border p-4 text-left transition ${
+              className={`rounded-[2rem] border-4 p-4 text-left transition ${
                 selectedGroupId === group.id
-                  ? 'border-slate-950 bg-slate-950 text-white shadow-soft'
-                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  ? 'border-slate-950 bg-[#172036] text-white shadow-[0_12px_0_0_#0f172a]'
+                  : 'border-slate-950 bg-[rgba(255,255,255,0.82)] text-slate-950 shadow-[0_12px_0_0_rgba(23,32,54,0.14)] hover:-translate-y-1'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -360,10 +360,10 @@ export default function CollectionOverview() {
           <button
             type="button"
             onClick={() => setShowCreateForm(true)}
-            className="rounded-[2rem] border border-dashed border-slate-300 bg-slate-50 p-4 text-left transition hover:border-slate-400 hover:bg-white"
+            className="rounded-[2rem] border-4 border-dashed border-slate-950/25 bg-[rgba(255,255,255,0.7)] p-4 text-left transition hover:-translate-y-1 hover:border-slate-950/40 hover:bg-white"
           >
             <div className="flex h-full flex-col justify-between gap-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#84d7ff] text-slate-700 shadow-sm">
                 <Plus size={22} />
               </div>
               <div>
@@ -380,20 +380,20 @@ export default function CollectionOverview() {
               event.preventDefault();
               void createGroup();
             }}
-            className="mt-4 rounded-[2rem] border border-slate-200 bg-slate-50 p-4"
+            className="page-subcard mt-4 p-4"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <input
                 value={createName}
                 onChange={(event) => setCreateName(event.target.value)}
                 placeholder="Bijvoorbeeld 2 spelers"
-                className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-400"
+                className="neo-input min-w-0 flex-1"
               />
               <div className="flex gap-2">
                 <button
                   type="submit"
                   disabled={creating}
-                  className="rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-60"
+                  className="neo-button neo-button-primary disabled:opacity-60"
                 >
                   Bewaren
                 </button>
@@ -403,7 +403,7 @@ export default function CollectionOverview() {
                     setShowCreateForm(false);
                     setCreateName('');
                   }}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 font-bold text-slate-600"
+                  className="neo-button neo-button-ghost"
                 >
                   Sluiten
                 </button>
@@ -413,11 +413,11 @@ export default function CollectionOverview() {
         )}
       </section>
 
-      <section className="rounded-3xl bg-white p-5 shadow-soft">
+      <section className="page-card page-card-sky p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="text-2xl font-black">{selectedGroup.name}</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="font-poster text-3xl uppercase leading-none text-slate-950">{selectedGroup.name}</h2>
+            <p className="mt-2 text-sm text-slate-700">
               {selectedGroup.game_count} spel{selectedGroup.game_count === 1 ? '' : 'len'}
               {selectedGroup.is_default ? ' in je volledige collectie.' : ' in deze indeling.'}
             </p>
@@ -430,7 +430,7 @@ export default function CollectionOverview() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Zoek in deze selectie"
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-9 pr-4 outline-none focus:border-slate-400 sm:w-72"
+                className="neo-input w-full py-3 pl-9 pr-4 sm:w-72"
               />
             </div>
 
@@ -442,7 +442,7 @@ export default function CollectionOverview() {
                     setRenaming((current) => !current);
                     setRenameValue(selectedGroup.name);
                   }}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700"
+                  className="neo-button neo-button-ghost text-sm"
                 >
                   <Pencil size={16} />
                   Naam
@@ -451,7 +451,7 @@ export default function CollectionOverview() {
                   type="button"
                   disabled={updatingGroup}
                   onClick={() => void deleteSelectedGroup()}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-red-200 px-4 py-3 text-sm font-bold text-red-700 disabled:opacity-60"
+                  className="neo-button neo-button-danger text-sm disabled:opacity-60"
                 >
                   <Trash2 size={16} />
                   Verwijderen
@@ -462,20 +462,20 @@ export default function CollectionOverview() {
         </div>
 
         {renaming && !selectedGroup.is_default && (
-          <form onSubmit={renameSelectedGroup} className="mt-4 flex flex-col gap-2 rounded-2xl bg-slate-50 p-4 sm:flex-row">
+          <form onSubmit={renameSelectedGroup} className="page-subcard mt-4 flex flex-col gap-2 p-4 sm:flex-row">
             <input
               value={renameValue}
               onChange={(event) => setRenameValue(event.target.value)}
-              className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-slate-400"
+              className="neo-input min-w-0 flex-1"
             />
             <div className="flex gap-2">
-              <button type="submit" disabled={updatingGroup} className="rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white disabled:opacity-60">
+              <button type="submit" disabled={updatingGroup} className="neo-button neo-button-primary disabled:opacity-60">
                 Opslaan
               </button>
               <button
                 type="button"
                 onClick={() => setRenaming(false)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 font-bold text-slate-600"
+                className="neo-button neo-button-ghost"
               >
                 Annuleren
               </button>
@@ -484,7 +484,7 @@ export default function CollectionOverview() {
         )}
 
         {!selectedGroup.is_default && (
-          <div className="mt-4 rounded-[2rem] border border-slate-200 bg-slate-50 p-4">
+          <div className="page-subcard mt-4 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-black">Spellen toevoegen of weghalen</h3>
@@ -496,7 +496,7 @@ export default function CollectionOverview() {
                   value={manageQuery}
                   onChange={(event) => setManageQuery(event.target.value)}
                   placeholder="Zoek in je collectie"
-                  className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-9 pr-4 outline-none focus:border-slate-400 sm:w-72"
+                  className="neo-input w-full py-3 pl-9 pr-4 sm:w-72"
                 />
               </div>
             </div>
@@ -512,8 +512,8 @@ export default function CollectionOverview() {
                     type="button"
                     disabled={updatingGroup}
                     onClick={() => void toggleGameInSelectedGroup(game.id)}
-                    className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition ${
-                      checked ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 bg-white hover:border-slate-300'
+                    className={`flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition ${
+                      checked ? 'border-slate-950 bg-[#172036] text-white' : 'border-slate-950/10 bg-white/82 hover:border-slate-950/30'
                     } disabled:opacity-60`}
                   >
                     <div className="h-14 w-14 overflow-hidden rounded-2xl bg-slate-100">
@@ -537,7 +537,7 @@ export default function CollectionOverview() {
               })}
 
               {!manageableGames.length && (
-                <p className="rounded-2xl bg-white px-4 py-5 text-center text-sm text-slate-500 md:col-span-2">
+                <p className="page-subcard-soft px-4 py-5 text-center text-sm text-slate-500 md:col-span-2">
                   Geen spellen gevonden voor deze zoekterm.
                 </p>
               )}
@@ -552,7 +552,7 @@ export default function CollectionOverview() {
             const editingThisGame = editingGameId === game.id;
 
             return (
-              <article key={game.id} className="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+              <article key={game.id} className="page-subcard p-3">
                 <div className="flex gap-3">
                   {imageUrl ? (
                     <img src={imageUrl} alt="" className="h-20 w-20 rounded-2xl object-cover" />
@@ -590,7 +590,7 @@ export default function CollectionOverview() {
                 </div>
 
                 {editingThisGame && (
-                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="page-subcard-soft mt-3 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <h4 className="font-bold">Zet dit spel in je eigen indelingen</h4>
@@ -606,8 +606,8 @@ export default function CollectionOverview() {
                         return (
                           <label
                             key={group.id}
-                            className={`flex cursor-pointer items-center justify-between rounded-2xl border px-3 py-3 ${
-                              checked ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 bg-slate-50'
+                            className={`flex cursor-pointer items-center justify-between rounded-2xl border-2 px-3 py-3 ${
+                              checked ? 'border-slate-950 bg-[#172036] text-white' : 'border-slate-950/10 bg-white/80'
                             }`}
                           >
                             <span className="font-bold">{group.name}</span>
@@ -623,7 +623,7 @@ export default function CollectionOverview() {
                       })}
 
                       {!groups.length && (
-                        <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                        <p className="neo-muted-panel text-sm text-slate-500">
                           Je hebt nog geen eigen indelingen. Maak hieronder meteen je eerste aan.
                         </p>
                       )}
@@ -640,12 +640,12 @@ export default function CollectionOverview() {
                         value={editingThisGame ? inlineCreateName : ''}
                         onChange={(event) => setInlineCreateName(event.target.value)}
                         placeholder="Nieuwe naam"
-                        className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400"
+                        className="neo-input min-w-0 flex-1"
                       />
                       <button
                         type="submit"
                         disabled={creating}
-                        className="rounded-2xl border border-slate-200 px-4 py-3 font-bold text-slate-700 disabled:opacity-60"
+                        className="neo-button neo-button-ghost disabled:opacity-60"
                       >
                         Meteen aanmaken
                       </button>
@@ -657,7 +657,7 @@ export default function CollectionOverview() {
           })}
 
           {!visibleGroupGames.length && (
-            <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-slate-500 sm:col-span-2">
+            <p className="neo-muted-panel text-center text-slate-500 sm:col-span-2">
               Geen spellen gevonden in deze selectie.
             </p>
           )}

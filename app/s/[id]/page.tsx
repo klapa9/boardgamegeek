@@ -3,7 +3,7 @@ import SessionApp from '@/components/SessionApp';
 
 export default function SessionPage({ params }: { params: { id: string } }) {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-4xl px-4 py-8">Laden...</main>}>
+    <Suspense fallback={<main className="app-shell"><div className="mx-auto max-w-4xl px-4 py-8"><div className="page-card p-5">Laden...</div></div></main>}>
       <SessionApp sessionId={params.id} />
     </Suspense>
   );

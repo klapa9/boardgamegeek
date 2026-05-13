@@ -41,27 +41,27 @@ export default async function SessionsOverviewPage() {
   }));
 
   return (
-    <main className="mx-auto max-w-5xl space-y-5 px-4 py-6 pb-16">
-      <header className="rounded-3xl bg-white p-5 shadow-soft">
-        <Link href="/" className="text-sm font-bold text-slate-500 underline">{'<-'} Terug naar start</Link>
-        <h1 className="mt-3 text-3xl font-black tracking-tight">Jouw spelavonden</h1>
-        <p className="mt-2 text-slate-600">Overzicht van je eerdere spelmomenten, gesorteerd op meest recente datum.</p>
-        <Link
-          href="/spelavond?nieuw=1"
-          className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 font-bold text-white"
-        >
-          <CalendarPlus size={18} />
-          Nieuwe spelavond maken
-        </Link>
-      </header>
+    <main className="app-shell">
+      <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 pb-16">
+        <header className="page-card page-card-lime p-5 sm:p-6">
+          <Link href="/" className="neo-button neo-button-ghost text-sm">{'<-'} Terug naar start</Link>
+          <p className="page-chip mt-4 w-fit">Overzicht</p>
+          <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Jouw spelavonden</h1>
+          <p className="mt-3 text-slate-700">Overzicht van je eerdere spelmomenten, gesorteerd op meest recente datum.</p>
+          <Link href="/spelavond?nieuw=1" className="neo-button neo-button-primary mt-5">
+            <CalendarPlus size={18} />
+            Nieuwe spelavond maken
+          </Link>
+        </header>
 
-      <section className="rounded-3xl bg-white p-5 shadow-soft">
-        {!sessionItems.length && (
-          <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-slate-500">Nog geen spelavonden gevonden.</p>
-        )}
+        <section className="page-card p-5">
+          {!sessionItems.length && (
+            <p className="neo-muted-panel text-center text-slate-500">Nog geen spelavonden gevonden.</p>
+          )}
 
-        {!!sessionItems.length && <SessionsOverviewList sessions={sessionItems} />}
-      </section>
+          {!!sessionItems.length && <SessionsOverviewList sessions={sessionItems} />}
+        </section>
+      </div>
     </main>
   );
 }

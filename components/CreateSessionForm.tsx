@@ -37,6 +37,12 @@ const WEEKDAY_LABELS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'] as const;
 const SESSION_DRAFT_KEY = 'gsk-session-draft';
 const LAST_MEETING_TIME_KEY = 'gsk-last-meeting-time';
 const DEFAULT_MEETING_TIME = '20:00';
+const SELECTED_DATE_STYLES = [
+  'border-slate-950 bg-[#d8ff63] shadow-sm shadow-[#d8ff63]/20',
+  'border-slate-950 bg-[#84d7ff] shadow-sm shadow-[#84d7ff]/20',
+  'border-slate-950 bg-[#ffc7b8] shadow-sm shadow-[#ffc7b8]/20',
+  'border-slate-950 bg-[#fff2bd] shadow-sm shadow-[#fff2bd]/20'
+] as const;
 
 function dateParts(date: string) {
   const value = new Date(`${date}T12:00:00`);
@@ -460,7 +466,7 @@ export default function CreateSessionForm({
   const hostPickHasTooManySelected = gameSelectionMode === 'host_pick' && selectedIds.length > 1;
 
   if (initializing) {
-    return <div className="mt-8 rounded-2xl bg-slate-50 px-4 py-6 text-sm text-slate-500">Instellingen laden...</div>;
+    return <div className="neo-muted-panel mt-8 text-sm text-slate-500">Instellingen laden...</div>;
   }
 
   return (
@@ -472,16 +478,16 @@ export default function CreateSessionForm({
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400"
+              className="neo-input"
               placeholder="Spelavond vrijdag"
               required
             />
           </div>
 
-          <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
+          <div className="page-subcard p-4">
             <p className="text-sm font-semibold text-slate-700">Planning keuze</p>
             <div className="mt-3 grid gap-2">
-              <label className={`cursor-pointer rounded-2xl border px-4 py-3 ${planningMode === 'fixed_day' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'fixed_day' ? 'border-slate-950 bg-[#d8ff63]/45' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="planning-mode"
@@ -493,7 +499,7 @@ export default function CreateSessionForm({
                 <p className="font-bold text-slate-900">Ik bepaal nu al de dag</p>
                 <p className="text-sm text-slate-600">Je kiest straks 1 vaste datum.</p>
               </label>
-              <label className={`cursor-pointer rounded-2xl border px-4 py-3 ${planningMode === 'vote_dates' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'vote_dates' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="planning-mode"
@@ -508,10 +514,10 @@ export default function CreateSessionForm({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
+          <div className="page-subcard p-4">
             <p className="text-sm font-semibold text-slate-700">Spelkeuze</p>
             <div className="mt-3 grid gap-2">
-              <label className={`cursor-pointer rounded-2xl border px-4 py-3 ${gameSelectionMode === 'no_preselect' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'no_preselect' ? 'border-slate-950 bg-[#ffc7b8]/55' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="game-mode"
@@ -523,7 +529,7 @@ export default function CreateSessionForm({
                 <p className="font-bold text-slate-900">Geen spel op voorhand kiezen</p>
                 <p className="text-sm text-slate-600">De sessie wordt gemaakt zonder vooraf gekozen spellen.</p>
               </label>
-              <label className={`cursor-pointer rounded-2xl border px-4 py-3 ${gameSelectionMode === 'host_pick' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'host_pick' ? 'border-slate-950 bg-[#fff2bd]' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="game-mode"
@@ -535,7 +541,7 @@ export default function CreateSessionForm({
                 <p className="font-bold text-slate-900">Ik kies zelf 1 spel</p>
                 <p className="text-sm text-slate-600">Je selecteert straks exact 1 spel.</p>
               </label>
-              <label className={`cursor-pointer rounded-2xl border px-4 py-3 ${gameSelectionMode === 'players_pick' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'players_pick' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="game-mode"
@@ -556,7 +562,7 @@ export default function CreateSessionForm({
               type="time"
               value={meetingTime}
               onChange={(event) => setMeetingTime(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-slate-400"
+              className="neo-input"
               required
             />
             <p className="mt-2 text-sm text-slate-500">Onthoudt je laatste keuze. Eerste keer: standaard 20:00.</p>
@@ -565,7 +571,7 @@ export default function CreateSessionForm({
       )}
 
       {mode !== 'details' && (
-        <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <div className="page-subcard-soft px-4 py-3 text-sm text-slate-600">
           <b className="text-slate-900">{title}</b>
           <span className="block">Planning: {planningSummary}</span>
           <span className="block">Spelkeuze: {gameSummary}</span>
@@ -574,16 +580,16 @@ export default function CreateSessionForm({
       )}
 
       {mode === 'planning' && (
-        <div className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
+        <div className="page-subcard p-4">
           <div className="max-w-xl">
             {visibleMonth && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3">
+              <div className="page-subcard-soft p-2.5 sm:p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => setVisibleMonthDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
                     disabled={visibleMonth.key === currentMonthKey}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 disabled:opacity-40"
+                    className="neo-button neo-button-ghost h-8 w-8 rounded-full p-0 text-slate-600 disabled:opacity-40"
                     title="Vorige maand"
                   >
                     <ChevronLeft size={16} />
@@ -592,7 +598,7 @@ export default function CreateSessionForm({
                   <button
                     type="button"
                     onClick={() => setVisibleMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 disabled:opacity-40"
+                    className="neo-button neo-button-ghost h-8 w-8 rounded-full p-0 text-slate-600 disabled:opacity-40"
                     title="Volgende maand"
                   >
                     <ChevronRight size={16} />
@@ -610,6 +616,10 @@ export default function CreateSessionForm({
                         }
 
                         const selected = dateOptions.includes(cell.date);
+                        const selectedIndex = dateOptions.indexOf(cell.date);
+                        const selectedStyle = selected
+                          ? SELECTED_DATE_STYLES[selectedIndex % SELECTED_DATE_STYLES.length]
+                          : '';
                         const display = dateParts(cell.date);
 
                         return (
@@ -620,9 +630,9 @@ export default function CreateSessionForm({
                             onClick={() => toggleDate(cell.date!)}
                             title={display.full}
                             className={[
-                              'relative aspect-square rounded-lg border text-left transition',
-                              cell.isSelectable ? 'border-slate-200 bg-white hover:border-slate-300' : 'border-transparent bg-slate-100/70 text-slate-300',
-                              selected ? 'border-emerald-500 bg-emerald-200 shadow-sm shadow-emerald-500/20' : '',
+                              'relative aspect-square rounded-lg border-2 text-left transition',
+                              cell.isSelectable ? 'border-slate-950/10 bg-white hover:border-slate-950/30' : 'border-transparent bg-slate-100/70 text-slate-300',
+                              selectedStyle,
                               cell.isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : ''
                             ].join(' ')}
                           >
@@ -681,7 +691,7 @@ export default function CreateSessionForm({
           || (mode === 'games' && gameSelectionMode === 'host_pick' && selectedIds.length < 1)
           || (mode === 'games' && gameSelectionMode === 'players_pick' && selectedIds.length < 1)
         }
-        className="w-full rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white disabled:opacity-60"
+        className="neo-button neo-button-primary w-full disabled:opacity-60"
       >
         {mode === 'details' && 'Bevestig keuzes'}
         {mode === 'planning' && planningButtonLabel}

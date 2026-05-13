@@ -27,7 +27,7 @@ export default function BackToHomeButton({ editSessionId = null }: { editSession
     <button
       type="button"
       onClick={handleClick}
-      className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+      className="neo-button neo-button-ghost text-sm"
     >
       <ArrowLeft size={16} />
       Terug naar start

@@ -29,6 +29,172 @@ body {
 button, input, select { font: inherit; }
 button:disabled { cursor: not-allowed; }
 
+@layer components {
+  .app-shell {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .app-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background:
+      radial-gradient(circle at top left, rgba(255, 90, 54, 0.18), transparent 24rem),
+      radial-gradient(circle at top right, rgba(132, 215, 255, 0.22), transparent 26rem),
+      radial-gradient(circle at bottom center, rgba(216, 255, 99, 0.18), transparent 30rem);
+    pointer-events: none;
+  }
+
+  .app-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.14;
+    background-image:
+      linear-gradient(rgba(23, 32, 54, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(23, 32, 54, 0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+
+  .page-card {
+    border: 4px solid var(--ink);
+    border-radius: 2rem;
+    background: rgba(255, 247, 223, 0.92);
+    box-shadow: 0 14px 0 0 #172036;
+  }
+
+  .page-card-sky {
+    background: linear-gradient(180deg, rgba(132, 215, 255, 0.78) 0%, rgba(255, 247, 223, 0.94) 100%);
+  }
+
+  .page-card-peach {
+    background: linear-gradient(180deg, rgba(255, 199, 184, 0.82) 0%, rgba(255, 247, 223, 0.94) 100%);
+  }
+
+  .page-card-lime {
+    background: linear-gradient(180deg, rgba(216, 255, 99, 0.72) 0%, rgba(255, 247, 223, 0.94) 100%);
+  }
+
+  .page-card-dark {
+    border: 4px solid var(--ink);
+    border-radius: 2rem;
+    background: #172036;
+    color: var(--paper);
+    box-shadow: 0 14px 0 0 #0f172a;
+  }
+
+  .page-band {
+    border-bottom: 4px dashed var(--ink);
+    background: #fff2bd;
+  }
+
+  .page-subcard {
+    border: 2px solid var(--ink);
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 8px 0 rgba(23, 32, 54, 0.08);
+  }
+
+  .page-subcard-soft {
+    border: 2px solid rgba(23, 32, 54, 0.16);
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .page-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 2px solid var(--ink);
+    border-radius: 9999px;
+    background: white;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+
+  .neo-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border: 2px solid var(--ink);
+    border-radius: 1.1rem;
+    padding: 0.75rem 1rem;
+    font-weight: 800;
+    transition: transform 150ms ease, background-color 150ms ease, color 150ms ease;
+  }
+
+  .neo-button:hover {
+    transform: translateY(-2px);
+  }
+
+  .neo-button:disabled:hover {
+    transform: none;
+  }
+
+  .neo-button-primary {
+    background: var(--hot);
+    color: white;
+  }
+
+  .neo-button-primary:hover {
+    background: #ff6d4d;
+  }
+
+  .neo-button-secondary {
+    background: var(--sky);
+    color: var(--ink);
+  }
+
+  .neo-button-lime {
+    background: var(--acid);
+    color: var(--ink);
+  }
+
+  .neo-button-ghost {
+    background: rgba(255, 255, 255, 0.78);
+    color: #334155;
+  }
+
+  .neo-button-danger {
+    background: rgba(255, 255, 255, 0.9);
+    color: #b91c1c;
+    border-color: #fecaca;
+  }
+
+  .neo-input {
+    width: 100%;
+    border: 2px solid rgba(23, 32, 54, 0.14);
+    border-radius: 1.1rem;
+    background: rgba(255, 255, 255, 0.86);
+    padding: 0.8rem 1rem;
+    outline: none;
+    transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .neo-input:focus {
+    border-color: rgba(23, 32, 54, 0.46);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(132, 215, 255, 0.18);
+  }
+
+  .neo-muted-panel {
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.58);
+    padding: 1rem;
+  }
+}
+
 .preference-slider::-webkit-slider-thumb {
   appearance: none;
   width: 1.35rem;

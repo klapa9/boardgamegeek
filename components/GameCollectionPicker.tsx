@@ -205,10 +205,10 @@ export default function GameCollectionPicker({
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <label className="block text-sm font-semibold text-slate-700">{title}</label>
-          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+          <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
         </div>
         {!!selectedIds.length && (
-          <button type="button" onClick={clearSelection} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50">
+          <button type="button" onClick={clearSelection} className="neo-button neo-button-ghost text-sm text-slate-600">
             <X size={15} className="mr-1 inline" /> Selectie leegmaken
           </button>
         )}
@@ -221,7 +221,7 @@ export default function GameCollectionPicker({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Zoek in lokale spellenlijst"
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-9 pr-10 outline-none focus:border-slate-400"
+            className="neo-input w-full py-3 pl-9 pr-10"
           />
           {(searching || loadingCollection) && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
         </div>
@@ -233,7 +233,7 @@ export default function GameCollectionPicker({
           aria-controls="collection-filters"
           aria-label={filtersOpen ? 'Filters verbergen' : 'Filters tonen'}
           title={filtersOpen ? 'Filters verbergen' : 'Filters tonen'}
-          className={`inline-flex min-w-[3.25rem] items-center justify-center rounded-2xl border px-3 transition ${filtersOpen || hasActiveGameFilters(filters) ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+          className={`inline-flex min-w-[3.25rem] items-center justify-center rounded-2xl border-2 px-3 transition ${filtersOpen || hasActiveGameFilters(filters) ? 'border-slate-950 bg-[#172036] text-white' : 'border-slate-950/10 bg-white/80 text-slate-600 hover:bg-white'}`}
         >
           <span className="relative inline-flex">
             <SlidersHorizontal size={18} />
@@ -276,12 +276,12 @@ export default function GameCollectionPicker({
         role="listbox"
         aria-label={title}
         aria-activedescendant={visibleGames[activeIndex] ? `collection-game-${visibleGames[activeIndex].id}` : undefined}
-        className={`${maxHeightClassName} mt-3 space-y-2 overflow-auto rounded-3xl border border-slate-100 bg-slate-50 p-2 outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-100`}
+        className={`${maxHeightClassName} mt-3 space-y-2 overflow-auto rounded-3xl border-2 border-slate-950/10 bg-[rgba(255,255,255,0.6)] p-2 outline-none focus:border-slate-950/30 focus:ring-2 focus:ring-sky-100`}
       >
         {loadingCollection && (
           <div className="space-y-2 px-1 py-1">
             {Array.from({ length: 5 }, (_, index) => (
-              <div key={index} className="flex animate-pulse items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3">
+              <div key={index} className="flex animate-pulse items-center gap-3 rounded-2xl border-2 border-slate-100 bg-white p-3">
                 <div className="h-12 w-12 rounded-xl bg-slate-100" />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="h-4 w-2/3 rounded bg-slate-100" />
@@ -308,12 +308,12 @@ export default function GameCollectionPicker({
               title={disabled ? disabledReason : undefined}
               role="option"
               aria-selected={selected}
-              className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed ${selected ? 'border-slate-950 bg-slate-950 text-white' : disabled ? 'border-amber-100 bg-amber-50/80 text-slate-500' : 'border-slate-100 bg-white hover:border-slate-200'} ${active ? 'ring-2 ring-slate-300' : ''}`}
+              className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition disabled:cursor-not-allowed ${selected ? 'border-slate-950 bg-[#172036] text-white' : disabled ? 'border-amber-100 bg-amber-50/80 text-slate-500' : 'border-slate-950/10 bg-white hover:border-slate-950/25'} ${active ? 'ring-2 ring-sky-200' : ''}`}
             >
               {imageUrl ? <img src={imageUrl} alt="" className="h-12 w-12 rounded-xl object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400"><Dice5 size={22} /></div>}
               <span className="min-w-0 flex-1">
                 <b className="block truncate">{game.title}</b>
-                <span className={`block truncate text-sm ${selected ? 'text-slate-300' : 'text-slate-500'}`}>{gameMeta(game) || 'Geen extra info'}</span>
+                <span className={`block truncate text-sm ${selected ? 'text-slate-300' : 'text-slate-600'}`}>{gameMeta(game) || 'Geen extra info'}</span>
                 {disabled && <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">{disabledReason}</span>}
               </span>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${disabled ? 'bg-amber-100 text-amber-900' : selected ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-600'}`}>
@@ -323,7 +323,7 @@ export default function GameCollectionPicker({
           );
         })}
         {!loadingCollection && !!hiddenResultCount && (
-          <button type="button" onClick={loadMore} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+          <button type="button" onClick={loadMore} className="neo-button neo-button-ghost flex w-full text-sm text-slate-700">
             <ChevronDown size={17} /> Nog {hiddenResultCount} laden
           </button>
         )}
@@ -342,7 +342,7 @@ export default function GameCollectionPicker({
       </div>
 
       {!!selectedGames.length && (
-        <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-3">
+        <div className="page-subcard-soft mt-3 p-3">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-slate-700">Geselecteerde spellen <span className="text-slate-400">({selectedGames.length})</span></p>
             <button type="button" onClick={clearSelection} className="text-sm font-bold text-slate-500 hover:text-slate-800">Leegmaken</button>
