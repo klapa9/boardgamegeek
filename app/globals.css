@@ -2,8 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
-body { @apply bg-slate-50 text-slate-950 antialiased; }
+:root {
+  color-scheme: light;
+  --paper: #fff7df;
+  --ink: #172036;
+  --hot: #ff5a36;
+  --acid: #d8ff63;
+  --sky: #84d7ff;
+}
+
+html {
+  background:
+    radial-gradient(circle at top left, rgba(255, 90, 54, 0.18), transparent 24rem),
+    radial-gradient(circle at top right, rgba(132, 215, 255, 0.24), transparent 28rem),
+    linear-gradient(180deg, #fffdf8 0%, #fff8e8 100%);
+}
+
+body {
+  @apply text-slate-950 antialiased;
+  min-height: 100vh;
+  background: transparent;
+  color: var(--ink);
+  font-family: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
+}
+
 button, input, select { font: inherit; }
 button:disabled { cursor: not-allowed; }
 
@@ -15,6 +37,55 @@ button:disabled { cursor: not-allowed; }
   border-radius: 9999px;
   background: #0f172a;
   box-shadow: 0 3px 10px rgba(15, 23, 42, 0.28);
+}
+
+.font-poster {
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+}
+
+.home-noise {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(23, 32, 54, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 32, 54, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.home-float {
+  animation: home-float 6s ease-in-out infinite;
+}
+
+.home-bob {
+  animation: home-bob 3.4s ease-in-out infinite;
+}
+
+.home-marquee {
+  animation: home-marquee 18s linear infinite;
+}
+
+@keyframes home-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+
+@keyframes home-bob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.02); }
+}
+
+@keyframes home-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 .preference-slider::-moz-range-thumb {
