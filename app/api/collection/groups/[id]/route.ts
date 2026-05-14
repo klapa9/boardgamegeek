@@ -33,7 +33,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (gameIds === null) return NextResponse.json({ error: 'game_ids moet een lijst zijn.' }, { status: 400 });
   if (nextName !== undefined && !nextName) return NextResponse.json({ error: 'De naam mag niet leeg zijn.' }, { status: 400 });
   if (nextName !== undefined && isReservedName(nextName)) {
-    return NextResponse.json({ error: '"Alle spellen" is al de standaardindeling.' }, { status: 409 });
+    return NextResponse.json({ error: '"Alle spellen" is al de standaardgroep.' }, { status: 409 });
   }
   if (nextName === undefined && gameIds === undefined) {
     return NextResponse.json({ error: 'Er is niets om bij te werken.' }, { status: 400 });
@@ -55,8 +55,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       : Promise.resolve([])
   ]);
 
-  if (!group) return NextResponse.json({ error: 'Indeling niet gevonden.' }, { status: 404 });
-  if (duplicate) return NextResponse.json({ error: 'Deze indeling bestaat al.' }, { status: 409 });
+  if (!group) return NextResponse.json({ error: 'Groep niet gevonden.' }, { status: 404 });
+  if (duplicate) return NextResponse.json({ error: 'Deze groep bestaat al.' }, { status: 409 });
   if (gameIds && games.length !== gameIds.length) return NextResponse.json({ error: 'Niet elk gekozen spel bestaat nog.' }, { status: 400 });
 
   const updatedGroup = await prisma.$transaction(async (tx) => {
@@ -88,7 +88,7 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
   if (unauthorizedResponse) return unauthorizedResponse;
 
   const group = await prisma.collectionGroup.findUnique({ where: { id: params.id }, select: { id: true } });
-  if (!group) return NextResponse.json({ error: 'Indeling niet gevonden.' }, { status: 404 });
+  if (!group) return NextResponse.json({ error: 'Groep niet gevonden.' }, { status: 404 });
 
   await prisma.collectionGroup.delete({ where: { id: params.id } });
   return NextResponse.json({ ok: true });

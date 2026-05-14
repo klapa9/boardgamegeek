@@ -30,8 +30,8 @@ export async function POST(request: Request) {
   const name = normalizeName(body.name);
   const gameIds = normalizeIdList(body.game_ids);
 
-  if (!name) return NextResponse.json({ error: 'Geef deze indeling een naam.' }, { status: 400 });
-  if (isReservedName(name)) return NextResponse.json({ error: '"Alle spellen" is al de standaardindeling.' }, { status: 409 });
+  if (!name) return NextResponse.json({ error: 'Geef deze groep een naam.' }, { status: 400 });
+  if (isReservedName(name)) return NextResponse.json({ error: '"Alle spellen" is al de standaardgroep.' }, { status: 409 });
 
   const [duplicate, games] = await Promise.all([
     prisma.collectionGroup.findFirst({
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       : Promise.resolve([])
   ]);
 
-  if (duplicate) return NextResponse.json({ error: 'Deze indeling bestaat al.' }, { status: 409 });
+  if (duplicate) return NextResponse.json({ error: 'Deze groep bestaat al.' }, { status: 409 });
   if (games.length !== gameIds.length) return NextResponse.json({ error: 'Niet elk gekozen spel bestaat nog.' }, { status: 400 });
 
   const group = await prisma.$transaction(async (tx) => {
