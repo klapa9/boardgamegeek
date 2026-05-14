@@ -59,6 +59,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (!session) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
   const access = await ensureSessionOrganizerAccess(session);
   if (!access.ok) return NextResponse.json({ error: 'Alleen de organisator mag dit aanpassen.' }, { status: 403 });
+  const viewerProfile = access.viewerProfile;
+  if (!viewerProfile) return NextResponse.json({ error: 'Je moet eerst inloggen om deze actie uit te voeren.' }, { status: 401 });
 
   const isSettingsUpdate = (
     body.title !== undefined
@@ -84,7 +86,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const collectionGames = collectionGameIds.length
       ? await prisma.collectionGame.findMany({
         include: collectionGameInclude,
-        where: { id: { in: collectionGameIds }, hidden: false }
+        where: {
+          id: { in: collectionGameIds },
+          userProfileId: viewerProfile.id,
+          hidden: false
+        }
       })
       : [];
 

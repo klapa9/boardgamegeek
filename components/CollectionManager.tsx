@@ -1,9 +1,7 @@
 'use client';
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Search, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { DEFAULT_BGG_USERNAME } from '@/lib/defaults';
 import { CollectionBundle, CollectionGameDto } from '@/lib/types';
 
 const SYNC_POLL_INTERVAL_MS = 2500;
@@ -33,7 +31,8 @@ function formatSyncMoment(value: string | null) {
 
 export default function CollectionManager() {
   const [games, setGames] = useState<CollectionGameDto[]>([]);
-  const [username, setUsername] = useState(DEFAULT_BGG_USERNAME);
+  const [username, setUsername] = useState('');
+  const [syncedUsername, setSyncedUsername] = useState<string | null>(null);
   const [xmlInput, setXmlInput] = useState('');
   const [manualTitle, setManualTitle] = useState('');
   const [query, setQuery] = useState('');
@@ -49,6 +48,7 @@ export default function CollectionManager() {
     const data = await api<CollectionBundle>('/api/collection/games');
     setGames(data.games);
     if (data.sync_state?.bgg_username) setUsername(data.sync_state.bgg_username);
+    setSyncedUsername(data.sync_state?.bgg_username ?? null);
     if (data.sync_state?.last_status) setMessage(data.sync_state.last_status);
     setSyncing(Boolean(data.sync_state?.sync_in_progress));
     setLastSyncedAt(data.sync_state?.last_synced_at ?? null);
@@ -57,6 +57,22 @@ export default function CollectionManager() {
       processed: data.sync_state?.processed_games ?? 0
     });
     return data;
+  }
+
+  function confirmsReplacingCollection(nextUsername: string) {
+    const trimmedUsername = nextUsername.trim();
+    const hasBggGames = games.some((game) => game.source === 'bgg');
+    const replacingDifferentCollection = Boolean(
+      hasBggGames
+      && syncedUsername
+      && syncedUsername.localeCompare(trimmedUsername, undefined, { sensitivity: 'accent' }) !== 0
+    );
+
+    if (!replacingDifferentCollection) return true;
+
+    return confirm(
+      `Je hebt momenteel al een gesynchroniseerde collectie van ${syncedUsername}. Als je doorgaat, wordt die BGG-collectie verwijderd en vervangen door ${trimmedUsername}.`
+    );
   }
 
   useEffect(() => {
@@ -100,13 +116,23 @@ export default function CollectionManager() {
 
   async function syncBgg(event: React.FormEvent) {
     event.preventDefault();
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      setError('Geef eerst je BoardGameGeek username in.');
+      return;
+    }
+    if (!confirmsReplacingCollection(trimmedUsername)) return;
+
     setSyncing(true);
     setError(null);
     setMessage('Synchronisatie gestart...');
     try {
       const data = await api<{ started: boolean; pending: boolean; message: string }>('/api/collection/sync', {
         method: 'POST',
-        body: JSON.stringify({ username })
+        body: JSON.stringify({
+          username: trimmedUsername,
+          replace_existing: syncedUsername !== null && syncedUsername.localeCompare(trimmedUsername, undefined, { sensitivity: 'accent' }) !== 0
+        })
       });
       setMessage(data.message);
       await load();
@@ -118,13 +144,24 @@ export default function CollectionManager() {
 
   async function importXml(event: React.FormEvent) {
     event.preventDefault();
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername) {
+      setError('Geef eerst je BoardGameGeek username in.');
+      return;
+    }
+    if (!confirmsReplacingCollection(trimmedUsername)) return;
+
     setSyncing(true);
     setError(null);
     setMessage('XML import gestart...');
     try {
       const data = await api<{ started: boolean; pending: boolean; message: string }>('/api/collection/sync', {
         method: 'POST',
-        body: JSON.stringify({ username, xml: xmlInput })
+        body: JSON.stringify({
+          username: trimmedUsername,
+          xml: xmlInput,
+          replace_existing: syncedUsername !== null && syncedUsername.localeCompare(trimmedUsername, undefined, { sensitivity: 'accent' }) !== 0
+        })
       });
       setXmlInput('');
       setMessage(data.message);
@@ -168,6 +205,7 @@ export default function CollectionManager() {
             {syncing ? 'Synchroniseren...' : 'Synchroniseer'}
           </button>
         </form>
+        <p className="mt-3 text-sm text-slate-600">Elke gebruiker kan 1 BoardGameGeek-collectie koppelen. Een nieuwe username vervangt je vorige BGG-collectie.</p>
         <div className="neo-muted-panel mt-4 text-sm text-slate-700">
           <p><b>Laatst klaar:</b> {formatSyncMoment(lastSyncedAt)}</p>
           {syncProgress.total > 0 && syncing && <p className="mt-1"><b>Voortgang:</b> {Math.min(syncProgress.processed, syncProgress.total)}/{syncProgress.total} spellen</p>}
@@ -228,7 +266,13 @@ export default function CollectionManager() {
               </article>
             );
           })}
-          {!filteredGames.length && <p className="neo-muted-panel text-center text-slate-500 sm:col-span-2">Geen spellen gevonden.</p>}
+          {!filteredGames.length && (
+            <div className="neo-muted-panel text-center text-slate-500 sm:col-span-2">
+              {games.length
+                ? 'Geen spellen gevonden.'
+                : 'Je collectie bevat nog geen spellen. Synchroniseer hierboven je BGG-collectie of voeg manueel een spel toe.'}
+            </div>
+          )}
         </div>
       </section>
     </>

@@ -127,7 +127,8 @@ model Rating {
 
 model CollectionGame {
   id               String   @id @default(cuid())
-  bggId            Int?     @unique
+  userProfileId    String?
+  bggId            Int?
   title            String
   yearPublished    Int?
   thumbnailUrl     String?
@@ -150,18 +151,22 @@ model CollectionGame {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  userProfile UserProfile? @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
   mechanics  CollectionGameMechanic[]
   categories CollectionGameCategory[]
   groups     CollectionGroupGame[]
 
+  @@unique([userProfileId, bggId])
   @@index([title])
   @@index([hidden])
   @@index([source])
   @@index([lastSyncedAt])
+  @@index([userProfileId])
 }
 
 model CollectionSyncState {
-  id             String   @id @default("default")
+  id             String   @id @default(cuid())
+  userProfileId  String?  @unique
   bggUsername    String?
   lastSyncedAt   DateTime?
   lastStatus     String?
@@ -171,6 +176,8 @@ model CollectionSyncState {
   totalGames     Int      @default(0)
   processedGames Int      @default(0)
   updatedAt      DateTime @updatedAt
+
+  userProfile UserProfile? @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
 }
 
 model UserProfile {
@@ -180,19 +187,26 @@ model UserProfile {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  players           Player[]
-  organizedSessions Session[] @relation("OrganizerSessions")
+  players              Player[]
+  organizedSessions    Session[]            @relation("OrganizerSessions")
+  collectionGames      CollectionGame[]
+  collectionGroups     CollectionGroup[]
+  collectionSyncState  CollectionSyncState?
 }
 
 model CollectionGroup {
   id        String   @id @default(cuid())
+  userProfileId String?
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  games CollectionGroupGame[]
+  userProfile UserProfile? @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  games       CollectionGroupGame[]
 
+  @@unique([userProfileId, name])
   @@index([name])
+  @@index([userProfileId])
 }
 
 model CollectionGroupGame {

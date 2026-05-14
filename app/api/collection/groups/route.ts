@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { collectionGroupInclude } from '@/lib/collection-groups';
 import { prisma } from '@/lib/db';
-import { requireSignedInUser } from '@/lib/clerk-auth';
 import { serializeCollectionGroup } from '@/lib/serializers';
+import { getCurrentUserProfile } from '@/lib/user-profile';
 
 function normalizeName(value: unknown) {
   return String(value ?? '').trim();
@@ -23,8 +23,10 @@ function isReservedName(name: string) {
 }
 
 export async function POST(request: Request) {
-  const unauthorizedResponse = await requireSignedInUser();
-  if (unauthorizedResponse) return unauthorizedResponse;
+  const viewerProfile = await getCurrentUserProfile();
+  if (!viewerProfile) {
+    return NextResponse.json({ error: 'Je moet eerst inloggen om deze actie uit te voeren.' }, { status: 401 });
+  }
 
   const body = await request.json().catch(() => ({}));
   const name = normalizeName(body.name);
@@ -35,11 +37,21 @@ export async function POST(request: Request) {
 
   const [duplicate, games] = await Promise.all([
     prisma.collectionGroup.findFirst({
-      where: { name: { equals: name, mode: 'insensitive' } },
+      where: {
+        userProfileId: viewerProfile.id,
+        name: { equals: name, mode: 'insensitive' }
+      },
       select: { id: true }
     }),
     gameIds.length
-      ? prisma.collectionGame.findMany({ where: { id: { in: gameIds }, hidden: false }, select: { id: true } })
+      ? prisma.collectionGame.findMany({
+        where: {
+          id: { in: gameIds },
+          userProfileId: viewerProfile.id,
+          hidden: false
+        },
+        select: { id: true }
+      })
       : Promise.resolve([])
   ]);
 
@@ -47,7 +59,12 @@ export async function POST(request: Request) {
   if (games.length !== gameIds.length) return NextResponse.json({ error: 'Niet elk gekozen spel bestaat nog.' }, { status: 400 });
 
   const group = await prisma.$transaction(async (tx) => {
-    const createdGroup = await tx.collectionGroup.create({ data: { name } });
+    const createdGroup = await tx.collectionGroup.create({
+      data: {
+        userProfileId: viewerProfile.id,
+        name
+      }
+    });
 
     if (gameIds.length) {
       await tx.collectionGroupGame.createMany({

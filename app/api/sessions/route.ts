@@ -57,7 +57,11 @@ export async function POST(request: Request) {
   const collectionGames = collectionGameIds.length
     ? await prisma.collectionGame.findMany({
       include: collectionGameInclude,
-      where: { id: { in: collectionGameIds }, hidden: false }
+      where: {
+        id: { in: collectionGameIds },
+        userProfileId: viewerProfile.id,
+        hidden: false
+      }
     })
     : [];
 

@@ -25,8 +25,8 @@ export type StartCollectionSyncResult = {
   message: string;
 };
 
-let activeSyncPromise: Promise<void> | null = null;
-type SyncStatePatch = Partial<Prisma.CollectionSyncStateCreateInput>;
+const activeSyncPromises = new Map<string, Promise<void>>();
+type SyncStatePatch = Partial<Prisma.CollectionSyncStateUncheckedCreateInput>;
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -56,11 +56,11 @@ function toThingFallback(seed: CollectionSeed): BggThingDetails {
   };
 }
 
-async function updateSyncState(data: SyncStatePatch) {
+async function updateSyncState(userProfileId: string, data: SyncStatePatch) {
   await prisma.collectionSyncState.upsert({
-    where: { id: 'default' },
+    where: { userProfileId },
     create: {
-      id: 'default',
+      userProfileId,
       ...data
     },
     update: data
@@ -147,7 +147,7 @@ async function fetchThingBatch(ids: number[]): Promise<BggThingDetails[]> {
   throw lastError instanceof Error ? lastError : new Error(BGG_TEMPORARY_ERROR_MESSAGE);
 }
 
-async function persistCollectionGames(username: string, games: BggThingDetails[]) {
+async function persistCollectionGames(userProfileId: string, username: string, games: BggThingDetails[]) {
   const now = new Date();
   const allMechanics = Array.from(new Set(games.flatMap((game) => game.mechanics))).sort((left, right) => left.localeCompare(right));
   const allCategories = Array.from(new Set(games.flatMap((game) => game.categories))).sort((left, right) => left.localeCompare(right));
@@ -178,8 +178,14 @@ async function persistCollectionGames(username: string, games: BggThingDetails[]
 
     for (const game of games) {
       const savedGame = await tx.collectionGame.upsert({
-        where: { bggId: game.bggId },
+        where: {
+          userProfileId_bggId: {
+            userProfileId,
+            bggId: game.bggId
+          }
+        },
         create: {
+          userProfileId,
           bggId: game.bggId,
           title: game.title,
           yearPublished: game.yearPublished,
@@ -249,6 +255,7 @@ async function persistCollectionGames(username: string, games: BggThingDetails[]
 
     await tx.collectionGame.updateMany({
       where: {
+        userProfileId,
         source: 'bgg',
         ...(ownedBggIds.length ? { bggId: { notIn: ownedBggIds } } : {})
       },
@@ -259,9 +266,9 @@ async function persistCollectionGames(username: string, games: BggThingDetails[]
     });
 
     await tx.collectionSyncState.upsert({
-      where: { id: 'default' },
+      where: { userProfileId },
       create: {
-        id: 'default',
+        userProfileId,
         bggUsername: username,
         lastSyncedAt: now,
         lastStatus: `${games.length} spellen gesynchroniseerd.`,
@@ -283,9 +290,9 @@ async function persistCollectionGames(username: string, games: BggThingDetails[]
   });
 }
 
-async function runCollectionSync(username: string, xml?: string) {
+async function runCollectionSync(userProfileId: string, username: string, xml?: string) {
   const startedAt = new Date();
-  await updateSyncState({
+  await updateSyncState(userProfileId, {
     bggUsername: username,
     lastStatus: 'Collectie synchroniseren met BoardGameGeek...',
     syncInProgress: true,
@@ -301,7 +308,7 @@ async function runCollectionSync(username: string, xml?: string) {
       : await fetchCollectionSeedsFromBgg(username);
 
     if (collectionResult.pending) {
-      await updateSyncState({
+      await updateSyncState(userProfileId, {
         bggUsername: username,
         lastStatus: BGG_COLLECTION_PENDING_MESSAGE,
         syncInProgress: false,
@@ -313,7 +320,7 @@ async function runCollectionSync(username: string, xml?: string) {
     const seeds = Array.from(new Map(collectionResult.seeds.map((seed) => [seed.bggId, seed])).values())
       .sort((left, right) => left.title.localeCompare(right.title));
 
-    await updateSyncState({
+    await updateSyncState(userProfileId, {
       bggUsername: username,
       lastStatus: `${seeds.length} spellen gevonden. Details ophalen...`,
       totalGames: seeds.length,
@@ -341,7 +348,7 @@ async function runCollectionSync(username: string, xml?: string) {
       detailedGames.push(...mergedBatch);
       await Promise.all(mergedBatch.map((game) => preloadBggThumbnail(game.bggId, game.thumbnailUrl ?? game.imageUrl)));
 
-      await updateSyncState({
+      await updateSyncState(userProfileId, {
         bggUsername: username,
         lastStatus: `Details opgehaald voor ${Math.min(index + batchSeeds.length, seeds.length)} van ${seeds.length} spellen.`,
         totalGames: seeds.length,
@@ -353,10 +360,10 @@ async function runCollectionSync(username: string, xml?: string) {
       }
     }
 
-    await persistCollectionGames(username, detailedGames);
+    await persistCollectionGames(userProfileId, username, detailedGames);
   } catch (error) {
     const message = error instanceof Error ? error.message : BGG_TEMPORARY_ERROR_MESSAGE;
-    await updateSyncState({
+    await updateSyncState(userProfileId, {
       bggUsername: username,
       lastStatus: message,
       syncInProgress: false,
@@ -366,8 +373,8 @@ async function runCollectionSync(username: string, xml?: string) {
   }
 }
 
-export async function startCollectionSync(options: { username: string; xml?: string }): Promise<StartCollectionSyncResult> {
-  if (activeSyncPromise) {
+export async function startCollectionSync(options: { userProfileId: string; username: string; xml?: string }): Promise<StartCollectionSyncResult> {
+  if (activeSyncPromises.has(options.userProfileId)) {
     return {
       started: false,
       pending: true,
@@ -375,13 +382,14 @@ export async function startCollectionSync(options: { username: string; xml?: str
     };
   }
 
-  activeSyncPromise = runCollectionSync(options.username, options.xml)
+  const syncPromise = runCollectionSync(options.userProfileId, options.username, options.xml)
     .catch(() => undefined)
     .finally(() => {
-      activeSyncPromise = null;
+      activeSyncPromises.delete(options.userProfileId);
     });
 
-  void activeSyncPromise;
+  activeSyncPromises.set(options.userProfileId, syncPromise);
+  void syncPromise;
 
   return {
     started: true,
@@ -392,10 +400,10 @@ export async function startCollectionSync(options: { username: string; xml?: str
   };
 }
 
-export async function isCollectionSyncRunning() {
-  if (activeSyncPromise) return true;
+export async function isCollectionSyncRunning(userProfileId: string) {
+  if (activeSyncPromises.has(userProfileId)) return true;
 
-  const syncState = await prisma.collectionSyncState.findUnique({ where: { id: 'default' } });
+  const syncState = await prisma.collectionSyncState.findUnique({ where: { userProfileId } });
   return Boolean(syncState?.syncInProgress);
 }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Dice5, Loader2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -331,7 +332,11 @@ export default function GameCollectionPicker({
           <div className="px-4 py-8 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-300"><Search size={24} /></div>
             <p className="font-bold text-slate-700">{query.trim() ? 'Geen match in je collectie' : emptyText}</p>
-            <p className="mt-1 text-sm text-slate-500">{query.trim() ? 'Controleer de spelling of probeer een kortere zoekterm.' : 'Synchroniseer of voeg eerst spellen toe aan je collectie.'}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {query.trim()
+                ? 'Controleer de spelling of probeer een kortere zoekterm.'
+                : <>Voeg je spellen toe in je <Link href="/games" className="font-semibold text-slate-700 underline underline-offset-2">collectiepagina</Link>.</>}
+            </p>
           </div>
         )}
       </div>

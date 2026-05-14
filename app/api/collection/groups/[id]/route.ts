@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { collectionGroupInclude } from '@/lib/collection-groups';
 import { prisma } from '@/lib/db';
-import { requireSignedInUser } from '@/lib/clerk-auth';
 import { serializeCollectionGroup } from '@/lib/serializers';
+import { getCurrentUserProfile } from '@/lib/user-profile';
 
 function normalizeName(value: unknown) {
   return String(value ?? '').trim();
@@ -23,8 +23,10 @@ function isReservedName(name: string) {
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const unauthorizedResponse = await requireSignedInUser();
-  if (unauthorizedResponse) return unauthorizedResponse;
+  const viewerProfile = await getCurrentUserProfile();
+  if (!viewerProfile) {
+    return NextResponse.json({ error: 'Je moet eerst inloggen om deze actie uit te voeren.' }, { status: 401 });
+  }
 
   const body = await request.json().catch(() => ({}));
   const nextName = body.name === undefined ? undefined : normalizeName(body.name);
@@ -40,18 +42,32 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   const [group, duplicate, games] = await Promise.all([
-    prisma.collectionGroup.findUnique({ where: { id: params.id }, select: { id: true } }),
+    prisma.collectionGroup.findFirst({
+      where: {
+        id: params.id,
+        userProfileId: viewerProfile.id
+      },
+      select: { id: true }
+    }),
     nextName === undefined
       ? Promise.resolve(null)
       : prisma.collectionGroup.findFirst({
         where: {
           id: { not: params.id },
+          userProfileId: viewerProfile.id,
           name: { equals: nextName, mode: 'insensitive' }
         },
         select: { id: true }
       }),
     gameIds && gameIds.length
-      ? prisma.collectionGame.findMany({ where: { id: { in: gameIds }, hidden: false }, select: { id: true } })
+      ? prisma.collectionGame.findMany({
+        where: {
+          id: { in: gameIds },
+          userProfileId: viewerProfile.id,
+          hidden: false
+        },
+        select: { id: true }
+      })
       : Promise.resolve([])
   ]);
 
@@ -84,10 +100,18 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 }
 
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const unauthorizedResponse = await requireSignedInUser();
-  if (unauthorizedResponse) return unauthorizedResponse;
+  const viewerProfile = await getCurrentUserProfile();
+  if (!viewerProfile) {
+    return NextResponse.json({ error: 'Je moet eerst inloggen om deze actie uit te voeren.' }, { status: 401 });
+  }
 
-  const group = await prisma.collectionGroup.findUnique({ where: { id: params.id }, select: { id: true } });
+  const group = await prisma.collectionGroup.findFirst({
+    where: {
+      id: params.id,
+      userProfileId: viewerProfile.id
+    },
+    select: { id: true }
+  });
   if (!group) return NextResponse.json({ error: 'Groep niet gevonden.' }, { status: 404 });
 
   await prisma.collectionGroup.delete({ where: { id: params.id } });

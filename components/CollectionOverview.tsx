@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import GameCollectionPicker from '@/components/GameCollectionPicker';
@@ -561,13 +562,13 @@ export default function CollectionOverview() {
             })}
 
             {!visibleGroupGames.length && (
-              <p className="neo-muted-panel text-center text-slate-500 sm:col-span-2">
+              <div className="neo-muted-panel text-center text-slate-500 sm:col-span-2">
                 {query.trim()
                   ? 'Geen spellen gevonden voor deze zoekterm.'
                   : selectedGroup.is_default
-                    ? 'Je collectie bevat nog geen spellen.'
+                    ? <p>Je collectie bevat nog geen spellen. <Link href="/games" className="font-semibold text-slate-800 underline underline-offset-2">Voeg je spellen toe in je collectiepagina</Link>.</p>
                     : 'Er zitten nog geen spellen in deze groep.'}
-              </p>
+              </div>
             )}
           </div>
         </section>

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
 import { serializeGame } from '@/lib/serializers';
 import { ensureSessionOrganizerAccess } from '@/lib/session-organizer';
+import { getCurrentUserProfile } from '@/lib/user-profile';
 
 type AddSessionGamesBody = {
   added_by?: unknown;
@@ -32,9 +33,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: 'Kies minstens een spel uit de gesynchroniseerde lijst.' }, { status: 400 });
   }
 
+  const viewerProfile = await getCurrentUserProfile();
+  if (!viewerProfile) {
+    return NextResponse.json({ error: 'Log eerst in om spellen uit je collectie toe te voegen.' }, { status: 401 });
+  }
+
   const collectionGames = await prisma.collectionGame.findMany({
     include: collectionGameInclude,
-    where: { id: { in: uniqueCollectionGameIds }, hidden: false }
+    where: {
+      id: { in: uniqueCollectionGameIds },
+      userProfileId: viewerProfile.id,
+      hidden: false
+    }
   });
   if (!collectionGames.length) return NextResponse.json({ error: 'Geen van deze spellen staat in de gesynchroniseerde lijst.' }, { status: 404 });
 
