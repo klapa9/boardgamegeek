@@ -79,7 +79,7 @@ export default async function HomePage() {
           <>
             <section className="overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
-                <div className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950">
+                <div className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950">
                   <Dice5 size={16} />
                   <span>boardgamegeek.be</span>
                 </div>
@@ -90,7 +90,7 @@ export default async function HomePage() {
 
               <div className="px-4 py-5 sm:px-6 sm:py-8">
                 <div className="max-w-3xl">
-                  <div className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
+                  <div className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
                     <CircleAlert size={16} />
                     <span>ingelogd</span>
                   </div>
@@ -147,7 +147,7 @@ export default async function HomePage() {
           <>
             <section className="overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
-                <div className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950">
+                <div className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950">
                   <Dice5 size={16} />
                   <span>boardgamegeek.be</span>
                 </div>
@@ -158,18 +158,20 @@ export default async function HomePage() {
 
               <div className="grid gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-8">
                 <div className="space-y-5">
-                  <div className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
+                  <div className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
                     <CircleAlert size={16} />
                     <span>deze site is wel voor board game geeks</span>
                   </div>
 
                   <div>
-                    <p className="font-poster text-[clamp(3.2rem,14vw,7.5rem)] uppercase leading-[0.88] text-slate-950">
+                    <p className="font-poster text-[clamp(2.65rem,13vw,7.5rem)] uppercase leading-[0.88] text-slate-950">
                       Dit is
                       <br />
                       niet
                       <br />
-                      boardgamegeek.com.
+                      <span className="[overflow-wrap:anywhere]">
+                        boardgamegeek<wbr />.com.
+                      </span>
                     </p>
                     <p className="mt-4 max-w-2xl text-lg leading-7 text-slate-700 sm:text-xl">
                       Dit is de praktische zij-ingang waar je bordspelavonden regelt, je
@@ -187,18 +189,18 @@ export default async function HomePage() {
 
                   <Link
                     href={primaryHref}
-                    className="inline-flex w-full items-center justify-center gap-3 rounded-[1.8rem] border-4 border-slate-950 bg-[#ff5a36] px-5 py-4 text-center font-poster text-2xl uppercase text-white shadow-[0_10px_0_0_#172036] transition hover:translate-y-[-3px] hover:bg-[#ff6d4d] sm:w-auto sm:px-7"
+                    className="inline-flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-[1.8rem] border-4 border-slate-950 bg-[#ff5a36] px-5 py-4 text-center font-poster text-xl uppercase text-white shadow-[0_10px_0_0_#172036] transition hover:translate-y-[-3px] hover:bg-[#ff6d4d] sm:w-auto sm:px-7 sm:text-2xl"
                   >
-                    <LogIn size={24} />
-                    <span>Log in, vreemde bordspelheld</span>
-                    <ArrowRight size={24} />
+                    <LogIn size={24} className="shrink-0" />
+                    <span className="[overflow-wrap:anywhere]">Log in, vreemde bordspelheld</span>
+                    <ArrowRight size={24} className="shrink-0" />
                   </Link>
                 </div>
 
                 <aside className="space-y-4">
                   <div className="home-bob rounded-[1.8rem] border-4 border-slate-950 bg-[#172036] p-4 text-[#fff7df] shadow-[0_16px_0_0_#0f172a] sm:p-5">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-[#84d7ff]">Hoofdmissie</p>
-                    <h2 className="mt-2 font-poster text-4xl uppercase leading-none sm:text-5xl">Log in om verder te gaan</h2>
+                    <h2 className="mt-2 font-poster text-4xl uppercase leading-none [overflow-wrap:anywhere] sm:text-5xl">Log in om verder te gaan</h2>
                     <p className="mt-3 text-sm leading-6 text-[#fff7df]/85 sm:text-base">
                       Deze hele pagina bestaat eigenlijk om je met liefde, drama en overduidelijkheid naar die ene knop te
                       sturen.
@@ -206,11 +208,11 @@ export default async function HomePage() {
 
                     <Link
                       href={primaryHref}
-                      className="mt-5 flex w-full items-center justify-center gap-3 rounded-[1.7rem] border-4 border-slate-950 bg-[#d8ff63] px-5 py-5 text-center font-poster text-2xl uppercase text-slate-950 transition hover:translate-y-[-2px] hover:bg-[#ecff9a] sm:text-3xl"
+                      className="mt-5 flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-[1.7rem] border-4 border-slate-950 bg-[#d8ff63] px-5 py-5 text-center font-poster text-xl uppercase text-slate-950 transition hover:translate-y-[-2px] hover:bg-[#ecff9a] sm:text-3xl"
                     >
-                      <LogIn size={26} />
-                      <span>Log in om verder te gaan</span>
-                      <ArrowRight size={26} />
+                      <LogIn size={26} className="shrink-0" />
+                      <span className="[overflow-wrap:anywhere]">Log in om verder te gaan</span>
+                      <ArrowRight size={26} className="shrink-0" />
                     </Link>
 
                     <p className="mt-3 rounded-2xl bg-white/10 px-4 py-3 text-sm leading-6 text-[#fff7df]">
@@ -241,7 +243,7 @@ export default async function HomePage() {
                       <Icon size={24} />
                     </div>
                     <div>
-                      <h3 className="font-poster text-2xl uppercase leading-tight text-slate-950">{title}</h3>
+                      <h3 className="font-poster text-2xl uppercase leading-tight text-slate-950 [overflow-wrap:anywhere]">{title}</h3>
                       <p className="mt-2 text-sm leading-6 text-slate-800">{text}</p>
                     </div>
                   </div>
@@ -254,7 +256,7 @@ export default async function HomePage() {
                 <div className="max-w-2xl">
                   <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Samengevat voor haastige mensen</p>
                   <h2 className="mt-2 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">
-                    Niet boardgamegeek.com
+                    Niet boardgamegeek<wbr />.com
                     <br />
                     Wel een hulpmiddel om gemakkelijker af te spreken.
                   </h2>
@@ -265,10 +267,10 @@ export default async function HomePage() {
 
                 <Link
                   href={primaryHref}
-                  className="inline-flex items-center justify-center gap-3 rounded-[1.7rem] border-4 border-slate-950 bg-[#ff5a36] px-6 py-5 text-center font-poster text-2xl uppercase text-white transition hover:scale-[1.01] hover:bg-[#ff6d4d] sm:text-3xl"
+                  className="inline-flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-[1.7rem] border-4 border-slate-950 bg-[#ff5a36] px-6 py-5 text-center font-poster text-xl uppercase text-white transition hover:scale-[1.01] hover:bg-[#ff6d4d] sm:w-auto sm:text-3xl"
                 >
-                  <span>Log in om verder te gaan</span>
-                  <ArrowRight size={28} />
+                  <span className="[overflow-wrap:anywhere]">Log in om verder te gaan</span>
+                  <ArrowRight size={28} className="shrink-0" />
                 </Link>
               </div>
             </section>
@@ -287,15 +289,15 @@ export default async function HomePage() {
               href="https://boardgamegeek.com/"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-3 rounded-[1.5rem] border-2 border-[#fff7df] bg-white px-4 py-3 text-slate-950 transition hover:bg-[#fff7df]"
+              className="inline-flex max-w-full flex-wrap items-center justify-center gap-3 rounded-[1.5rem] border-2 border-[#fff7df] bg-white px-4 py-3 text-center text-slate-950 transition hover:bg-[#fff7df] sm:flex-nowrap sm:text-left"
             >
               <img
                 src="https://cf.geekdo-static.com/images/logos/navbar-logo-bgg-b2.svg"
                 alt="Official BoardGameGeek.com logo"
                 className="h-8 w-auto"
               />
-              <span className="text-sm font-black uppercase tracking-[0.16em]">Bezoek boardgamegeek.com</span>
-              <ExternalLink size={16} />
+              <span className="text-sm font-black uppercase tracking-[0.16em] [overflow-wrap:anywhere]">Bezoek boardgamegeek.com</span>
+              <ExternalLink size={16} className="shrink-0" />
             </a>
           </div>
         </footer>
