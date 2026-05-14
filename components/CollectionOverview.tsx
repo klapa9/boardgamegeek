@@ -336,13 +336,13 @@ export default function CollectionOverview() {
               }`}
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className={`text-xs font-bold uppercase tracking-[0.2em] ${selectedGroupId === group.id ? 'text-slate-300' : 'text-slate-400'}`}>
                     {group.is_default ? 'Standaard' : 'Eigen'}
                   </p>
-                  <h3 className="mt-1 text-xl font-black">{group.name}</h3>
+                  <h3 className="mt-1 text-xl font-black [overflow-wrap:anywhere]">{group.name}</h3>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${selectedGroupId === group.id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${selectedGroupId === group.id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'}`}>
                   {group.game_count}
                 </span>
               </div>
@@ -516,7 +516,7 @@ export default function CollectionOverview() {
                       checked ? 'border-slate-950 bg-[#172036] text-white' : 'border-slate-950/10 bg-white/82 hover:border-slate-950/30'
                     } disabled:opacity-60`}
                   >
-                    <div className="h-14 w-14 overflow-hidden rounded-2xl bg-slate-100">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
                       {imageUrl ? (
                         <img src={imageUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
@@ -529,7 +529,7 @@ export default function CollectionOverview() {
                         {formatMeta(game) || (game.source === 'manual' ? 'Manueel toegevoegd' : 'Geen extra info')}
                       </p>
                     </div>
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${checked ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-500'}`}>
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${checked ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-500'}`}>
                       {checked ? <Check size={16} /> : <Plus size={16} />}
                     </div>
                   </button>
@@ -552,12 +552,12 @@ export default function CollectionOverview() {
             const editingThisGame = editingGameId === game.id;
 
             return (
-              <article key={game.id} className="page-subcard p-3">
-                <div className="flex gap-3">
+              <article key={game.id} className="page-subcard overflow-hidden p-3">
+                <div className="flex min-w-0 gap-3">
                   {imageUrl ? (
-                    <img src={imageUrl} alt="" className="h-20 w-20 rounded-2xl object-cover" />
+                    <img src={imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" />
                   ) : (
-                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-sm font-bold text-slate-500">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-bold text-slate-500">
                       Geen
                     </div>
                   )}
@@ -565,8 +565,8 @@ export default function CollectionOverview() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
-                        <h3 className="truncate font-black">{game.title}</h3>
-                        <p className="mt-1 text-sm text-slate-500">
+                        <h3 className="break-words font-black [overflow-wrap:anywhere]">{game.title}</h3>
+                        <p className="mt-1 break-words text-sm leading-5 text-slate-500 [overflow-wrap:anywhere]">
                           {formatMeta(game) || (game.source === 'manual' ? 'Manueel toegevoegd' : 'Geen extra info')}
                         </p>
                       </div>
@@ -576,23 +576,20 @@ export default function CollectionOverview() {
                           setEditingGameId((current) => current === game.id ? null : game.id);
                           setInlineCreateName('');
                         }}
-                        className="rounded-xl p-2 text-slate-500 transition hover:bg-white"
+                        className="shrink-0 rounded-xl p-2 text-slate-500 transition hover:bg-white"
                         title="Indelen"
                       >
                         {editingThisGame ? <X size={17} /> : <Plus size={17} />}
                       </button>
                     </div>
 
-                    <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                      {gameGroupIds.length ? `${gameGroupIds.length} eigen selectie${gameGroupIds.length === 1 ? '' : 's'}` : 'Nog niet apart ingedeeld'}
-                    </p>
                   </div>
                 </div>
 
                 {editingThisGame && (
                   <div className="page-subcard-soft mt-3 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
                         <h4 className="font-bold">Zet dit spel in je eigen indelingen</h4>
                         <p className="text-sm text-slate-500">Een spel mag in meerdere selecties tegelijk zitten.</p>
                       </div>
@@ -606,17 +603,17 @@ export default function CollectionOverview() {
                         return (
                           <label
                             key={group.id}
-                            className={`flex cursor-pointer items-center justify-between rounded-2xl border-2 px-3 py-3 ${
+                            className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border-2 px-3 py-3 ${
                               checked ? 'border-slate-950 bg-[#172036] text-white' : 'border-slate-950/10 bg-white/80'
                             }`}
                           >
-                            <span className="font-bold">{group.name}</span>
+                            <span className="min-w-0 flex-1 break-words font-bold [overflow-wrap:anywhere]">{group.name}</span>
                             <input
                               type="checkbox"
                               checked={checked}
                               disabled={updatingGameId === game.id}
                               onChange={() => void toggleGroupForGame(game.id, group.id)}
-                              className="h-4 w-4 rounded border-slate-300"
+                              className="h-4 w-4 shrink-0 rounded border-slate-300"
                             />
                           </label>
                         );

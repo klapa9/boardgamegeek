@@ -17,7 +17,6 @@ export default function CollectionPage() {
               </Link>
             </div>
           </div>
-          <p className="page-chip mt-4 w-fit">Mijn bgg-hoek</p>
           <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Mijn collectie</h1>
           <p className="mt-3 max-w-2xl text-slate-700">
             Bouw hier je eigen indeling bovenop je collectie en blader via kaarten met spelvoorbeelden.
