@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { SignedIn, useUser } from '@clerk/nextjs';
+import { SignedIn, useClerk, useUser } from '@clerk/nextjs';
 import { usePathname } from 'next/navigation';
 import { UserRound, X } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -9,12 +9,14 @@ import { UserProfileDto } from '@/lib/types';
 
 export default function ProfileLauncher() {
   const pathname = usePathname();
+  const { signOut } = useClerk();
   const { user, isLoaded } = useUser();
   const [profile, setProfile] = useState<UserProfileDto | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -62,6 +64,19 @@ export default function ProfileLauncher() {
     }
   }
 
+  async function handleSignOut() {
+    setSigningOut(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      await signOut({ redirectUrl: '/' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Uitloggen mislukt.');
+      setSigningOut(false);
+    }
+  }
+
   const fallbackLabel = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() || user?.username || 'Profiel';
   const buttonLabel = profile?.display_name || fallbackLabel;
 
@@ -89,7 +104,7 @@ export default function ProfileLauncher() {
                 <h2 id="profile-modal-title" className="mt-1 font-poster text-3xl uppercase leading-none text-slate-950">Jouw displaynaam</h2>
                 <p className="mt-1 text-sm text-slate-700">Deze naam gebruiken we automatisch wanneer je meedoet aan een spelavond.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} disabled={saving} className="neo-button neo-button-ghost p-3 text-slate-600 disabled:opacity-50" title="Sluiten">
+              <button type="button" onClick={() => setOpen(false)} disabled={saving || signingOut} className="neo-button neo-button-ghost p-3 text-slate-600 disabled:opacity-50" title="Sluiten">
                 <X size={20} />
               </button>
             </div>
@@ -100,7 +115,7 @@ export default function ProfileLauncher() {
                 id="profile-display-name"
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
-                disabled={loading || saving}
+                disabled={loading || saving || signingOut}
                 className="neo-input mt-2 disabled:opacity-60"
                 placeholder="Jouw naam"
               />
@@ -109,13 +124,18 @@ export default function ProfileLauncher() {
               {message && <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</p>}
               {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
-              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button type="button" onClick={() => setOpen(false)} disabled={saving} className="neo-button neo-button-ghost disabled:opacity-50">
-                  Sluiten
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-between">
+                <button type="button" onClick={handleSignOut} disabled={saving || signingOut} className="neo-button neo-button-ghost text-red-700 disabled:opacity-50">
+                  {signingOut ? 'Uitloggen...' : 'Uitloggen'}
                 </button>
-                <button type="submit" disabled={loading || saving || !displayName.trim()} className="neo-button neo-button-primary disabled:opacity-50">
-                  {saving ? 'Opslaan...' : 'Opslaan'}
-                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button type="button" onClick={() => setOpen(false)} disabled={saving || signingOut} className="neo-button neo-button-ghost disabled:opacity-50">
+                    Sluiten
+                  </button>
+                  <button type="submit" disabled={loading || saving || signingOut || !displayName.trim()} className="neo-button neo-button-primary disabled:opacity-50">
+                    {saving ? 'Opslaan...' : 'Opslaan'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

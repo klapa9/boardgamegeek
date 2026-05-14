@@ -25,6 +25,7 @@ export type SessionOverviewListItem = {
   id: string;
   title: string;
   isOrganizer: boolean;
+  organizerDisplayName: string | null;
   chosenDay: string | null;
   createdAt: string;
   dateOptions: string[];
@@ -167,6 +168,11 @@ export default function SessionsOverviewList({ sessions }: { sessions: SessionOv
               <p className="mt-1 text-sm text-slate-600">
                 {dateSummary} - {session.playersCount} deelnemer{session.playersCount === 1 ? '' : 's'} - {session.gamesCount} spel{session.gamesCount === 1 ? '' : 'len'}
               </p>
+              {!isAdmin && session.organizerDisplayName && (
+                <p className="mt-1 text-sm text-slate-600">
+                  Gemaakt door {session.organizerDisplayName}
+                </p>
+              )}
               <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Aangemaakt op {formatDisplayDate(session.createdAt.slice(0, 10))}
               </p>

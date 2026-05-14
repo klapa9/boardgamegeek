@@ -10,7 +10,9 @@ export const dynamic = 'force-dynamic';
 export default async function SessionsOverviewPage() {
   const viewerProfile = await getCurrentUserProfile();
   const sessions = await prisma.session.findMany({
+    orderBy: { createdAt: 'desc' },
     include: {
+      organizer: { select: { displayName: true } },
       dateOptions: { orderBy: { date: 'asc' }, select: { date: true } },
       games: { select: { id: true } },
       ratings: { select: { playerId: true, gameId: true } },
@@ -19,16 +21,11 @@ export default async function SessionsOverviewPage() {
     }
   });
 
-  const sortedSessions = [...sessions].sort((left, right) => {
-    const leftSortKey = left.chosenDay ?? left.createdAt.toISOString().slice(0, 10);
-    const rightSortKey = right.chosenDay ?? right.createdAt.toISOString().slice(0, 10);
-    if (leftSortKey !== rightSortKey) return rightSortKey.localeCompare(leftSortKey);
-    return right.createdAt.getTime() - left.createdAt.getTime();
-  });
-  const sessionItems: SessionOverviewListItem[] = sortedSessions.map((session) => ({
+  const sessionItems: SessionOverviewListItem[] = sessions.map((session) => ({
     id: session.id,
     title: session.title,
     isOrganizer: viewerProfile ? session.organizerUserProfileId === viewerProfile.id : false,
+    organizerDisplayName: session.organizer?.displayName ?? null,
     chosenDay: session.chosenDay,
     createdAt: session.createdAt.toISOString(),
     dateOptions: session.dateOptions.map((option) => option.date),
@@ -47,7 +44,7 @@ export default async function SessionsOverviewPage() {
           <Link href="/" className="neo-button neo-button-ghost text-sm">{'<-'} Terug naar start</Link>
           <p className="page-chip mt-4 w-fit">Overzicht</p>
           <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Jouw spelavonden</h1>
-          <p className="mt-3 text-slate-700">Overzicht van je eerdere spelmomenten, gesorteerd op meest recente datum.</p>
+          <p className="mt-3 text-slate-700">Overzicht van je eerdere spelmomenten, gesorteerd op aanmaakdatum met de nieuwste bovenaan.</p>
           <Link href="/spelavond?nieuw=1" className="neo-button neo-button-primary mt-5">
             <CalendarPlus size={18} />
             Nieuwe spelavond maken

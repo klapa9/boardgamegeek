@@ -21,9 +21,11 @@ type ResultRow = {
 type DateRow = SessionDto['date_options'][number] & {
   display: ReturnType<typeof dateParts>;
   label: string;
-  players: PlayerDto[];
+  availablePlayers: PlayerDto[];
+  unavailablePlayers: PlayerDto[];
+  pendingPlayers: PlayerDto[];
 };
-type FlowView = 'availability' | 'rating' | 'results' | 'chosen_game';
+type FlowView = 'availability' | 'rating' | 'results' | 'chosen_game' | 'summary';
 
 const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 const SESSION_REFRESH_INTERVAL_MS = 15000;
@@ -217,6 +219,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     if (!currentPlayerId) return false;
     return games.some((game) => !scoreByPlayerGame.has(playerGameKey(currentPlayerId, game.id)));
   }, [currentPlayerId, games, scoreByPlayerGame]);
+  const needsGameChoice = Boolean(!session?.chosen_game_id && currentPlayerHasUnratedGames);
 
   async function refresh(showMessage = false) {
     try {
@@ -265,7 +268,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       return;
     }
 
-    const nextView: FlowView = session?.chosen_game_id ? 'chosen_game' : (currentPlayerHasUnratedGames ? 'rating' : 'results');
+    const nextView: FlowView = needsGameChoice ? 'rating' : 'summary';
 
     if (session?.locked && session.chosen_day) {
       if (!currentPlayerChosenDayAvailability) {
@@ -284,7 +287,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
     setView(nextView);
     initialViewResolved.current = true;
-  }, [currentPlayerChosenDayAvailability, currentPlayerHasPlanning, currentPlayerHasUnratedGames, currentPlayerId, loading, session?.chosen_day, session?.chosen_game_id, session?.locked]);
+  }, [currentPlayerChosenDayAvailability, currentPlayerHasPlanning, currentPlayerId, loading, needsGameChoice, session?.chosen_day, session?.locked]);
 
   useEffect(() => {
     if (loading || !currentPlayerId) return;
@@ -295,12 +298,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
   useEffect(() => {
     if (loading || !currentPlayerId) return;
-    if (session?.chosen_game_id) return;
-    if (view !== 'results') return;
-    if (!currentPlayerHasUnratedGames) return;
+    if (!needsGameChoice) return;
+    if (!['results', 'summary'].includes(view)) return;
     setSelectedGameId(null);
     setView('rating');
-  }, [currentPlayerHasUnratedGames, currentPlayerId, loading, session?.chosen_game_id, view]);
+  }, [currentPlayerId, loading, needsGameChoice, view]);
 
   useEffect(() => {
     if (!session || initialShareIntentHandled.current) return;
@@ -327,12 +329,23 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }, [availablePlayerIdsByDay, players, session?.chosen_day]);
   const eligiblePlayerIds = useMemo(() => new Set(eligiblePlayers.map((player) => player.id)), [eligiblePlayers]);
 
-  const dateRows = useMemo<DateRow[]>(() => dateOptions.map((option) => ({
-    ...option,
-    display: dateParts(option.date),
-    label: formatDate(option.date),
-    players: players.filter((player) => availablePlayerIdsByDay.get(option.date)?.has(player.id))
-  })), [availablePlayerIdsByDay, dateOptions, players]);
+  const dateRows = useMemo<DateRow[]>(() => dateOptions.map((option) => {
+    const availablePlayers = players.filter((player) => availablePlayerIdsByDay.get(option.date)?.has(player.id));
+    const unavailablePlayers = players.filter((player) => {
+      const entry = availabilityByPlayerDay.get(playerDateKey(player.id, option.date));
+      return entry ? !entry.available : false;
+    });
+    const pendingPlayers = players.filter((player) => !availabilityByPlayerDay.has(playerDateKey(player.id, option.date)));
+
+    return {
+      ...option,
+      display: dateParts(option.date),
+      label: formatDate(option.date),
+      availablePlayers,
+      unavailablePlayers,
+      pendingPlayers
+    };
+  }), [availabilityByPlayerDay, availablePlayerIdsByDay, dateOptions, players]);
   const chosenDateRow = session?.chosen_day ? dateRows.find((row) => row.date === session.chosen_day) : null;
 
   const results = useMemo<ResultRow[]>(() => games.map((game) => {
@@ -343,7 +356,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     return { game, total, average, count: relevantRatings.length, missing };
   }).sort((a, b) => b.total - a.total || b.average - a.average || b.count - a.count || a.game.title.localeCompare(b.game.title)), [eligiblePlayerIds, eligiblePlayers, games, ratings]);
 
+  const chosenGame = session?.chosen_game_id ? games.find((game) => game.id === session.chosen_game_id) ?? null : null;
   const winner = results[0] ?? null;
+  const leadingGame = chosenGame ?? winner?.game ?? null;
+  const leadingGameResult = leadingGame ? results.find((row) => row.game.id === leadingGame.id) ?? null : null;
   const unratedGames = useMemo(() => (
     currentPlayerId ? games.filter((game) => !scoreByPlayerGame.has(playerGameKey(currentPlayerId, game.id))) : []
   ), [currentPlayerId, games, scoreByPlayerGame]);
@@ -381,7 +397,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   function confirmAvailability() {
     if (!currentPlayer) return;
     setSelectedGameId(null);
-    setView(session?.chosen_game_id ? 'chosen_game' : (currentPlayerHasUnratedGames ? 'rating' : 'results'));
+    setView(needsGameChoice ? 'rating' : 'summary');
   }
 
   async function joinSession(event?: React.FormEvent, options?: { silent?: boolean }) {
@@ -480,7 +496,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       });
       setSession(data.session);
       setSelectedGameId(gameId);
-      if (gameId) setView('chosen_game');
+      if (gameId) setView('summary');
       else setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
     } catch (err) {
       setSession(previousSession);
@@ -572,7 +588,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       else if (addedCount) setMessage(`${addedCount} spel${addedCount === 1 ? '' : 'len'} toegevoegd aan de spelavond.`);
       else setMessage('Geen nieuwe spellen toegevoegd: deze spellen stonden al in de lijst.');
       setSelectedGameId(null);
-      setView(addedCount > 0 ? 'rating' : 'results');
+      setView(addedCount > 0 ? 'rating' : 'summary');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Spellen toevoegen mislukt.');
     } finally {
@@ -715,10 +731,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   if (loading) return <main className="app-shell"><div className="mx-auto max-w-4xl px-4 py-8"><div className="page-card p-5">Laden...</div></div></main>;
   if (!session) return <main className="app-shell"><div className="mx-auto max-w-4xl px-4 py-8"><div className="page-card p-5">Sessie niet gevonden.</div></div></main>;
 
-  const chosenGame = session.chosen_game_id ? games.find((game) => game.id === session.chosen_game_id) ?? null : null;
   const summaryParts = [`${players.length} speler${players.length === 1 ? '' : 's'}`];
   if (chosenGame) summaryParts.push(chosenGame.title);
   if (session.chosen_day) summaryParts.push(formatDate(session.chosen_day));
+  const pageChip = view === 'summary' ? 'Samenvatting' : view === 'availability' ? 'Planning' : 'Spelkeuze';
+  const openGameChoice = () => {
+    setSelectedGameId(null);
+    setView(session.chosen_game_id ? 'chosen_game' : (needsGameChoice ? 'rating' : 'results'));
+  };
 
   return (
     <main className="app-shell">
@@ -730,7 +750,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
         </Link>
         <div className="mt-3 flex items-start justify-between gap-3">
           <div>
-            <p className="page-chip w-fit">Spelkeuze</p>
+            <p className="page-chip w-fit">{pageChip}</p>
             <h1 className="mt-3 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">{session.title}</h1>
             <p className="mt-3 text-sm text-slate-600">{summaryParts.join(' - ')}</p>
           </div>
@@ -780,6 +800,187 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
         {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
       </header>
 
+      {view === 'summary' && (
+        <>
+          <section className="page-card page-card-peach p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
+                <p className="page-chip w-fit">Klaar</p>
+                <h2 className="mt-3 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Je hoeft nu niets meer te doen.</h2>
+                <p className="mt-3 text-base leading-7 text-slate-700">
+                  Je antwoorden zijn opgeslagen. Als de organisator later de datum vastlegt of iemand nieuwe spellen toevoegt waar jij op moet stemmen, sturen we je via deze link automatisch naar de juiste stap.
+                </p>
+                {currentPlayer && (
+                  <p className="mt-4 rounded-2xl bg-white/80 px-4 py-3 text-sm text-slate-700">
+                    Klaar als <b>{currentPlayer.name}</b>.
+                  </p>
+                )}
+              </div>
+              <div className="flex w-full flex-col gap-2 lg:max-w-xs">
+                <Link href="/" prefetch={false} className="neo-button neo-button-primary justify-center">
+                  <ArrowLeft size={18} /> Naar de hoofdpagina
+                </Link>
+                {viewerProfile ? (
+                  <Link href="/collectie" className="neo-button neo-button-ghost justify-center">
+                    <Dice5 size={18} /> Naar mijn collectie
+                  </Link>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setAuthModalOpen(true)}
+                      className="neo-button neo-button-ghost justify-center"
+                    >
+                      <UserRound size={18} /> Log in
+                    </button>
+                    <p className="rounded-2xl bg-white/75 px-4 py-3 text-sm text-slate-600">
+                      Log in zodat je later zelf een spelavond kan organiseren en je collectie kan beheren.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="page-card page-card-lime p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <CalendarDays size={20} />
+                <h2 className="text-xl font-black">Planning</h2>
+              </div>
+              <button type="button" onClick={() => setView('availability')} className="neo-button neo-button-ghost text-sm">
+                Nog iets wijzigen
+              </button>
+            </div>
+            {session.locked && chosenDateRow && (
+              <div className="mb-4 rounded-2xl bg-emerald-100 px-4 py-4 text-emerald-950">
+                <p className="text-sm font-bold">Datum ligt vast</p>
+                <p className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday} {chosenDateRow.display.day} {chosenDateRow.display.month}</p>
+                <p className="mt-1 text-sm">{chosenDateRow.display.full}</p>
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {dateRows.map((row) => {
+                const isChosenDate = session.chosen_day === row.date;
+                const myAvailability = currentPlayerId ? availabilityByPlayerDay.get(playerDateKey(currentPlayerId, row.date)) ?? null : null;
+
+                return (
+                  <article key={row.date} className={`rounded-2xl border-2 p-4 ${isChosenDate ? 'border-emerald-700 bg-emerald-50' : 'border-slate-950/10 bg-white/75'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
+                        <p className="mt-1 text-sm text-slate-600">{row.display.full}</p>
+                      </div>
+                      {isChosenDate && <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Vast</span>}
+                    </div>
+                    {currentPlayer && (
+                      <p className="mt-3 text-sm text-slate-700">
+                        Jouw status:{' '}
+                        <b>
+                          {myAvailability
+                            ? (myAvailability.available ? 'aanwezig' : 'afwezig')
+                            : 'nog niet bevestigd'}
+                        </b>
+                      </p>
+                    )}
+                    <div className="mt-4 space-y-3 text-sm">
+                      <div>
+                        <p className="font-bold text-slate-900">Beschikbaar</p>
+                        <p className="mt-1 text-slate-600">{row.availablePlayers.length ? row.availablePlayers.map((player) => player.name).join(', ') : 'Nog niemand'}</p>
+                      </div>
+                      {!!row.unavailablePlayers.length && (
+                        <div>
+                          <p className="font-bold text-slate-900">Niet beschikbaar</p>
+                          <p className="mt-1 text-slate-600">{row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
+                        </div>
+                      )}
+                      {!!row.pendingPlayers.length && (
+                        <div>
+                          <p className="font-bold text-slate-900">Nog geen antwoord</p>
+                          <p className="mt-1 text-slate-600">{row.pendingPlayers.map((player) => player.name).join(', ')}</p>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="page-card p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <Trophy size={20} />
+                <h2 className="text-xl font-black">Spellenlijst</h2>
+              </div>
+              <button type="button" onClick={openGameChoice} className="neo-button neo-button-ghost text-sm">
+                Nog iets wijzigen
+              </button>
+            </div>
+
+            {leadingGame && (
+              <div className="page-card-dark mb-4 p-5">
+                <p className="text-sm font-semibold text-slate-300">{chosenGame ? 'Gekozen spel' : 'Huidige winnaar'}</p>
+                <div className="mt-3 flex items-center gap-3">
+                  {gameThumbnailUrl(leadingGame) ? (
+                    <img
+                      src={gameThumbnailUrl(leadingGame)!}
+                      alt={leadingGame.title}
+                      className="h-14 w-14 shrink-0 rounded-xl bg-white object-cover shadow-sm"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/10 text-slate-300 shadow-sm">
+                      <Dice5 size={20} />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="text-2xl font-black">{leadingGame.title}</h3>
+                    <p className="mt-1 text-slate-300">
+                      {leadingGameResult
+                        ? `${leadingGameResult.total} punten - ${leadingGameResult.average.toFixed(1)} gemiddeld - ${leadingGameResult.count} stem${leadingGameResult.count === 1 ? '' : 'men'}`
+                        : 'Nog geen stemmen verzameld.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {results.map((row, index) => (
+                <article key={row.game.id} className="page-subcard px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      {gameThumbnailUrl(row.game) ? (
+                        <img
+                          src={gameThumbnailUrl(row.game)!}
+                          alt={row.game.title}
+                          className="h-14 w-14 shrink-0 rounded-xl bg-white object-cover shadow-sm"
+                        />
+                      ) : (
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white text-slate-300 shadow-sm">
+                          <Dice5 size={20} />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <b className="block truncate">#{index + 1} {row.game.title}</b>
+                        <p className="text-sm text-slate-500">{row.count} stemmen - gemiddeld {row.average.toFixed(1)}</p>
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black">{row.total}</div>
+                  </div>
+                  {!!row.missing.length && <p className="mt-2 text-xs text-slate-500">Nog niet gestemd: {row.missing.map((player) => player.name).join(', ')}</p>}
+                </article>
+              ))}
+              {!results.length && (
+                <p className="neo-muted-panel text-center text-slate-500">
+                  Er staan nog geen spellen in deze spelavond.
+                </p>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
       {view === 'availability' && (
         <section className="page-card page-card-lime p-5">
           <div className="mb-4 flex items-center gap-2"><CalendarDays size={20} /><h2 className="text-xl font-black">Wanneer kan je?</h2></div>
@@ -820,7 +1021,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   const selected = isAvailable(row.date);
                   const isToday = row.date === localDateKey();
                   const needsLoginHint = !currentPlayer;
-                  const availableNames = row.players.map((player) => player.name);
+                  const availableNames = row.availablePlayers.map((player) => player.name);
                   const cardClassName = [
                     'rounded-2xl border-2 p-4 transition',
                     selected ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950' : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
@@ -1068,6 +1269,18 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             ))}
             {!results.length && <p className="neo-muted-panel text-center text-slate-500">Nog geen resultaat.</p>}
           </div>
+          {!currentPlayerHasUnratedGames && !!currentPlayer && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedGameId(null);
+                setView('summary');
+              }}
+              className="neo-button neo-button-primary mt-5 flex w-full"
+            >
+              <Check size={20} /> Bevestig spelkeuze
+            </button>
+          )}
         </section>
       )}
 
