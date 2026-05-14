@@ -74,10 +74,10 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-3.75rem)] max-w-6xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+      <div className="relative mx-auto flex min-h-[calc(100vh-3.75rem)] w-full max-w-6xl min-w-0 flex-col px-4 py-6 sm:px-6 sm:py-8">
         {userId ? (
           <>
-            <section className="overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
+            <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
                 <div className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950">
                   <Dice5 size={16} />
@@ -123,7 +123,7 @@ export default async function HomePage() {
               </div>
             </section>
 
-            <section className="mt-6 grid gap-4 lg:grid-cols-3">
+            <section className="mt-6 grid w-full min-w-0 gap-4 lg:grid-cols-3">
               {signedInActions.map(({ title, text, href, icon: Icon, tone }) => (
                 <Link
                   key={title}
@@ -145,7 +145,7 @@ export default async function HomePage() {
           </>
         ) : (
           <>
-            <section className="overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
+            <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
                 <div className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950">
                   <Dice5 size={16} />
@@ -156,8 +156,8 @@ export default async function HomePage() {
                 </div>
               </div>
 
-              <div className="grid gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-8">
-                <div className="space-y-5">
+              <div className="grid min-w-0 gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-8">
+                <div className="min-w-0 space-y-5">
                   <div className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
                     <CircleAlert size={16} />
                     <span>deze site is wel voor board game geeks</span>
@@ -197,7 +197,7 @@ export default async function HomePage() {
                   </Link>
                 </div>
 
-                <aside className="space-y-4">
+                <aside className="min-w-0 space-y-4">
                   <div className="home-bob rounded-[1.8rem] border-4 border-slate-950 bg-[#172036] p-4 text-[#fff7df] shadow-[0_16px_0_0_#0f172a] sm:p-5">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-[#84d7ff]">Hoofdmissie</p>
                     <h2 className="mt-2 font-poster text-4xl uppercase leading-none [overflow-wrap:anywhere] sm:text-5xl">Log in om verder te gaan</h2>
@@ -231,7 +231,7 @@ export default async function HomePage() {
               </div>
             </section>
 
-            <section className="mt-6 grid gap-4 lg:grid-cols-3">
+            <section className="mt-6 grid w-full min-w-0 gap-4 lg:grid-cols-3">
               {featureCards.map(({ title, text, icon: Icon, tone }) => (
                 <Link
                   key={title}
@@ -251,7 +251,7 @@ export default async function HomePage() {
               ))}
             </section>
 
-            <section className="mt-6 rounded-[2rem] border-4 border-slate-950 bg-white px-4 py-5 shadow-soft sm:px-6">
+            <section className="mt-6 w-full min-w-0 rounded-[2rem] border-4 border-slate-950 bg-white px-4 py-5 shadow-soft sm:px-6">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="max-w-2xl">
                   <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Samengevat voor haastige mensen</p>
@@ -277,7 +277,7 @@ export default async function HomePage() {
           </>
         )}
 
-        <footer className="mt-6 rounded-[2rem] border-4 border-slate-950 bg-[#172036] px-4 py-5 text-[#fff7df] shadow-soft sm:px-6">
+        <footer className="mt-6 w-full min-w-0 rounded-[2rem] border-4 border-slate-950 bg-[#172036] px-4 py-5 text-[#fff7df] shadow-soft sm:px-6">
           <p className="text-sm font-black uppercase tracking-[0.18em] text-[#84d7ff]">Officiële verwijzing, geen identiteitsfraude</p>
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-2xl text-sm leading-6 text-[#fff7df]/88">

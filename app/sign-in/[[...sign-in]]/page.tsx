@@ -5,9 +5,9 @@ import { ArrowLeft, DoorOpen, Dice5 } from 'lucide-react';
 export default function SignInPage() {
   return (
     <main className="app-shell">
-      <div className="mx-auto flex min-h-screen max-w-5xl items-center px-4 py-8">
-        <div className="grid w-full gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-          <section className="page-card page-card-peach overflow-hidden p-6 md:p-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl min-w-0 items-center px-4 py-8">
+        <div className="grid w-full min-w-0 gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+          <section className="page-card page-card-peach w-full min-w-0 overflow-hidden p-6 md:p-8">
             <Link
               href="/"
               className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
@@ -50,26 +50,37 @@ export default function SignInPage() {
             </div>
           </section>
 
-          <section className="page-card page-card-sky overflow-hidden p-4 md:p-6">
-            <div className="overflow-hidden rounded-[1.6rem] border-2 border-slate-950 bg-white/85 p-3 md:p-4">
+          <section className="page-card page-card-sky w-full min-w-0 overflow-hidden p-4 md:p-6">
+            <div className="w-full min-w-0 overflow-hidden rounded-[1.6rem] border-2 border-slate-950 bg-white/85 p-3 md:p-4">
               <SignIn
                 path="/sign-in"
                 routing="path"
                 fallbackRedirectUrl="/"
                 appearance={{
                   elements: {
-                    rootBox: 'w-full max-w-full',
-                    card: 'w-full max-w-full bg-transparent shadow-none',
+                    rootBox: 'mx-auto flex !w-full !max-w-full !min-w-0 justify-center',
+                    cardBox: '!w-full !max-w-full !min-w-0',
+                    card: '!w-full !max-w-full !min-w-0 bg-transparent shadow-none',
+                    main: '!w-full !max-w-full !min-w-0',
+                    footer: '!w-full !max-w-full !min-w-0',
+                    form: '!w-full !max-w-full !min-w-0',
+                    formContainer: '!w-full !max-w-full !min-w-0',
+                    formFieldRow: '!w-full !max-w-full !min-w-0',
+                    formField: '!w-full !max-w-full !min-w-0',
+                    formFieldInput: '!w-full !max-w-full !min-w-0',
                     headerTitle: 'break-words',
                     headerSubtitle: 'break-words',
-                    socialButtonsBlockButton: 'h-auto whitespace-normal break-words py-3',
+                    socialButtonsRoot: '!w-full !max-w-full !min-w-0',
+                    socialButtons: '!w-full !max-w-full !min-w-0',
+                    socialButtonsBlockButton: '!w-full !max-w-full h-auto whitespace-normal break-words py-3',
                     socialButtonsBlockButtonText: 'whitespace-normal break-words text-center',
-                    formButtonPrimary: 'h-auto whitespace-normal break-words py-3',
+                    formButtonPrimary: '!w-full !max-w-full h-auto whitespace-normal break-words py-3',
                     formFieldLabel: 'break-words',
                     footerActionText: 'break-words',
                     footerActionLink: 'break-words',
                     identityPreviewText: 'break-words',
                     formResendCodeLink: 'break-words',
+                    otpCodeFieldInputs: '!w-full !max-w-full !min-w-0',
                     otpCodeFieldInput: 'min-w-0'
                   }
                 }}
