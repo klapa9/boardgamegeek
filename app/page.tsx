@@ -154,7 +154,7 @@ export default async function HomePage() {
                   </div>
 
                   <p className="max-w-2xl text-lg leading-7 text-slate-700 sm:text-xl">
-                    Dit is de praktische zij-ingang waar je bordspelavonden regelt, je
+                    Dit is de praktische site waar je bordspelavonden regelt, je
                     BoardGameGeek-collectie bruikbaar maakt en vrienden sneller rond een tafel krijgt.
                   </p>
 
@@ -198,29 +198,6 @@ export default async function HomePage() {
               ))}
             </section>
 
-            <section className="mt-6 w-full min-w-0 rounded-[2rem] border-4 border-slate-950 bg-white px-4 py-5 shadow-soft sm:px-6">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="max-w-2xl">
-                  <p className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Samengevat voor haastige mensen</p>
-                  <h2 className="mt-2 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">
-                    Niet boardgamegeek<wbr />.com
-                    <br />
-                    Wel een hulpmiddel om gemakkelijker af te spreken.
-                  </h2>
-                  <p className="mt-3 text-base leading-7 text-slate-700 sm:text-lg">
-                    Boardgamegeek.be helpt je om van “ooit eens afspreken” naar “vrijdag 19:30, laten we gaan” te geraken.
-                  </p>
-                </div>
-
-                <Link
-                  href={primaryHref}
-                  className="inline-flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-[1.7rem] border-4 border-slate-950 bg-[#ff5a36] px-6 py-5 text-center font-poster text-xl uppercase text-white transition hover:scale-[1.01] hover:bg-[#ff6d4d] sm:w-auto sm:text-3xl"
-                >
-                  <span className="[overflow-wrap:anywhere]">Log in om verder te gaan</span>
-                  <ArrowRight size={28} className="shrink-0" />
-                </Link>
-              </div>
-            </section>
           </>
         )}
 
