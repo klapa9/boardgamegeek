@@ -69,7 +69,7 @@ export default async function HomePage() {
       <div className="border-b-4 border-slate-950 bg-[#172036] py-3 text-[#fff7df]">
         <div className="home-marquee flex min-w-max gap-6 whitespace-nowrap px-4 font-poster text-lg uppercase tracking-[0.2em]">
           {Array.from({ length: 8 }).map((_, index) => (
-            <span key={index}>Dit is niet boardgamegeek.com</span>
+            <span key={index}>boardgamegeek.be</span>
           ))}
         </div>
       </div>
@@ -78,13 +78,9 @@ export default async function HomePage() {
         {userId ? (
           <>
             <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
-                <div className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-slate-950">
-                  <Dice5 size={16} />
-                  <span>boardgamegeek.be</span>
-                </div>
+              <div className="flex flex-wrap items-center justify-end gap-3 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
                 <div className="home-float rounded-full border-2 border-slate-950 bg-[#ff5a36] px-4 py-1 text-xs font-black uppercase tracking-[0.18em] text-white">
-                  Gemaakt door en voor geeks.
+                  boardgamegeek.be
                 </div>
               </div>
 

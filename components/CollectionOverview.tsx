@@ -318,7 +318,7 @@ export default function CollectionOverview() {
           </div>
         )}
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4 grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {viewGroups.map((group) => (
             <button
               key={group.id}
@@ -329,7 +329,7 @@ export default function CollectionOverview() {
                 setManageQuery('');
                 setRenaming(false);
               }}
-              className={`rounded-[2rem] border-4 p-4 text-left transition ${
+              className={`min-w-0 overflow-hidden rounded-[2rem] border-4 p-4 text-left transition ${
                 selectedGroupId === group.id
                   ? 'border-slate-950 bg-[#172036] text-white shadow-[0_12px_0_0_#0f172a]'
                   : 'border-slate-950 bg-[rgba(255,255,255,0.82)] text-slate-950 shadow-[0_12px_0_0_rgba(23,32,54,0.14)] hover:-translate-y-1'
@@ -360,7 +360,7 @@ export default function CollectionOverview() {
           <button
             type="button"
             onClick={() => setShowCreateForm(true)}
-            className="rounded-[2rem] border-4 border-dashed border-slate-950/25 bg-[rgba(255,255,255,0.7)] p-4 text-left transition hover:-translate-y-1 hover:border-slate-950/40 hover:bg-white"
+            className="min-w-0 overflow-hidden rounded-[2rem] border-4 border-dashed border-slate-950/25 bg-[rgba(255,255,255,0.7)] p-4 text-left transition hover:-translate-y-1 hover:border-slate-950/40 hover:bg-white"
           >
             <div className="flex h-full flex-col justify-between gap-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#84d7ff] text-slate-700 shadow-sm">
@@ -501,7 +501,7 @@ export default function CollectionOverview() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-2 md:grid-cols-2">
+            <div className="mt-4 grid min-w-0 gap-2 md:grid-cols-2">
               {manageableGames.map((game) => {
                 const checked = selectedGroup.game_ids.includes(game.id);
                 const imageUrl = listImageUrl(game);
@@ -512,7 +512,7 @@ export default function CollectionOverview() {
                     type="button"
                     disabled={updatingGroup}
                     onClick={() => void toggleGameInSelectedGroup(game.id)}
-                    className={`flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition ${
+                    className={`min-w-0 overflow-hidden flex items-center gap-3 rounded-2xl border-2 px-3 py-3 text-left transition ${
                       checked ? 'border-slate-950 bg-[#172036] text-white' : 'border-slate-950/10 bg-white/82 hover:border-slate-950/30'
                     } disabled:opacity-60`}
                   >
@@ -545,14 +545,14 @@ export default function CollectionOverview() {
           </div>
         )}
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2">
           {visibleGroupGames.map((game) => {
             const imageUrl = listImageUrl(game);
             const gameGroupIds = customGroupIdsByGameId.get(game.id) ?? [];
             const editingThisGame = editingGameId === game.id;
 
             return (
-              <article key={game.id} className="page-subcard overflow-hidden p-3">
+              <article key={game.id} className="page-subcard min-w-0 overflow-hidden p-3">
                 <div className="flex min-w-0 gap-3">
                   {imageUrl ? (
                     <img src={imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" />
