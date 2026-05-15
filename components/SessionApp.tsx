@@ -708,6 +708,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       setError(viewerProfile ? `Doe eerst mee als ${viewerProfile.display_name} om datumopties toe te voegen.` : 'Vul eerst je naam in om datumopties toe te voegen.');
       return;
     }
+    if (!viewerProfile) {
+      setError('Log eerst in om datumopties toe te voegen.');
+      setAuthModalOpen(true);
+      return;
+    }
     setSelectedAddDates([]);
     setAddDatesOpen(true);
     setError(null);

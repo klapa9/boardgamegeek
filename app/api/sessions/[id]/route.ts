@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
 import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
 import { serializeAvailability, serializeGame, serializePlayer, serializeRating, serializeSession, serializeUserProfile } from '@/lib/serializers';
-import { getOrCreateUserProfile } from '@/lib/user-profile';
+import { getCurrentUserProfile, getOrCreateUserProfile } from '@/lib/user-profile';
 import { ensureSessionOrganizerAccess, viewerIsOrganizer } from '@/lib/session-organizer';
 
 function normalizeDate(value: unknown) {
@@ -62,6 +62,55 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     include: { dateOptions: true }
   });
   if (!session) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
+
+  if (Array.isArray(body.add_date_options)) {
+    const viewerProfile = await getCurrentUserProfile();
+    if (!viewerProfile) {
+      return NextResponse.json({ error: 'Log eerst in om datumopties toe te voegen.' }, { status: 401 });
+    }
+
+    const player = await prisma.player.findFirst({
+      where: {
+        sessionId: params.id,
+        userProfileId: viewerProfile.id
+      },
+      select: { id: true }
+    });
+    if (!player) {
+      return NextResponse.json({ error: 'Alleen deelnemers van deze spelavond kunnen datumopties toevoegen.' }, { status: 403 });
+    }
+
+    const requestedDates = body.add_date_options
+      .map((value: unknown) => normalizeDate(value))
+      .filter((date: string | null): date is string => Boolean(date));
+    const uniqueDates = new Set<string>(requestedDates);
+    const datesToAdd = Array.from(uniqueDates)
+      .filter((date) => !session.dateOptions.some((option) => option.date === date));
+
+    if (!datesToAdd.length) {
+      const unchangedSession = await prisma.session.findUnique({
+        where: { id: params.id },
+        include: { dateOptions: { orderBy: { date: 'asc' } } }
+      });
+      if (!unchangedSession) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
+      return NextResponse.json({ session: serializeSession(unchangedSession, unchangedSession.dateOptions) });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.sessionDateOption.createMany({
+        data: datesToAdd.map((date) => ({ sessionId: params.id, date }))
+      });
+
+      return tx.session.findUnique({
+        where: { id: params.id },
+        include: { dateOptions: { orderBy: { date: 'asc' } } }
+      });
+    });
+
+    if (!updated) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
+    return NextResponse.json({ session: serializeSession(updated, updated.dateOptions) });
+  }
+
   const access = await ensureSessionOrganizerAccess(session);
   if (!access.ok) return NextResponse.json({ error: 'Alleen de organisator mag dit aanpassen.' }, { status: 403 });
   const viewerProfile = access.viewerProfile;
@@ -184,38 +233,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       return NextResponse.json({ error: 'Kies een geldig afspreekuur.' }, { status: 400 });
     }
     meetingTimeUpdate = normalizedMeetingTime;
-  }
-
-  if (Array.isArray(body.add_date_options)) {
-    const requestedDates = body.add_date_options
-      .map((value: unknown) => normalizeDate(value))
-      .filter((date: string | null): date is string => Boolean(date));
-    const uniqueDates = new Set<string>(requestedDates);
-    const datesToAdd = Array.from(uniqueDates)
-      .filter((date) => !session.dateOptions.some((option) => option.date === date));
-
-    if (!datesToAdd.length) {
-      const unchangedSession = await prisma.session.findUnique({
-        where: { id: params.id },
-        include: { dateOptions: { orderBy: { date: 'asc' } } }
-      });
-      if (!unchangedSession) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
-      return NextResponse.json({ session: serializeSession(unchangedSession, unchangedSession.dateOptions) });
-    }
-
-    const updated = await prisma.$transaction(async (tx) => {
-      await tx.sessionDateOption.createMany({
-        data: datesToAdd.map((date) => ({ sessionId: params.id, date }))
-      });
-
-      return tx.session.findUnique({
-        where: { id: params.id },
-        include: { dateOptions: { orderBy: { date: 'asc' } } }
-      });
-    });
-
-    if (!updated) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
-    return NextResponse.json({ session: serializeSession(updated, updated.dateOptions) });
   }
 
   if (body.remove_date_option !== undefined) {
