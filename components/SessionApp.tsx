@@ -62,11 +62,11 @@ function inviteTemplateGameOpenDateOpenWithList({ title, dateOptions, url, gameL
 }
 
 function inviteTemplateNoPreselectDateFixed({ title, dateLabel, url }: InviteTemplateInput) {
-  return `${title}\n\nOp ${dateLabel} ligt de datum vast. Het spel kiezen we samen.\n\nGeef je spelvoorkeur door via:\n${url}`;
+  return `${title}\n\nOp ${dateLabel} ligt de datum vast.\n\nBevestig je aanwezigheid via:\n${url}`;
 }
 
 function inviteTemplateNoPreselectDateOpen({ title, dateOptions, url }: InviteTemplateInput) {
-  return `${title}\n\nHet spel kiezen we samen. Wie kan wanneer?\n${dateOptions}\n\nGeef je beschikbaarheid en je spelvoorkeur door via:\n${url}`;
+  return `${title}\n\nWie kan wanneer?\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
 }
 
 const SCORE_BADGES: Record<number, { label: string; className: string }> = {
@@ -935,7 +935,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 )}
               </div>
             )}
-            {isGameView && !chosenGame && (
+            {isGameView && !chosenGame && games.length > 0 && (
               <p className="mt-4 rounded-2xl bg-white/80 px-4 py-3 text-sm text-slate-700">Stem op het spel dat je wilt spelen.</p>
             )}
           </div>
