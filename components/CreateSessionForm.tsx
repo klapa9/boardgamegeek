@@ -6,6 +6,7 @@ import { api, loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
+import MeetingTimeSelector from './MeetingTimeSelector';
 
 type CreateSessionFormMode = 'details' | 'planning' | 'games';
 type PlanningMode = 'fixed_day' | 'vote_dates';
@@ -125,7 +126,7 @@ export default function CreateSessionForm({
           const defaultMeetingTime = readLastMeetingTime();
           const nextDateOptions = data.session.date_options.map((option) => option.date);
           setTitle(data.session.title.trim() || 'Spelavond');
-          setPlanningMode('vote_dates');
+          setPlanningMode(inferPlanningMode(nextDateOptions));
           setGameSelectionMode(inferGameSelectionMode(data.games.length, data.session.chosen_game_id));
           setMeetingTime(data.session.meeting_time || defaultMeetingTime);
           setDateOptions(nextDateOptions);
@@ -146,7 +147,7 @@ export default function CreateSessionForm({
         const draft = resetDraftOnLoad ? null : readSessionDraft(draftKey);
         const defaultMeetingTime = readLastMeetingTime();
         setTitle(draft?.title.trim() || 'Spelavond');
-        setPlanningMode('vote_dates');
+        setPlanningMode(draft?.planningMode ?? 'vote_dates');
         setGameSelectionMode(draft?.gameSelectionMode ?? 'players_pick');
         setMeetingTime(draft?.meetingTime ?? defaultMeetingTime);
         setDateOptions(draft?.dateOptions ?? []);
@@ -169,7 +170,7 @@ export default function CreateSessionForm({
       }
 
       setTitle(draft.title.trim() || 'Spelavond');
-      setPlanningMode('vote_dates');
+      setPlanningMode(draft.planningMode);
       setGameSelectionMode(draft.gameSelectionMode);
       setMeetingTime(draft.meetingTime);
       setDateOptions(draft.dateOptions);
@@ -351,7 +352,7 @@ export default function CreateSessionForm({
   }
 
   const onSubmit = mode === 'details' ? confirmDetails : mode === 'planning' ? confirmPlanning : confirmGames;
-  const planningSummary = 'Deelnemers stemmen op datumopties';
+  const planningSummary = planningMode === 'fixed_day' ? 'Organisator kiest 1 vaste dag' : 'Deelnemers stemmen op datumopties';
   const gameSummary = gameSelectionMode === 'no_preselect'
     ? 'Geen spel op voorhand'
     : gameSelectionMode === 'host_pick'
@@ -387,9 +388,31 @@ export default function CreateSessionForm({
 
           <div className="page-subcard p-4">
             <p className="text-sm font-semibold text-slate-700">Planning keuze</p>
-            <div className="mt-3 rounded-2xl border-2 border-slate-950 bg-[#84d7ff]/35 px-4 py-3">
-              <p className="font-bold text-slate-900">Deelnemers stemmen op datumopties.</p>
-              <p className="text-sm text-slate-600">Je kiest straks meerdere opties waarop iedereen kan aanduiden welke dag ze kunnen.</p>
+            <div className="mt-3 grid gap-2">
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'fixed_day' ? 'border-slate-950 bg-[#d8ff63]/45' : 'border-slate-950/10 bg-white/80'}`}>
+                <input
+                  type="radio"
+                  name="planning-mode"
+                  value="fixed_day"
+                  checked={planningMode === 'fixed_day'}
+                  onChange={() => setPlanningMode('fixed_day')}
+                  className="sr-only"
+                />
+                <p className="font-bold text-slate-900">Ik kies zelf 1 dag</p>
+                <p className="text-sm text-slate-600">Je kiest straks 1 vaste datum waarop jullie afspreken.</p>
+              </label>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'vote_dates' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
+                <input
+                  type="radio"
+                  name="planning-mode"
+                  value="vote_dates"
+                  checked={planningMode === 'vote_dates'}
+                  onChange={() => setPlanningMode('vote_dates')}
+                  className="sr-only"
+                />
+                <p className="font-bold text-slate-900">Deelnemers stemmen op datumopties.</p>
+                <p className="text-sm text-slate-600">Je kiest straks meerdere opties waarop iedereen kan aanduiden welke dag ze kunnen.</p>
+              </label>
             </div>
           </div>
 
@@ -437,13 +460,7 @@ export default function CreateSessionForm({
 
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Afspreekuur</label>
-            <input
-              type="time"
-              value={meetingTime}
-              onChange={(event) => setMeetingTime(event.target.value)}
-              className="neo-input"
-              required
-            />
+            <MeetingTimeSelector value={meetingTime} onChange={setMeetingTime} idPrefix="create-meeting-time" />
             <p className="mt-2 text-sm text-slate-500">Onthoudt je laatste keuze. Eerste keer: standaard 20:00.</p>
           </div>
         </>
@@ -462,7 +479,9 @@ export default function CreateSessionForm({
         <div className="page-subcard p-4">
           <DateOptionCalendar selectedDates={dateOptions} onToggleDate={toggleDate} />
           <p className="mt-3 text-sm text-slate-500">
-            Selecteer 1 of meerdere datums waarop deelnemers later kunnen stemmen.
+            {planningMode === 'fixed_day'
+              ? 'Kies exact 1 datum voor je spelavond.'
+              : 'Selecteer 1 of meerdere datums waarop deelnemers later kunnen stemmen.'}
           </p>
         </div>
       )}
