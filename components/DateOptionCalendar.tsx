@@ -89,15 +89,21 @@ function dateTitle(date: string) {
 
 export default function DateOptionCalendar({
   selectedDates,
+  highlightedDates = [],
   onToggleDate,
   disabled = false,
   selectedClassName = 'border-slate-950 bg-[#84d7ff] text-slate-950 shadow-sm shadow-sky-200/80',
+  highlightedClassName = 'border-slate-950/40 bg-[#84d7ff]/45 text-slate-950',
+  nonInteractiveDates = [],
   selectionMode = 'multiple'
 }: {
   selectedDates: string[];
+  highlightedDates?: string[];
   onToggleDate: (date: string) => void;
   disabled?: boolean;
   selectedClassName?: string;
+  highlightedClassName?: string;
+  nonInteractiveDates?: string[];
   selectionMode?: 'single' | 'multiple';
 }) {
   const [visibleMonthDate, setVisibleMonthDate] = useState(() => {
@@ -109,6 +115,8 @@ export default function DateOptionCalendar({
   const currentMonthKey = useMemo(() => monthDateKey(new Date()), []);
   const visibleMonth = useMemo(() => buildCalendarMonth(visibleMonthDate, todayKey), [todayKey, visibleMonthDate]);
   const selectedDatesSet = useMemo(() => new Set(selectedDates), [selectedDates]);
+  const highlightedDatesSet = useMemo(() => new Set(highlightedDates), [highlightedDates]);
+  const nonInteractiveDatesSet = useMemo(() => new Set(nonInteractiveDates), [nonInteractiveDates]);
 
   return (
     <div className="max-w-xl">
@@ -150,6 +158,9 @@ export default function DateOptionCalendar({
 
                 const cellDate = cell.date;
                 const selected = selectedDatesSet.has(cellDate);
+                const highlighted = !selected && highlightedDatesSet.has(cellDate);
+                const nonInteractive = nonInteractiveDatesSet.has(cellDate);
+                const isDisabled = disabled || !cell.isSelectable || nonInteractive;
 
                 return (
                   <label
@@ -161,6 +172,8 @@ export default function DateOptionCalendar({
                         ? 'cursor-not-allowed border-transparent bg-slate-100/70 text-slate-300'
                         : selected
                           ? `cursor-pointer ${selectedClassName}`
+                          : highlighted
+                            ? `cursor-default ${highlightedClassName}`
                           : 'cursor-pointer border-slate-950/10 bg-white hover:border-slate-950/30 hover:bg-sky-50/70',
                       cell.isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
                       disabled ? 'opacity-70' : ''
@@ -168,8 +181,8 @@ export default function DateOptionCalendar({
                   >
                     <input
                       type="checkbox"
-                      checked={selected}
-                      disabled={disabled || !cell.isSelectable}
+                      checked={selected || highlighted}
+                      disabled={isDisabled}
                       onChange={() => onToggleDate(cellDate)}
                       className="sr-only"
                       aria-label={dateTitle(cellDate)}
