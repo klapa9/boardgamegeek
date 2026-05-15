@@ -11,6 +11,7 @@ import { sessionUrl } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
 import NativeTimeInput from './NativeTimeInput';
+import ProgressiveGameImage from './ProgressiveGameImage';
 
 type ResultRow = {
   game: GameDto;
@@ -1188,9 +1189,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               const isToday = row.date === localDateKey();
               const isChosenDate = session.chosen_day === row.date;
               const needsLoginHint = !currentPlayer;
+              const canToggleAvailability = Boolean(currentPlayer) && !saving && !session.locked;
               const availableNames = row.availablePlayers.map((player) => player.name);
               const cardClassName = [
-                'rounded-2xl border-2 p-4 transition',
+                'relative rounded-2xl border-2 p-4 transition',
                 isChosenDate ? 'border-emerald-700 bg-emerald-50 text-emerald-950' : selected ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950' : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
                 isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
                 saving ? 'opacity-60' : ''
@@ -1198,27 +1200,27 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
               return (
                 <div key={row.date} className={cardClassName}>
-                  <div className="flex items-start justify-between gap-3">
-                    <button
-                      type="button"
-                      disabled={saving || !currentPlayer || session.locked}
-                      onClick={() => {
-                        if (!currentPlayer || session.locked) return;
-                        toggleAvailability(row.date);
-                      }}
-                      title={needsLoginHint ? joinPromptLabel : row.label}
-                      className={`min-w-0 flex-1 text-left ${needsLoginHint ? 'cursor-help' : ''}`}
-                    >
-                      <div className="min-w-0">
-                        <h3 className="text-base font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
-                        <p className={`mt-1 text-xs font-bold ${selected || isChosenDate ? 'text-emerald-700' : 'text-slate-500'}`}>
-                          {session.locked
-                            ? (isChosenDate ? 'Deze datum ligt vast' : 'Datumopties zijn gesloten')
-                            : selected ? 'Jij bent beschikbaar' : 'Klik om beschikbaar te zijn'}
-                        </p>
-                      </div>
-                    </button>
-                    <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!canToggleAvailability}
+                    onClick={() => {
+                      if (!canToggleAvailability) return;
+                      toggleAvailability(row.date);
+                    }}
+                    title={needsLoginHint ? joinPromptLabel : row.label}
+                    aria-pressed={session.locked ? undefined : selected}
+                    className={`absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950/20 ${needsLoginHint ? 'cursor-help' : canToggleAvailability ? 'cursor-pointer' : 'cursor-default'}`}
+                  />
+                  <div className="pointer-events-none relative z-10 flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
+                      <p className={`mt-1 text-xs font-bold ${selected || isChosenDate ? 'text-emerald-700' : 'text-slate-500'}`}>
+                        {session.locked
+                          ? (isChosenDate ? 'Deze datum ligt vast' : 'Datumopties zijn gesloten')
+                          : selected ? 'Jij bent beschikbaar' : 'Klik om beschikbaar te zijn'}
+                      </p>
+                    </div>
+                    <div className="pointer-events-auto flex items-center gap-2">
                       {isChosenDate && <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Vast</span>}
                       {isAdmin && (
                         <button
@@ -1233,24 +1235,24 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                       )}
                     </div>
                   </div>
-                  <div className="mt-3">
+                  <div className="pointer-events-none relative z-10 mt-3">
                     <p className={`text-xs font-bold uppercase ${selected || isChosenDate ? 'text-emerald-700' : 'text-slate-500'}`}>Deelnemers</p>
                     <p className={`mt-1 text-sm leading-6 ${selected || isChosenDate ? 'text-emerald-900' : 'text-slate-600'}`}>
                       {availableNames.length ? availableNames.join(', ') : 'Nog niemand'}
                     </p>
                   </div>
                   {!!row.unavailablePlayers.length && (
-                    <p className="mt-2 text-xs text-slate-500">Niet beschikbaar: {row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
+                    <p className="pointer-events-none relative z-10 mt-2 text-xs text-slate-500">Niet beschikbaar: {row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
                   )}
                   {!!row.pendingPlayers.length && (
-                    <p className="mt-1 text-xs text-slate-500">Nog geen antwoord: {row.pendingPlayers.map((player) => player.name).join(', ')}</p>
+                    <p className="pointer-events-none relative z-10 mt-1 text-xs text-slate-500">Nog geen antwoord: {row.pendingPlayers.map((player) => player.name).join(', ')}</p>
                   )}
                   {isAdmin && !session.locked && (
                     <button
                       type="button"
                       onClick={() => chooseDate(row.date)}
                       disabled={saving}
-                      className="neo-button neo-button-primary mt-4 text-sm disabled:opacity-50"
+                      className="neo-button neo-button-primary relative z-10 mt-4 text-sm disabled:opacity-50"
                     >
                       <Lock size={16} /> Datum vastleggen
                     </button>
@@ -1289,7 +1291,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           </div>
           <article className="page-subcard p-4">
             {gameLargeImageUrl(chosenGame) ? (
-              <img src={gameLargeImageUrl(chosenGame)!} alt={chosenGame.title} className="aspect-[16/11] w-full rounded-2xl bg-white object-cover shadow-sm" />
+              <ProgressiveGameImage
+                thumbnailSrc={gameThumbnailUrl(chosenGame)}
+                fullSrc={gameLargeImageUrl(chosenGame)}
+                alt={chosenGame.title}
+                className="aspect-[16/11] w-full rounded-2xl bg-white shadow-sm"
+              />
             ) : (
               <div className="flex aspect-[16/11] w-full items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm"><Dice5 size={64} /></div>
             )}
@@ -1333,7 +1340,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 </div>
                 <div className="mt-4 flex flex-col">
                   {gameLargeImageUrl(game) ? (
-                    <img src={gameLargeImageUrl(game)!} alt="" className="aspect-[16/11] w-full rounded-2xl bg-white object-cover shadow-sm" />
+                    <ProgressiveGameImage
+                      thumbnailSrc={gameThumbnailUrl(game)}
+                      fullSrc={gameLargeImageUrl(game)}
+                      alt=""
+                      className="aspect-[16/11] w-full rounded-2xl bg-white shadow-sm"
+                    />
                   ) : (
                     <div className="flex aspect-[16/11] w-full items-center justify-center rounded-2xl bg-white text-slate-300 shadow-sm"><Dice5 size={56} /></div>
                   )}

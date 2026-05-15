@@ -33,21 +33,21 @@ const chaoticFacts = [
 const signedInActions = [
   {
     title: 'Mijn spellen',
-    text: 'Bekijk je BoardGameGeek-spellen, orden ze slim en hou je speelkast onder controle.',
+    text: 'Beheer je spellen collectie, orden ze slim of synchroniseer van boardgamegeek.com',
     href: '/collectie',
     icon: Library,
     tone: 'bg-[#84d7ff]'
   },
   {
     title: 'Mijn spelavonden',
-    text: 'Open bestaande sessies, kijk wie kan en zie welk spel de meeste liefde krijgt.',
+    text: 'Bekijk je spelsessies, voeg spelopties of afspreekdata toe, of wijzig je stem.',
     href: '/spelavonden',
     icon: Users,
     tone: 'bg-[#d8ff63]'
   },
   {
     title: 'Nieuwe spelavond maken',
-    text: 'Start een nieuwe avond, deel de link en laat de planning vrolijk ontsporen in goede banen.',
+    text: 'Spreek af met vrienden voor een boardgame, regel de planning of beslis op voorhand over het spel.',
     href: '/spelavond?nieuw=1',
     icon: PlusSquare,
     tone: 'bg-[#ffc7b8]'
