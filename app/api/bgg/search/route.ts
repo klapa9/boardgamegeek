@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const rawItems = parsed.items?.item;
   const items = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
 
-  const results = items.slice(0, 12).map((item: any) => ({
+  const results = items.slice(0, 100).map((item: any) => ({
     bggId: Number(item.id),
     title: item.name?.value ?? 'Onbekend spel',
     yearPublished: item.yearpublished?.value ? Number(item.yearpublished.value) : null

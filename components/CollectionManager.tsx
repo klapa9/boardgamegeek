@@ -1,11 +1,11 @@
 'use client';
 
-import Image from 'next/image';
-import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { BggSearchResult, CollectionBundle, CollectionGameDto } from '@/lib/types';
+
+const BGG_RESULTS_PAGE_SIZE = 10;
 
 function listImageUrl(game: CollectionGameDto) {
   return game.thumbnail_url ?? game.image_url;
@@ -29,6 +29,7 @@ export default function CollectionManager() {
   const [games, setGames] = useState<CollectionGameDto[]>([]);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BggSearchResult[]>([]);
+  const [searchPage, setSearchPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [addingId, setAddingId] = useState<number | null>(null);
@@ -54,6 +55,7 @@ export default function CollectionManager() {
   useEffect(() => {
     const trimmedQuery = query.trim();
     if (searchTimer.current) window.clearTimeout(searchTimer.current);
+    setSearchPage(0);
 
     if (trimmedQuery.length < 2) {
       setSearchResults([]);
@@ -81,8 +83,17 @@ export default function CollectionManager() {
   }, [games, query]);
 
   const visibleBggResults = useMemo(() => {
-    return searchResults.slice(0, 12);
-  }, [searchResults]);
+    const start = searchPage * BGG_RESULTS_PAGE_SIZE;
+    return searchResults.slice(start, start + BGG_RESULTS_PAGE_SIZE);
+  }, [searchPage, searchResults]);
+
+  const totalBggResults = searchResults.length;
+  const visibleBggStart = totalBggResults ? searchPage * BGG_RESULTS_PAGE_SIZE + 1 : 0;
+  const visibleBggEnd = totalBggResults
+    ? Math.min((searchPage + 1) * BGG_RESULTS_PAGE_SIZE, totalBggResults)
+    : 0;
+  const canGoToPreviousBggPage = searchPage > 0;
+  const canGoToNextBggPage = visibleBggEnd < totalBggResults;
 
   const gameIdsInCollection = useMemo(() => new Set(games.map((game) => game.bgg_id).filter((id): id is number => id !== null)), [games]);
 
@@ -130,26 +141,13 @@ export default function CollectionManager() {
   return (
     <div className="space-y-5">
       <section className="page-card page-card-sky p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
           <div>
             <h2 className="font-poster text-3xl uppercase leading-none text-slate-950">Spellen toevoegen</h2>
             <p className="mt-3 max-w-2xl text-sm text-slate-700">
-              Zoek een spel op BoardGameGeek, kies het juiste resultaat en voeg het dan expliciet toe aan je collectie.
+              Voeg spellen toe aan je collectie door te zoeken in de database van boardgamegeek.com.
             </p>
           </div>
-          <Link
-            href="/bgg"
-            className="inline-flex items-center gap-3 rounded-2xl border-2 border-slate-950 bg-[#0077cc] px-4 py-3 text-sm font-bold text-white shadow-[0_4px_0_0_#0f172a] transition hover:-translate-y-0.5 hover:bg-[#0b84d9]"
-          >
-            <Image
-              src="/boardgamegeek-logo.png"
-              alt="Official BoardGameGeek.com logo"
-              width={108}
-              height={28}
-              className="h-7 w-auto"
-            />
-            <span>Synchronisatie</span>
-          </Link>
         </div>
 
         {syncedUsername && (
@@ -180,7 +178,9 @@ export default function CollectionManager() {
           <div className="page-subcard p-4">
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-black text-slate-900">BGG zoekresultaten</h3>
-              <span className="text-sm text-slate-500">{visibleBggResults.length} zichtbaar</span>
+              <span className="text-sm text-slate-500">
+                {totalBggResults ? `${visibleBggStart}-${visibleBggEnd} van ${totalBggResults}` : '0 resultaten'}
+              </span>
             </div>
             <div className="mt-3 space-y-2">
               {!query.trim() || query.trim().length < 2 ? (
@@ -212,6 +212,26 @@ export default function CollectionManager() {
                 <div className="neo-muted-panel text-center text-slate-500">Geen BGG resultaten gevonden.</div>
               )}
             </div>
+            {!!visibleBggResults.length && (
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSearchPage((current) => Math.max(0, current - 1))}
+                  disabled={!canGoToPreviousBggPage}
+                  className="neo-button neo-button-ghost text-sm disabled:opacity-60"
+                >
+                  Vorige 10
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchPage((current) => current + 1)}
+                  disabled={!canGoToNextBggPage}
+                  className="neo-button neo-button-ghost text-sm disabled:opacity-60"
+                >
+                  Volgende 10
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="page-subcard p-4">
