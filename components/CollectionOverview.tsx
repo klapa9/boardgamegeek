@@ -337,21 +337,29 @@ export default function CollectionOverview() {
     <>
       <div className="space-y-5">
         <section id="nieuwe-groep" className="page-card page-card-peach p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="font-poster text-3xl uppercase leading-none text-slate-950">Mijn collectie</h2>
               <p className="mt-2 text-sm text-slate-700">
                 Maak je eigen groepen om je collectie te ordenen en snel spellen te kiezen voor een spelavond.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowCreateForm((current) => !current)}
-              className="neo-button neo-button-ghost self-start text-sm"
-            >
-              <Plus size={16} />
-              Nieuwe groep
-            </button>
+            <div className="flex flex-wrap gap-2 self-start">
+              <Link href="/" className="neo-button neo-button-ghost text-sm">
+                &lt;- Terug naar start
+              </Link>
+              <Link href="/games" className="neo-button neo-button-primary text-sm">
+                Spellen toevoegen of verwijderen
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowCreateForm((current) => !current)}
+                className="neo-button neo-button-ghost text-sm"
+              >
+                <Plus size={16} />
+                Nieuwe groep
+              </button>
+            </div>
           </div>
 
           {(message || error) && (
@@ -380,10 +388,7 @@ export default function CollectionOverview() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className={`text-xs font-bold uppercase tracking-[0.2em] ${selectedGroupId === group.id ? 'text-slate-300' : 'text-slate-400'}`}>
-                      {group.is_default ? 'Standaard' : 'Eigen'}
-                    </p>
-                    <h3 className="mt-1 text-xl font-black [overflow-wrap:anywhere]">{group.name}</h3>
+                    <h3 className="text-xl font-black [overflow-wrap:anywhere]">{group.name}</h3>
                   </div>
                   <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${selectedGroupId === group.id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-600'}`}>
                     {group.game_count}
