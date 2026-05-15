@@ -275,7 +275,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   const updateData: { chosenDay?: string | null; locked?: boolean; chosenGameId?: string | null; meetingTime?: string } = {};
-  if (chosenDayUpdate !== undefined) updateData.chosenDay = chosenDayUpdate;
+  if (chosenDayUpdate !== undefined) {
+    updateData.chosenDay = chosenDayUpdate;
+    if (chosenDayUpdate === null) {
+      updateData.locked = false;
+    } else if (typeof body.locked !== 'boolean') {
+      updateData.locked = true;
+    }
+  }
   if (typeof body.locked === 'boolean') updateData.locked = body.locked;
   if (chosenGameIdUpdate !== undefined) updateData.chosenGameId = chosenGameIdUpdate;
   if (meetingTimeUpdate !== undefined) updateData.meetingTime = meetingTimeUpdate;

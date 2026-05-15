@@ -504,6 +504,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       const confirmed = window.confirm('Ben je zeker? Dit legt de datum vast zodat deelnemers niet langer datumopties kunnen kiezen. Wel kunnen ze nu hun aanwezigheid bevestigen op deze dag.');
       if (!confirmed) return;
     }
+    if (!date) {
+      const confirmed = window.confirm('Ben je zeker dat je de planning opnieuw wilt openzetten? Daarna kunnen alle deelnemers opnieuw stemmen op alle datumopties.');
+      if (!confirmed) return;
+    }
     const previousSession = session;
     setError(null);
     setSaving(true);
@@ -990,6 +994,16 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 <p className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday} {chosenDateRow.display.day} {chosenDateRow.display.month}</p>
                 <p className="mt-1 text-sm">{chosenDateRow.display.full}</p>
                 {session.meeting_time && <p className="mt-1 text-sm font-semibold">Afspreekuur: {formatMeetingTime(session.meeting_time)}</p>}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => chooseDate(null)}
+                    disabled={saving}
+                    className="neo-button neo-button-ghost mt-4 text-sm disabled:opacity-60"
+                  >
+                    <Unlock size={16} className="inline" /> Planning heropenen
+                  </button>
+                )}
               </div>
             )}
             <div className="summary-scroll-area max-h-[32rem] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
@@ -1163,9 +1177,23 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           </div>
           {session.locked && chosenDateRow && (
             <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-5 text-emerald-950">
-              <p className="text-sm font-bold">De organisator heeft de datum gekozen.</p>
-              <p className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday}</p>
-              <p>{chosenDateRow.display.full}</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold">De organisator heeft de datum gekozen.</p>
+                  <p className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday}</p>
+                  <p>{chosenDateRow.display.full}</p>
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => chooseDate(null)}
+                    disabled={saving}
+                    className="neo-button neo-button-ghost text-sm disabled:opacity-60"
+                  >
+                    <Unlock size={16} className="inline" /> Planning heropenen
+                  </button>
+                )}
+              </div>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <button
                   type="button"

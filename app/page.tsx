@@ -78,18 +78,18 @@ export default async function HomePage() {
         {userId ? (
           <>
             <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
-              <div className="flex flex-wrap items-center justify-end gap-3 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
-                <div className="home-float rounded-full border-2 border-slate-950 bg-[#ff5a36] px-4 py-1 text-xs font-black uppercase tracking-[0.18em] text-white">
-                  boardgamegeek.be
+              <div className="flex items-center gap-2 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:gap-3 sm:px-6">
+                <div className="home-float inline-flex min-w-0 flex-1 items-center rounded-full border-2 border-slate-950 bg-[#ff5a36] px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-white sm:px-4 sm:py-1 sm:text-xs sm:tracking-[0.18em]">
+                  <span className="[overflow-wrap:anywhere]">boardgamegeek.be</span>
+                </div>
+                <div className="inline-flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-700 sm:text-xs sm:tracking-[0.18em]">
+                  <CircleAlert size={16} />
+                  <span>ingelogd</span>
                 </div>
               </div>
 
               <div className="px-4 py-5 sm:px-6 sm:py-8">
                 <div className="max-w-3xl">
-                  <div className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700">
-                    <CircleAlert size={16} />
-                    <span>ingelogd</span>
-                  </div>
                   <h1 className="mt-4 font-poster text-[clamp(2.2rem,10vw,4.4rem)] uppercase leading-[0.92] text-slate-950">
                     Kies je
                     <br />
