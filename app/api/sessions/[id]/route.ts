@@ -11,6 +11,11 @@ function normalizeDate(value: unknown) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
 }
 
+function normalizeMeetingTime(value: unknown) {
+  const time = String(value ?? '').trim();
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : null;
+}
+
 function normalizePlanningMode(value: unknown) {
   return value === 'fixed_day' ? 'fixed_day' : 'vote_dates';
 }
@@ -68,10 +73,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     || body.collection_game_ids !== undefined
     || body.planning_mode !== undefined
     || body.game_selection_mode !== undefined
+    || body.meeting_time !== undefined
   );
 
   if (isSettingsUpdate) {
     const title = String(body.title ?? '').trim();
+    const meetingTime = normalizeMeetingTime(body.meeting_time);
     const planningMode = normalizePlanningMode(body.planning_mode);
     const gameSelectionMode = normalizeGameSelectionMode(body.game_selection_mode);
     const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
@@ -81,6 +88,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const locked = planningMode === 'fixed_day' && Boolean(chosenDay);
 
     if (!title) return NextResponse.json({ error: 'Titel is verplicht.' }, { status: 400 });
+    if (!meetingTime) return NextResponse.json({ error: 'Kies een geldig afspreekuur.' }, { status: 400 });
     if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
 
     const collectionGames = collectionGameIds.length
@@ -103,6 +111,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         where: { id: params.id },
         data: {
           title,
+          meetingTime,
           chosenDay,
           chosenGameId: null,
           locked
@@ -168,10 +177,91 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
   }
 
-  const updateData: { chosenDay?: string | null; locked?: boolean; chosenGameId?: string | null } = {};
+  let meetingTimeUpdate: string | undefined;
+  if (body.meeting_time !== undefined) {
+    const normalizedMeetingTime = normalizeMeetingTime(body.meeting_time);
+    if (!normalizedMeetingTime) {
+      return NextResponse.json({ error: 'Kies een geldig afspreekuur.' }, { status: 400 });
+    }
+    meetingTimeUpdate = normalizedMeetingTime;
+  }
+
+  if (Array.isArray(body.add_date_options)) {
+    const requestedDates = body.add_date_options
+      .map((value: unknown) => normalizeDate(value))
+      .filter((date: string | null): date is string => Boolean(date));
+    const uniqueDates = new Set<string>(requestedDates);
+    const datesToAdd = Array.from(uniqueDates)
+      .filter((date) => !session.dateOptions.some((option) => option.date === date));
+
+    if (!datesToAdd.length) {
+      const unchangedSession = await prisma.session.findUnique({
+        where: { id: params.id },
+        include: { dateOptions: { orderBy: { date: 'asc' } } }
+      });
+      if (!unchangedSession) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
+      return NextResponse.json({ session: serializeSession(unchangedSession, unchangedSession.dateOptions) });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.sessionDateOption.createMany({
+        data: datesToAdd.map((date) => ({ sessionId: params.id, date }))
+      });
+
+      return tx.session.findUnique({
+        where: { id: params.id },
+        include: { dateOptions: { orderBy: { date: 'asc' } } }
+      });
+    });
+
+    if (!updated) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
+    return NextResponse.json({ session: serializeSession(updated, updated.dateOptions) });
+  }
+
+  if (body.remove_date_option !== undefined) {
+    const dateToRemove = normalizeDate(body.remove_date_option);
+    if (!dateToRemove) return NextResponse.json({ error: 'Kies een geldige datum.' }, { status: 400 });
+    if (!session.dateOptions.some((option) => option.date === dateToRemove)) {
+      return NextResponse.json({ error: 'Deze datum staat niet tussen de voorstellen.' }, { status: 400 });
+    }
+    if (session.dateOptions.length <= 1) {
+      return NextResponse.json({ error: 'Er moet minstens 1 datumoptie overblijven.' }, { status: 400 });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.sessionDateOption.deleteMany({
+        where: {
+          sessionId: params.id,
+          date: dateToRemove
+        }
+      });
+
+      const removingChosenDay = session.chosenDay === dateToRemove;
+      if (removingChosenDay) {
+        await tx.session.update({
+          where: { id: params.id },
+          data: {
+            chosenDay: null,
+            locked: false
+          }
+        });
+      }
+
+      return tx.session.findUnique({
+        where: { id: params.id },
+        include: { dateOptions: { orderBy: { date: 'asc' } } }
+      });
+    });
+
+    if (!updated) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
+    return NextResponse.json({ session: serializeSession(updated, updated.dateOptions) });
+  }
+
+  const updateData: { chosenDay?: string | null; locked?: boolean; chosenGameId?: string | null; meetingTime?: string } = {};
   if (chosenDayUpdate !== undefined) updateData.chosenDay = chosenDayUpdate;
   if (typeof body.locked === 'boolean') updateData.locked = body.locked;
   if (chosenGameIdUpdate !== undefined) updateData.chosenGameId = chosenGameIdUpdate;
+  if (meetingTimeUpdate !== undefined) updateData.meetingTime = meetingTimeUpdate;
 
   const updated = await prisma.session.update({
     where: { id: params.id },

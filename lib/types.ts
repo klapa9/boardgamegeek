@@ -26,6 +26,7 @@ export type PlannerDateDto = {
 export type SessionDto = {
   id: string;
   title: string;
+  meeting_time: string;
   organizer_user_profile_id: string | null;
   chosen_day: string | null;
   chosen_game_id: string | null;

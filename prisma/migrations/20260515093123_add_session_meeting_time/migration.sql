@@ -1,0 +1,2 @@
+ALTER TABLE "Session"
+ADD COLUMN "meetingTime" TEXT NOT NULL DEFAULT '20:00';

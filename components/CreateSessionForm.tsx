@@ -2,24 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
+import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
-
-type CalendarCell = {
-  key: string;
-  date: string | null;
-  dayNumber: string;
-  isSelectable: boolean;
-  isToday: boolean;
-};
-
-type CalendarMonth = {
-  key: string;
-  label: string;
-  weeks: CalendarCell[][];
-};
 
 type CreateSessionFormMode = 'details' | 'planning' | 'games';
 type PlanningMode = 'fixed_day' | 'vote_dates';
@@ -33,87 +19,9 @@ type SessionDraft = {
   dateOptions: string[];
 };
 
-const WEEKDAY_LABELS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'] as const;
 const SESSION_DRAFT_KEY = 'gsk-session-draft';
 const LAST_MEETING_TIME_KEY = 'gsk-last-meeting-time';
 const DEFAULT_MEETING_TIME = '20:00';
-const SELECTED_DATE_STYLES = [
-  'border-slate-950 bg-[#d8ff63] shadow-sm shadow-[#d8ff63]/20',
-  'border-slate-950 bg-[#84d7ff] shadow-sm shadow-[#84d7ff]/20',
-  'border-slate-950 bg-[#ffc7b8] shadow-sm shadow-[#ffc7b8]/20',
-  'border-slate-950 bg-[#fff2bd] shadow-sm shadow-[#fff2bd]/20'
-] as const;
-
-function dateParts(date: string) {
-  const value = new Date(`${date}T12:00:00`);
-  return {
-    full: new Intl.DateTimeFormat('nl-BE', { weekday: 'long', day: 'numeric', month: 'long' }).format(value)
-  };
-}
-
-function localDateKey(value = new Date()) {
-  const year = value.getFullYear();
-  const month = `${value.getMonth() + 1}`.padStart(2, '0');
-  const day = `${value.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function monthDateKey(value: Date) {
-  return `${value.getFullYear()}-${`${value.getMonth() + 1}`.padStart(2, '0')}`;
-}
-
-function buildCalendarMonth(visibleMonth: Date, todayKey: string) {
-  const year = visibleMonth.getFullYear();
-  const month = visibleMonth.getMonth() + 1;
-  const monthKey = `${year}-${`${month}`.padStart(2, '0')}`;
-  const firstDay = new Date(year, month - 1, 1);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const firstWeekday = (firstDay.getDay() + 6) % 7;
-  const cells: CalendarCell[] = [];
-
-  for (let index = 0; index < firstWeekday; index += 1) {
-    cells.push({
-      key: `${monthKey}-blank-start-${index}`,
-      date: null,
-      dayNumber: '',
-      isSelectable: false,
-      isToday: false
-    });
-  }
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = `${monthKey}-${`${day}`.padStart(2, '0')}`;
-    cells.push({
-      key: date,
-      date,
-      dayNumber: `${day}`,
-      isSelectable: date >= todayKey,
-      isToday: date === todayKey
-    });
-  }
-
-  while (cells.length % 7 !== 0) {
-    const index = cells.length;
-    cells.push({
-      key: `${monthKey}-blank-end-${index}`,
-      date: null,
-      dayNumber: '',
-      isSelectable: false,
-      isToday: false
-    });
-  }
-
-  const weeks: CalendarCell[][] = [];
-  for (let index = 0; index < cells.length; index += 7) {
-    weeks.push(cells.slice(index, index + 7));
-  }
-
-  return {
-    key: monthKey,
-    label: new Intl.DateTimeFormat('nl-BE', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)),
-    weeks
-  };
-}
 
 function isValidTime(value: string) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
@@ -195,13 +103,6 @@ export default function CreateSessionForm({
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visibleMonthDate, setVisibleMonthDate] = useState(() => {
-    const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1);
-  });
-  const todayKey = useMemo(() => localDateKey(), []);
-  const currentMonthKey = useMemo(() => monthDateKey(new Date()), []);
-  const visibleMonth = useMemo(() => buildCalendarMonth(visibleMonthDate, todayKey), [todayKey, visibleMonthDate]);
   const draftKey = useMemo(() => sessionDraftKey(editSessionId), [editSessionId]);
   const backToPlanningHref = editSessionId ? `/planning?bewerk=${editSessionId}` : '/planning';
 
@@ -224,9 +125,9 @@ export default function CreateSessionForm({
           const defaultMeetingTime = readLastMeetingTime();
           const nextDateOptions = data.session.date_options.map((option) => option.date);
           setTitle(data.session.title.trim() || 'Spelavond');
-          setPlanningMode(inferPlanningMode(nextDateOptions));
+          setPlanningMode('vote_dates');
           setGameSelectionMode(inferGameSelectionMode(data.games.length, data.session.chosen_game_id));
-          setMeetingTime(defaultMeetingTime);
+          setMeetingTime(data.session.meeting_time || defaultMeetingTime);
           setDateOptions(nextDateOptions);
           setSelectedIds([]);
           setInitialGameTitles(data.games.map((game) => game.title));
@@ -245,7 +146,7 @@ export default function CreateSessionForm({
         const draft = resetDraftOnLoad ? null : readSessionDraft(draftKey);
         const defaultMeetingTime = readLastMeetingTime();
         setTitle(draft?.title.trim() || 'Spelavond');
-        setPlanningMode(draft?.planningMode ?? 'vote_dates');
+        setPlanningMode('vote_dates');
         setGameSelectionMode(draft?.gameSelectionMode ?? 'players_pick');
         setMeetingTime(draft?.meetingTime ?? defaultMeetingTime);
         setDateOptions(draft?.dateOptions ?? []);
@@ -268,7 +169,7 @@ export default function CreateSessionForm({
       }
 
       setTitle(draft.title.trim() || 'Spelavond');
-      setPlanningMode(draft.planningMode);
+      setPlanningMode('vote_dates');
       setGameSelectionMode(draft.gameSelectionMode);
       setMeetingTime(draft.meetingTime);
       setDateOptions(draft.dateOptions);
@@ -450,7 +351,7 @@ export default function CreateSessionForm({
   }
 
   const onSubmit = mode === 'details' ? confirmDetails : mode === 'planning' ? confirmPlanning : confirmGames;
-  const planningSummary = planningMode === 'fixed_day' ? 'Organisator kiest 1 vaste dag' : 'Deelnemers stemmen op meerdere opties';
+  const planningSummary = 'Deelnemers stemmen op datumopties';
   const gameSummary = gameSelectionMode === 'no_preselect'
     ? 'Geen spel op voorhand'
     : gameSelectionMode === 'host_pick'
@@ -459,10 +360,10 @@ export default function CreateSessionForm({
   const planningButtonLabel = gameSelectionMode === 'no_preselect'
     ? (loading ? (editSessionId ? 'Spelavond wijzigen...' : 'Spelavond maken...') : (editSessionId ? 'Spelavond wijzigen' : 'Spelavond maken'))
     : 'Bevestig planning';
-  const gamePickerTitle = gameSelectionMode === 'host_pick' ? 'Kies 1 spel uit je lokale lijst' : 'Kies meerdere spellen uit je lokale lijst';
+  const gamePickerTitle = gameSelectionMode === 'host_pick' ? 'Kies 1 spel uit je spelcollectie' : 'Kies meerdere spellen uit je spelcollectie';
   const gamePickerSubtitle = gameSelectionMode === 'host_pick'
     ? 'Dit spel staat vast voor deze spelavond.'
-    : 'Deze lijst wordt straks de stemlijst voor de spelers.';
+    : 'Deze lijst wordt straks de stemlijst van je spelers.';
   const hostPickHasTooManySelected = gameSelectionMode === 'host_pick' && selectedIds.length > 1;
 
   if (initializing) {
@@ -486,31 +387,9 @@ export default function CreateSessionForm({
 
           <div className="page-subcard p-4">
             <p className="text-sm font-semibold text-slate-700">Planning keuze</p>
-            <div className="mt-3 grid gap-2">
-              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'fixed_day' ? 'border-slate-950 bg-[#d8ff63]/45' : 'border-slate-950/10 bg-white/80'}`}>
-                <input
-                  type="radio"
-                  name="planning-mode"
-                  value="fixed_day"
-                  checked={planningMode === 'fixed_day'}
-                  onChange={() => setPlanningMode('fixed_day')}
-                  className="sr-only"
-                />
-                <p className="font-bold text-slate-900">Ik bepaal nu al de dag</p>
-                <p className="text-sm text-slate-600">Je kiest straks 1 vaste datum.</p>
-              </label>
-              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'vote_dates' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
-                <input
-                  type="radio"
-                  name="planning-mode"
-                  value="vote_dates"
-                  checked={planningMode === 'vote_dates'}
-                  onChange={() => setPlanningMode('vote_dates')}
-                  className="sr-only"
-                />
-                <p className="font-bold text-slate-900">Deelnemers stemmen op datums</p>
-                <p className="text-sm text-slate-600">Je kiest straks meerdere datumopties.</p>
-              </label>
+            <div className="mt-3 rounded-2xl border-2 border-slate-950 bg-[#84d7ff]/35 px-4 py-3">
+              <p className="font-bold text-slate-900">Deelnemers stemmen op datumopties.</p>
+              <p className="text-sm text-slate-600">Je kiest straks meerdere opties waarop iedereen kan aanduiden welke dag ze kunnen.</p>
             </div>
           </div>
 
@@ -527,7 +406,7 @@ export default function CreateSessionForm({
                   className="sr-only"
                 />
                 <p className="font-bold text-slate-900">Geen spel op voorhand kiezen</p>
-                <p className="text-sm text-slate-600">De sessie wordt gemaakt zonder vooraf gekozen spellen.</p>
+                <p className="text-sm text-slate-600">Er wordt niet op voorhand beslist welk spel jullie gaan spelen.</p>
               </label>
               <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'host_pick' ? 'border-slate-950 bg-[#fff2bd]' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
@@ -539,7 +418,7 @@ export default function CreateSessionForm({
                   className="sr-only"
                 />
                 <p className="font-bold text-slate-900">Ik kies zelf 1 spel</p>
-                <p className="text-sm text-slate-600">Je selecteert straks exact 1 spel.</p>
+                <p className="text-sm text-slate-600">Je selecteert straks het spel dat jullie gaan spelen.</p>
               </label>
               <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'players_pick' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
@@ -551,7 +430,7 @@ export default function CreateSessionForm({
                   className="sr-only"
                 />
                 <p className="font-bold text-slate-900">Spelers laten meebeslissen</p>
-                <p className="text-sm text-slate-600">Je kiest straks meerdere spelopties.</p>
+                <p className="text-sm text-slate-600">Je kiest straks meerdere spelopties, iedereen kan stemmen welk spel ze liever of minder graag willen spelen.</p>
               </label>
             </div>
           </div>
@@ -581,81 +460,9 @@ export default function CreateSessionForm({
 
       {mode === 'planning' && (
         <div className="page-subcard p-4">
-          <div className="max-w-xl">
-            {visibleMonth && (
-              <div className="page-subcard-soft p-2.5 sm:p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setVisibleMonthDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
-                    disabled={visibleMonth.key === currentMonthKey}
-                    className="neo-button neo-button-ghost h-8 w-8 rounded-full p-0 text-slate-600 disabled:opacity-40"
-                    title="Vorige maand"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <h3 className="text-xs font-black capitalize text-slate-900">{visibleMonth.label}</h3>
-                  <button
-                    type="button"
-                    onClick={() => setVisibleMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
-                    className="neo-button neo-button-ghost h-8 w-8 rounded-full p-0 text-slate-600 disabled:opacity-40"
-                    title="Volgende maand"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase text-slate-400">
-                  {WEEKDAY_LABELS.map((label) => <span key={label} className="py-1">{label}</span>)}
-                </div>
-                <div className="mt-1 space-y-1">
-                  {visibleMonth.weeks.map((week, index) => (
-                    <div key={`${visibleMonth.key}-week-${index}`} className="grid grid-cols-7 gap-1">
-                      {week.map((cell) => {
-                        if (!cell.date) {
-                          return <div key={cell.key} className="aspect-square rounded-xl bg-transparent" aria-hidden="true" />;
-                        }
-
-                        const selected = dateOptions.includes(cell.date);
-                        const selectedIndex = dateOptions.indexOf(cell.date);
-                        const selectedStyle = selected
-                          ? SELECTED_DATE_STYLES[selectedIndex % SELECTED_DATE_STYLES.length]
-                          : '';
-                        const display = dateParts(cell.date);
-
-                        return (
-                          <button
-                            key={cell.key}
-                            type="button"
-                            disabled={!cell.isSelectable}
-                            onClick={() => toggleDate(cell.date!)}
-                            title={display.full}
-                            className={[
-                              'relative aspect-square rounded-lg border-2 text-left transition',
-                              cell.isSelectable ? 'border-slate-950/10 bg-white hover:border-slate-950/30' : 'border-transparent bg-slate-100/70 text-slate-300',
-                              selectedStyle,
-                              cell.isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : ''
-                            ].join(' ')}
-                          >
-                            <span className="flex h-full flex-col justify-between p-1.5">
-                              <span className="flex items-start justify-between gap-1">
-                                <span className={`text-xs font-black ${cell.isSelectable ? '' : 'text-slate-300'}`}>{cell.dayNumber}</span>
-                                {selected ? <Check size={13} className="shrink-0 text-emerald-800" /> : null}
-                              </span>
-                              <span className="text-[10px] leading-none text-transparent" aria-hidden="true">.</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <DateOptionCalendar selectedDates={dateOptions} onToggleDate={toggleDate} />
           <p className="mt-3 text-sm text-slate-500">
-            {planningMode === 'fixed_day'
-              ? 'Kies exact 1 datum voor je spelavond.'
-              : 'Selecteer 1 of meerdere datums waarop deelnemers later kunnen stemmen.'}
+            Selecteer 1 of meerdere datums waarop deelnemers later kunnen stemmen.
           </p>
         </div>
       )}
@@ -669,6 +476,7 @@ export default function CreateSessionForm({
             autoSelectBggIds={initialGameBggIds}
             title={gamePickerTitle}
             subtitle={gamePickerSubtitle}
+            searchPlaceholder="Zoek in je collectie"
           />
           <p className="mt-3 text-sm text-slate-500">
             {gameSelectionMode === 'host_pick' ? `${selectedIds.length}/1 spel gekozen` : `${selectedIds.length} spel${selectedIds.length === 1 ? '' : 'len'} gekozen`}

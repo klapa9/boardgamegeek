@@ -8,6 +8,11 @@ import { getCurrentUserProfile } from '@/lib/user-profile';
 type PlanningMode = 'fixed_day' | 'vote_dates';
 type GameSelectionMode = 'no_preselect' | 'host_pick' | 'players_pick';
 
+function normalizeMeetingTime(value: unknown) {
+  const time = String(value ?? '').trim();
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : null;
+}
+
 function normalizeDate(value: unknown) {
   const date = String(value ?? '').trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
@@ -42,6 +47,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const title = String(body.title ?? '').trim();
+  const meetingTime = normalizeMeetingTime(body.meeting_time);
   const planningMode = normalizePlanningMode(body.planning_mode);
   const gameSelectionMode = normalizeGameSelectionMode(body.game_selection_mode);
   const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
@@ -52,6 +58,7 @@ export async function POST(request: Request) {
   const locked = planningMode === 'fixed_day' && Boolean(chosenDay);
 
   if (!title) return NextResponse.json({ error: 'Titel is verplicht.' }, { status: 400 });
+  if (!meetingTime) return NextResponse.json({ error: 'Kies een geldig afspreekuur.' }, { status: 400 });
   if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
 
   const collectionGames = collectionGameIds.length
@@ -72,6 +79,7 @@ export async function POST(request: Request) {
   const session = await prisma.session.create({
     data: {
       title,
+      meetingTime,
       organizerUserProfileId: viewerProfile.id,
       chosenDay,
       locked,

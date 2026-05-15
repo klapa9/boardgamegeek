@@ -6,6 +6,7 @@ export type GameFilterState = {
   complexity: string;
   mechanic: string;
   playMode: string;
+  groupId: string;
 };
 
 export const emptyGameFilters: GameFilterState = {
@@ -13,7 +14,8 @@ export const emptyGameFilters: GameFilterState = {
   duration: '',
   complexity: '',
   mechanic: '',
-  playMode: ''
+  playMode: '',
+  groupId: ''
 };
 
 export function mechanicOptions(games: CollectionGameDto[]) {

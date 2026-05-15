@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { SignIn, useUser } from '@clerk/nextjs';
-import { ArrowLeft, CalendarDays, Check, Dice5, Lock, Plus, RefreshCw, Settings2, Share2, Trash2, Trophy, Unlock, UserRound, X } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Check, Dice5, Lock, Plus, Share2, Trash2, Trophy, Unlock, UserRound, X } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
 import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto, UserProfileDto } from '@/lib/types';
 import { sessionUrl } from '@/lib/session-link';
+import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
 
 type ResultRow = {
@@ -130,6 +131,16 @@ function localDateKey(value = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function isValidTime(value: string) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
+function formatMeetingTime(value: string) {
+  const [hours, minutes] = value.split(':');
+  if (!hours || !minutes) return value;
+  return minutes === '00' ? `${Number(hours)}u` : `${Number(hours)}u${minutes}`;
+}
+
 function shareSupported() {
   return typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 }
@@ -165,15 +176,20 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const [addGamesOpen, setAddGamesOpen] = useState(false);
   const [selectedAddGameIds, setSelectedAddGameIds] = useState<string[]>([]);
   const [addGamesSaving, setAddGamesSaving] = useState(false);
+  const [addDatesOpen, setAddDatesOpen] = useState(false);
+  const [selectedAddDates, setSelectedAddDates] = useState<string[]>([]);
+  const [addDatesSaving, setAddDatesSaving] = useState(false);
   const [shareModal, setShareModal] = useState<{ title: string; text: string } | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareTextValue, setShareTextValue] = useState('');
   const [sharing, setSharing] = useState(false);
+  const [meetingTimeInput, setMeetingTimeInput] = useState('20:00');
   const scoreSaveTimers = useRef<Record<string, number>>({});
   const initialViewResolved = useRef(false);
   const initialShareIntentHandled = useRef(false);
   const autoJoinAttemptedSessionId = useRef<string | null>(null);
   const addGamesCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const addDatesCloseButtonRef = useRef<HTMLButtonElement>(null);
 
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
   const availabilityByPlayerDay = useMemo(() => {
@@ -307,11 +323,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   useEffect(() => {
     if (!session || initialShareIntentHandled.current) return;
     if (searchParams.get('share') !== 'invite') return;
+    if (!viewerIsOrganizer || view !== 'summary') return;
     initialShareIntentHandled.current = true;
     openShareModal('Spelavond delen', buildInviteText());
     clearShareIntent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, session]);
+  }, [searchParams, session, view, viewerIsOrganizer]);
 
   useEffect(() => {
     if (loading || !viewerProfile || currentPlayer || saving) return;
@@ -378,6 +395,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     setAuthModalOpen(false);
     void refresh(false);
   }, [authModalOpen, isClerkLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (!session?.meeting_time) return;
+    setMeetingTimeInput(session.meeting_time);
+  }, [session?.meeting_time]);
 
   function isAvailable(date: string) {
     if (!currentPlayerId) return false;
@@ -460,6 +482,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
   async function chooseDate(date: string | null, locked = Boolean(date)) {
     if (!isAdmin) return;
+    if (date && locked) {
+      const confirmed = window.confirm('Ben je zeker? Dit legt de datum vast zodat deelnemers niet langer datumopties kunnen kiezen. Wel kunnen ze nu hun aanwezigheid bevestigen op deze dag.');
+      if (!confirmed) return;
+    }
     const previousSession = session;
     setError(null);
     setSaving(true);
@@ -484,6 +510,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     if (!isAdmin) return;
     const previousSession = session;
     const gameTitle = gameId ? games.find((game) => game.id === gameId)?.title ?? 'Het gekozen spel' : null;
+    if (gameId) {
+      const confirmed = window.confirm(`Ben je zeker dat je ${gameTitle} wilt spelen? Als je dit vastzet kunnen deelnemers niet langer stemmen op de spelopties.`);
+      if (!confirmed) return;
+    }
     setError(null);
     setSaving(true);
     setSession((current) => current ? { ...current, chosen_game_id: gameId } : current);
@@ -647,6 +677,107 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
+  function toggleAddDate(date: string) {
+    setSelectedAddDates((current) => (
+      current.includes(date)
+        ? current.filter((item) => item !== date)
+        : [...current, date].sort()
+    ));
+  }
+
+  function openAddDatesModal() {
+    if (!currentPlayerId) {
+      setError(viewerProfile ? `Doe eerst mee als ${viewerProfile.display_name} om datumopties toe te voegen.` : 'Vul eerst je naam in om datumopties toe te voegen.');
+      return;
+    }
+    setSelectedAddDates([]);
+    setAddDatesOpen(true);
+    setError(null);
+  }
+
+  function closeAddDatesModal() {
+    if (addDatesSaving) return;
+    setAddDatesOpen(false);
+    setSelectedAddDates([]);
+  }
+
+  useEffect(() => {
+    if (!addDatesOpen) return;
+    addDatesCloseButtonRef.current?.focus();
+
+    function handleModalKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') closeAddDatesModal();
+    }
+
+    window.addEventListener('keydown', handleModalKeyDown);
+    return () => window.removeEventListener('keydown', handleModalKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addDatesOpen, addDatesSaving]);
+
+  async function addSelectedDates() {
+    if (!selectedAddDates.length) return;
+    setAddDatesSaving(true);
+    setError(null);
+    try {
+      const data = await api<{ session: SessionDto }>(`/api/sessions/${sessionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ add_date_options: selectedAddDates })
+      });
+      setSession(data.session);
+      setSelectedAddDates([]);
+      setAddDatesOpen(false);
+      setMessage(`${data.session.date_options.length} datumoptie${data.session.date_options.length === 1 ? '' : 's'} beschikbaar.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Datumopties toevoegen mislukt.');
+    } finally {
+      setAddDatesSaving(false);
+    }
+  }
+
+  async function removeDateOption(date: string) {
+    if (!isAdmin) return;
+    const confirmed = window.confirm('Ben je zeker? Dit verwijdert deze dag als optie voor alle deelnemers.');
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      const data = await api<{ session: SessionDto }>(`/api/sessions/${sessionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ remove_date_option: date })
+      });
+      setSession(data.session);
+      setMessage(`${formatDate(date)} verwijderd als datumoptie.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Datumoptie verwijderen mislukt.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveMeetingTime() {
+    if (!isAdmin) return;
+    if (!isValidTime(meetingTimeInput)) {
+      setError('Kies een geldig afspreekuur.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const data = await api<{ session: SessionDto }>(`/api/sessions/${sessionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ meeting_time: meetingTimeInput })
+      });
+      setSession(data.session);
+      setMessage(`Afspreekuur aangepast naar ${formatMeetingTime(data.session.meeting_time)}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Afspreekuur opslaan mislukt.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function buildInviteText() {
     const url = sessionUrl(window.location.origin, sessionId, session?.title);
     const dateLabel = session?.chosen_day ? formatDate(session.chosen_day) : 'datum nog te bepalen';
@@ -734,7 +865,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const summaryParts = [`${players.length} speler${players.length === 1 ? '' : 's'}`];
   if (chosenGame) summaryParts.push(chosenGame.title);
   if (session.chosen_day) summaryParts.push(formatDate(session.chosen_day));
+  if (session.meeting_time) summaryParts.push(formatMeetingTime(session.meeting_time));
   const pageChip = view === 'summary' ? 'Samenvatting' : view === 'availability' ? 'Planning' : 'Spelkeuze';
+  const isPlanningView = view === 'availability';
+  const isGameView = ['rating', 'results', 'chosen_game'].includes(view);
   const openGameChoice = () => {
     setSelectedGameId(null);
     setView(session.chosen_game_id ? 'chosen_game' : (needsGameChoice ? 'rating' : 'results'));
@@ -744,36 +878,51 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     <main className="app-shell">
       <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 pb-16">
       <header className="page-card page-card-sky p-5">
-        <Link href="/" prefetch={false} className="neo-button neo-button-ghost text-sm">
-          <ArrowLeft size={16} />
-          Terug naar hoofdpagina
-        </Link>
         <div className="mt-3 flex items-start justify-between gap-3">
           <div>
             <p className="page-chip w-fit">{pageChip}</p>
             <h1 className="mt-3 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">{session.title}</h1>
             <p className="mt-3 text-sm text-slate-600">{summaryParts.join(' - ')}</p>
+            {isPlanningView && (
+              <div className="mt-4 rounded-2xl bg-white/80 px-4 py-3">
+                <p className="text-sm font-bold text-slate-700">Afspreekuur</p>
+                {isAdmin ? (
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      type="time"
+                      value={meetingTimeInput}
+                      onChange={(event) => setMeetingTimeInput(event.target.value)}
+                      className="neo-input max-w-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveMeetingTime}
+                      disabled={saving || !isValidTime(meetingTimeInput) || meetingTimeInput === session.meeting_time}
+                      className="neo-button neo-button-ghost text-sm disabled:opacity-50"
+                    >
+                      Afspreekuur opslaan
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-base font-black text-slate-950">{formatMeetingTime(session.meeting_time)}</p>
+                )}
+              </div>
+            )}
+            {isGameView && !chosenGame && (
+              <p className="mt-4 rounded-2xl bg-white/80 px-4 py-3 text-sm text-slate-700">Stem op het spel dat je wilt spelen.</p>
+            )}
           </div>
           <div className="flex flex-wrap justify-end gap-2">
-            {isAdmin && (
-              <Link href={`/spelavond?bewerk=${sessionId}`} prefetch={false} className="neo-button neo-button-ghost text-sm">
-                <Settings2 size={18} /> Instellingen wijzigen
-              </Link>
-            )}
-            <button onClick={() => setView('availability')} className="neo-button neo-button-ghost p-3" title="Planning"><CalendarDays size={20} /></button>
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={deleteSession}
-                disabled={saving}
-                className="neo-button neo-button-danger text-sm disabled:opacity-60"
-                title="Spelavond definitief verwijderen"
-              >
-                <Trash2 size={18} /> Verwijderen
+            {isGameView && (
+              <button type="button" onClick={() => setView('availability')} className="neo-button neo-button-ghost p-3" title="Terug naar planning">
+                <CalendarDays size={20} />
               </button>
             )}
-            <button onClick={() => refresh(true)} className="neo-button neo-button-ghost p-3" title="Vernieuwen"><RefreshCw size={20} /></button>
-            <button onClick={shareInvite} className="neo-button neo-button-ghost p-3" title="Spelavond delen"><Share2 size={20} /></button>
+            {view === 'summary' && (
+              <button type="button" onClick={shareInvite} className="neo-button neo-button-ghost p-3" title="Spelavond delen">
+                <Share2 size={20} />
+              </button>
+            )}
           </div>
         </div>
         {isAdmin && <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Je bent organisator van deze spelavond.</p>}
@@ -983,12 +1132,17 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
       {view === 'availability' && (
         <section className="page-card page-card-lime p-5">
-          <div className="mb-4 flex items-center gap-2"><CalendarDays size={20} /><h2 className="text-xl font-black">Wanneer kan je?</h2></div>
-          {session.locked && chosenDateRow ? (
-            <div className="rounded-2xl bg-emerald-50 px-4 py-5 text-emerald-950">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2"><CalendarDays size={20} /><h2 className="text-xl font-black">Wanneer kan je?</h2></div>
+            <button type="button" onClick={openAddDatesModal} className="neo-button neo-button-danger text-sm">
+              <Plus size={18} /> Extra data toevoegen
+            </button>
+          </div>
+          {session.locked && chosenDateRow && (
+            <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-5 text-emerald-950">
               <p className="text-sm font-bold">De organisator heeft de datum gekozen.</p>
               <p className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday}</p>
-              <p>{chosenDateRow.display.full} - Tijd volgt</p>
+              <p>{chosenDateRow.display.full}</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <button
                   type="button"
@@ -1014,69 +1168,90 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 </button>
               </div>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {dateRows.map((row) => {
-                  const selected = isAvailable(row.date);
-                  const isToday = row.date === localDateKey();
-                  const needsLoginHint = !currentPlayer;
-                  const availableNames = row.availablePlayers.map((player) => player.name);
-                  const cardClassName = [
-                    'rounded-2xl border-2 p-4 transition',
-                    selected ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950' : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
-                    isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
-                    saving ? 'opacity-60' : ''
-                  ].join(' ');
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {dateRows.map((row) => {
+              const selected = isAvailable(row.date);
+              const isToday = row.date === localDateKey();
+              const isChosenDate = session.chosen_day === row.date;
+              const needsLoginHint = !currentPlayer;
+              const availableNames = row.availablePlayers.map((player) => player.name);
+              const cardClassName = [
+                'rounded-2xl border-2 p-4 transition',
+                isChosenDate ? 'border-emerald-700 bg-emerald-50 text-emerald-950' : selected ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950' : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
+                isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
+                saving ? 'opacity-60' : ''
+              ].join(' ');
 
-                  return (
-                    <div key={row.date} className={cardClassName}>
-                      <button
-                        type="button"
-                        disabled={saving}
-                        onClick={() => {
-                          if (!currentPlayer) return;
-                          toggleAvailability(row.date);
-                        }}
-                        title={needsLoginHint ? joinPromptLabel : row.label}
-                        className={`w-full text-left ${needsLoginHint ? 'cursor-help' : ''}`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className="text-base font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
-                            <p className={`mt-1 text-xs font-bold ${selected ? 'text-emerald-700' : 'text-slate-500'}`}>
-                              {selected ? 'Jij bent beschikbaar' : 'Klik om beschikbaar te zijn'}
-                            </p>
-                          </div>
-                          {selected ? <Check size={16} className="shrink-0" /> : null}
-                        </div>
-                        <div className="mt-3">
-                          <p className={`text-xs font-bold uppercase ${selected ? 'text-emerald-700' : 'text-slate-500'}`}>Deelnemers</p>
-                          <p className={`mt-1 text-sm leading-6 ${selected ? 'text-emerald-900' : 'text-slate-600'}`}>
-                            {availableNames.length ? availableNames.join(', ') : 'Nog niemand'}
-                          </p>
-                        </div>
-                      </button>
+              return (
+                <div key={row.date} className={cardClassName}>
+                  <div className="flex items-start justify-between gap-3">
+                    <button
+                      type="button"
+                      disabled={saving || !currentPlayer || session.locked}
+                      onClick={() => {
+                        if (!currentPlayer || session.locked) return;
+                        toggleAvailability(row.date);
+                      }}
+                      title={needsLoginHint ? joinPromptLabel : row.label}
+                      className={`min-w-0 flex-1 text-left ${needsLoginHint ? 'cursor-help' : ''}`}
+                    >
+                      <div className="min-w-0">
+                        <h3 className="text-base font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
+                        <p className={`mt-1 text-xs font-bold ${selected || isChosenDate ? 'text-emerald-700' : 'text-slate-500'}`}>
+                          {session.locked
+                            ? (isChosenDate ? 'Deze datum ligt vast' : 'Datumopties zijn gesloten')
+                            : selected ? 'Jij bent beschikbaar' : 'Klik om beschikbaar te zijn'}
+                        </p>
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      {isChosenDate && <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Vast</span>}
                       {isAdmin && (
                         <button
                           type="button"
-                          onClick={() => chooseDate(row.date)}
+                          onClick={() => removeDateOption(row.date)}
                           disabled={saving}
-                          className="neo-button neo-button-primary mt-4 text-sm disabled:opacity-50"
+                          className="rounded-xl bg-white/85 p-2 text-red-600 shadow-sm hover:bg-white disabled:opacity-50"
+                          title="Datumoptie verwijderen"
                         >
-                          <Lock size={16} /> Zet deze dag vast
+                          <Trash2 size={16} />
                         </button>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/75 px-3 py-2">
-                  <CalendarDays size={14} /> Klik op meerdere dagen die voor jou passen
-                </span>
-              </div>
-            </>
+                  </div>
+                  <div className="mt-3">
+                    <p className={`text-xs font-bold uppercase ${selected || isChosenDate ? 'text-emerald-700' : 'text-slate-500'}`}>Deelnemers</p>
+                    <p className={`mt-1 text-sm leading-6 ${selected || isChosenDate ? 'text-emerald-900' : 'text-slate-600'}`}>
+                      {availableNames.length ? availableNames.join(', ') : 'Nog niemand'}
+                    </p>
+                  </div>
+                  {!!row.unavailablePlayers.length && (
+                    <p className="mt-2 text-xs text-slate-500">Niet beschikbaar: {row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
+                  )}
+                  {!!row.pendingPlayers.length && (
+                    <p className="mt-1 text-xs text-slate-500">Nog geen antwoord: {row.pendingPlayers.map((player) => player.name).join(', ')}</p>
+                  )}
+                  {isAdmin && !session.locked && (
+                    <button
+                      type="button"
+                      onClick={() => chooseDate(row.date)}
+                      disabled={saving}
+                      className="neo-button neo-button-primary mt-4 text-sm disabled:opacity-50"
+                    >
+                      <Lock size={16} /> Datum vastleggen
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {!session.locked && (
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/75 px-3 py-2">
+                <CalendarDays size={14} /> Klik op meerdere dagen die voor jou passen
+              </span>
+            </div>
           )}
           <button onClick={confirmAvailability} disabled={!currentPlayer || Boolean(session.locked && session.chosen_day && !currentPlayerChosenDayAvailability)} className="neo-button neo-button-primary mt-5 flex w-full disabled:opacity-50">
             <Check size={20} /> {session.locked ? 'Bevestig aanwezigheid en ga verder' : 'Bevestig aanwezigheid'}
@@ -1282,6 +1457,41 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             </button>
           )}
         </section>
+      )}
+
+      {addDatesOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="add-dates-title">
+          <div className="page-card page-card-lime max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
+            <div className="page-band flex items-start justify-between gap-4 px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Planning</p>
+                <h3 id="add-dates-title" className="mt-1 font-poster text-3xl uppercase leading-none text-slate-950">Voeg extra data toe</h3>
+                <p className="mt-1 text-sm text-slate-700">Kies extra datumopties die iedereen later kan zien en invullen.</p>
+              </div>
+              <button ref={addDatesCloseButtonRef} type="button" onClick={closeAddDatesModal} disabled={addDatesSaving} className="neo-button neo-button-ghost p-3 text-slate-600 disabled:opacity-50" title="Sluiten">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="max-h-[calc(92vh-11rem)] overflow-y-auto px-5 py-4">
+              <DateOptionCalendar selectedDates={selectedAddDates} onToggleDate={toggleAddDate} disabled={addDatesSaving} />
+              <p className="mt-3 text-sm text-slate-500">Geselecteerde datums worden toegevoegd aan de opties voor alle deelnemers. Bestaande datums blijven ongewijzigd.</p>
+            </div>
+            <div className="flex flex-col gap-2 border-t border-slate-950/10 bg-white/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-500">{selectedAddDates.length} datumoptie{selectedAddDates.length === 1 ? '' : 's'} geselecteerd</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button type="button" onClick={closeAddDatesModal} disabled={addDatesSaving} className="neo-button neo-button-ghost disabled:opacity-50">Annuleren</button>
+                <button
+                  type="button"
+                  onClick={addSelectedDates}
+                  disabled={!selectedAddDates.length || addDatesSaving}
+                  className="neo-button neo-button-primary disabled:opacity-50"
+                >
+                  {addDatesSaving ? 'Toevoegen...' : <><Plus size={18} /> Bevestigen</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {addGamesOpen && (

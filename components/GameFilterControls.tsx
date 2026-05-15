@@ -1,12 +1,14 @@
 'use client';
 
 import { RotateCcw } from 'lucide-react';
+import { CollectionGroupDto } from '@/lib/types';
 import { GameFilterState, emptyGameFilters, hasActiveGameFilters } from '@/lib/gameFilters';
 
 type Props = {
   filters: GameFilterState;
   mechanics: string[];
   playerCounts: number[];
+  groups: CollectionGroupDto[];
   hasDurationData: boolean;
   hasComplexityData: boolean;
   hasPlayModeData: boolean;
@@ -19,6 +21,7 @@ export default function GameFilterControls({
   filters,
   mechanics,
   playerCounts,
+  groups,
   hasDurationData,
   hasComplexityData,
   hasPlayModeData,
@@ -29,7 +32,12 @@ export default function GameFilterControls({
   }
 
   return (
-    <div className="grid gap-2 rounded-[1.6rem] border-2 border-slate-950 bg-[rgba(255,255,255,0.8)] p-3 sm:grid-cols-2 lg:grid-cols-6">
+    <div className="grid gap-2 rounded-[1.6rem] border-2 border-slate-950 bg-[rgba(255,255,255,0.8)] p-3 sm:grid-cols-2 lg:grid-cols-7">
+      <select value={filters.groupId} onChange={(event) => setFilter('groupId', event.target.value)} disabled={!groups.length} className={controlClass} aria-label="Groep">
+        <option value="">{groups.length ? 'Alle groepen' : 'Geen groepen beschikbaar'}</option>
+        {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+      </select>
+
       <select value={filters.players} onChange={(event) => setFilter('players', event.target.value)} disabled={!playerCounts.length} className={controlClass} aria-label="Spelersaantal">
         <option value="">{playerCounts.length ? 'Alle aanbevolen spelers' : 'Geen spelersdata beschikbaar'}</option>
         {playerCounts.map((count) => <option key={count} value={count}>{count} speler{count === 1 ? '' : 's'}</option>)}

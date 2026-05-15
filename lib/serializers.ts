@@ -63,6 +63,7 @@ export function serializeSession(session: Session, dateOptions: SessionDateOptio
   return {
     id: session.id,
     title: session.title,
+    meeting_time: session.meetingTime,
     organizer_user_profile_id: session.organizerUserProfileId,
     chosen_day: session.chosenDay,
     chosen_game_id: session.chosenGameId,

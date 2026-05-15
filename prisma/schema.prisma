@@ -10,6 +10,7 @@ datasource db {
 model Session {
   id           String   @id @default(cuid())
   title        String
+  meetingTime  String   @default("20:00")
   adminToken   String   @unique @default(cuid())
   organizerUserProfileId String?
   chosenDay    String?

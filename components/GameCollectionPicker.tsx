@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Dice5, Loader2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { api } from '@/lib/api';
-import { CollectionBundle, CollectionGameDto, CollectionSyncStateDto } from '@/lib/types';
+import { CollectionBundle, CollectionGameDto, CollectionGroupDto, CollectionSyncStateDto } from '@/lib/types';
 import GameFilterControls from '@/components/GameFilterControls';
 import { emptyGameFilters, GameFilterState, hasActiveGameFilters, matchesGameFilters, mechanicOptions, playerCountOptions } from '@/lib/gameFilters';
 
@@ -42,6 +42,7 @@ type GameCollectionPickerProps = {
   subtitle?: string;
   emptyText?: string;
   maxHeightClassName?: string;
+  searchPlaceholder?: string;
 };
 
 export default function GameCollectionPicker({
@@ -56,9 +57,11 @@ export default function GameCollectionPicker({
   title = 'Kies spellen uit je lokale lijst',
   subtitle = 'Je kan meerdere spellen selecteren.',
   emptyText = 'Geen spellen gevonden.',
-  maxHeightClassName = 'max-h-80'
+  maxHeightClassName = 'max-h-80',
+  searchPlaceholder = 'Zoek in lokale spellenlijst'
 }: GameCollectionPickerProps) {
   const [collection, setCollection] = useState<CollectionGameDto[]>([]);
+  const [groups, setGroups] = useState<CollectionGroupDto[]>([]);
   const [syncState, setSyncState] = useState<CollectionSyncStateDto | null>(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState<GameFilterState>(emptyGameFilters);
@@ -84,6 +87,7 @@ export default function GameCollectionPicker({
     api<CollectionBundle>('/api/collection/games')
       .then((data) => {
         setCollection(data.games);
+        setGroups(data.groups);
         setSyncState(data.sync_state);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Spellenlijst laden mislukt.'))
@@ -94,13 +98,20 @@ export default function GameCollectionPicker({
     autoSelectApplied.current = false;
   }, [autoSelectBggIds, autoSelectTitles]);
 
+  const selectedGroupGameIds = useMemo(() => {
+    if (!filters.groupId) return null;
+    const group = groups.find((entry) => entry.id === filters.groupId);
+    return group ? new Set(group.game_ids) : new Set<string>();
+  }, [filters.groupId, groups]);
+
   const filteredCollection = useMemo(() => {
     const q = query.trim().toLowerCase();
     return collection.filter((game) => {
       if (q && !game.title.toLowerCase().includes(q)) return false;
+      if (selectedGroupGameIds && !selectedGroupGameIds.has(game.id)) return false;
       return matchesGameFilters(game, filters);
     });
-  }, [collection, filters, query]);
+  }, [collection, filters, query, selectedGroupGameIds]);
 
   const visibleGames = useMemo(() => filteredCollection.slice(0, visibleCount), [filteredCollection, visibleCount]);
   const hiddenResultCount = Math.max(filteredCollection.length - visibleGames.length, 0);
@@ -221,7 +232,7 @@ export default function GameCollectionPicker({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Zoek in lokale spellenlijst"
+            placeholder={searchPlaceholder}
             className="neo-input w-full py-3 pl-9 pr-10"
           />
           {(searching || loadingCollection) && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
@@ -253,6 +264,7 @@ export default function GameCollectionPicker({
             filters={filters}
             mechanics={mechanics}
             playerCounts={playerCounts}
+            groups={groups}
             hasDurationData={hasDurationData}
             hasComplexityData={hasComplexityData}
             hasPlayModeData={hasPlayModeData}
