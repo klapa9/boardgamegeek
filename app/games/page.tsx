@@ -7,7 +7,7 @@ export default function GamesPage() {
     <main className="app-shell">
       <div className="mx-auto max-w-5xl space-y-5 px-4 py-6 pb-16">
         <header className="page-card page-card-peach p-5 sm:p-6">
-          <Link href="/" className="neo-button neo-button-ghost text-sm">&lt;- Terug naar start</Link>
+          <Link href="/collectie" className="neo-button neo-button-ghost text-sm">&lt;- Terug naar collectie</Link>
           <p className="page-chip mt-4 w-fit">Collectiebeheer</p>
           <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Mijn spellen</h1>
           <p className="mt-3 max-w-2xl text-slate-700">

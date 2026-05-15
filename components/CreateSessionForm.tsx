@@ -6,7 +6,6 @@ import { api, loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
-import MeetingTimeSelector from './MeetingTimeSelector';
 
 type CreateSessionFormMode = 'details' | 'planning' | 'games';
 type PlanningMode = 'fixed_day' | 'vote_dates';
@@ -212,9 +211,11 @@ export default function CreateSessionForm({
         return current[0] === date ? [] : [date];
       }
 
-      return current.includes(date)
-        ? current.filter((item) => item !== date)
-        : Array.from(new Set([...current, date])).sort();
+      if (current.includes(date)) {
+        return current.filter((item) => item !== date);
+      }
+
+      return [...current, date].sort((left, right) => left.localeCompare(right));
     });
   }
 
@@ -460,7 +461,13 @@ export default function CreateSessionForm({
 
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Afspreekuur</label>
-            <MeetingTimeSelector value={meetingTime} onChange={setMeetingTime} idPrefix="create-meeting-time" />
+            <input
+              type="time"
+              value={meetingTime}
+              onChange={(event) => setMeetingTime(event.target.value)}
+              className="neo-input w-full sm:max-w-xs"
+              required
+            />
             <p className="mt-2 text-sm text-slate-500">Onthoudt je laatste keuze. Eerste keer: standaard 20:00.</p>
           </div>
         </>

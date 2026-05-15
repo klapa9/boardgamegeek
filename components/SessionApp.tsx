@@ -10,7 +10,6 @@ import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto, UserProfile
 import { sessionUrl } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
-import MeetingTimeSelector from './MeetingTimeSelector';
 
 type ResultRow = {
   game: GameDto;
@@ -401,6 +400,22 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     if (!session?.meeting_time) return;
     setMeetingTimeInput(session.meeting_time);
   }, [session?.meeting_time]);
+
+  useEffect(() => {
+    const modalOpen = addDatesOpen || addGamesOpen || Boolean(shareModal) || authModalOpen;
+    if (!modalOpen) return;
+
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [addDatesOpen, addGamesOpen, authModalOpen, shareModal]);
 
   function isAvailable(date: string) {
     if (!currentPlayerId) return false;
@@ -889,12 +904,18 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 <p className="text-sm font-bold text-slate-700">Afspreekuur</p>
                 {isAdmin ? (
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <MeetingTimeSelector value={meetingTimeInput} onChange={setMeetingTimeInput} disabled={saving} idPrefix="session-meeting-time" />
+                    <input
+                      type="time"
+                      value={meetingTimeInput}
+                      onChange={(event) => setMeetingTimeInput(event.target.value)}
+                      disabled={saving}
+                      className="neo-input w-full sm:max-w-xs"
+                    />
                     <button
                       type="button"
                       onClick={saveMeetingTime}
                       disabled={saving || !isValidTime(meetingTimeInput) || meetingTimeInput === session.meeting_time}
-                      className="neo-button neo-button-ghost text-sm disabled:opacity-50"
+                      className="neo-button neo-button-ghost w-full text-sm disabled:opacity-50 sm:w-auto"
                     >
                       Afspreekuur opslaan
                     </button>
@@ -947,46 +968,6 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
       {view === 'summary' && (
         <>
-          <section className="page-card page-card-peach p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="max-w-3xl">
-                <p className="page-chip w-fit">Klaar</p>
-                <h2 className="mt-3 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Je hoeft nu niets meer te doen.</h2>
-                <p className="mt-3 text-base leading-7 text-slate-700">
-                  Je antwoorden zijn opgeslagen. Als de organisator later de datum vastlegt of iemand nieuwe spellen toevoegt waar jij op moet stemmen, sturen we je via deze link automatisch naar de juiste stap.
-                </p>
-                {currentPlayer && (
-                  <p className="mt-4 rounded-2xl bg-white/80 px-4 py-3 text-sm text-slate-700">
-                    Klaar als <b>{currentPlayer.name}</b>.
-                  </p>
-                )}
-              </div>
-              <div className="flex w-full flex-col gap-2 lg:max-w-xs">
-                <Link href="/" prefetch={false} className="neo-button neo-button-primary justify-center">
-                  <ArrowLeft size={18} /> Naar de hoofdpagina
-                </Link>
-                {viewerProfile ? (
-                  <Link href="/collectie" className="neo-button neo-button-ghost justify-center">
-                    <Dice5 size={18} /> Naar mijn collectie
-                  </Link>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setAuthModalOpen(true)}
-                      className="neo-button neo-button-ghost justify-center"
-                    >
-                      <UserRound size={18} /> Log in
-                    </button>
-                    <p className="rounded-2xl bg-white/75 px-4 py-3 text-sm text-slate-600">
-                      Log in zodat je later zelf een spelavond kan organiseren en je collectie kan beheren.
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          </section>
-
           <section className="page-card page-card-lime p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
@@ -1002,6 +983,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 <p className="text-sm font-bold">Datum ligt vast</p>
                 <p className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday} {chosenDateRow.display.day} {chosenDateRow.display.month}</p>
                 <p className="mt-1 text-sm">{chosenDateRow.display.full}</p>
+                {session.meeting_time && <p className="mt-1 text-sm font-semibold">Afspreekuur: {formatMeetingTime(session.meeting_time)}</p>}
               </div>
             )}
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -1015,6 +997,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                       <div>
                         <h3 className="text-lg font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
                         <p className="mt-1 text-sm text-slate-600">{row.display.full}</p>
+                        {session.meeting_time && <p className="mt-1 text-sm font-semibold text-slate-700">Afspreekuur: {formatMeetingTime(session.meeting_time)}</p>}
                       </div>
                       {isChosenDate && <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Vast</span>}
                     </div>
@@ -1039,12 +1022,6 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                           <p className="mt-1 text-slate-600">{row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
                         </div>
                       )}
-                      {!!row.pendingPlayers.length && (
-                        <div>
-                          <p className="font-bold text-slate-900">Nog geen antwoord</p>
-                          <p className="mt-1 text-slate-600">{row.pendingPlayers.map((player) => player.name).join(', ')}</p>
-                        </div>
-                      )}
                     </div>
                   </article>
                 );
@@ -1056,7 +1033,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <Trophy size={20} />
-                <h2 className="text-xl font-black">Spellenlijst</h2>
+                <h2 className="text-xl font-black">Spelkeuze</h2>
               </div>
               <button type="button" onClick={openGameChoice} className="neo-button neo-button-ghost text-sm">
                 Nog iets wijzigen
@@ -1121,6 +1098,46 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   Er staan nog geen spellen in deze spelavond.
                 </p>
               )}
+            </div>
+          </section>
+
+          <section className="page-card page-card-peach p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
+                <p className="page-chip w-fit">Klaar</p>
+                <h2 className="mt-3 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Je hoeft nu niets meer te doen.</h2>
+                <p className="mt-3 text-base leading-7 text-slate-700">
+                  Je antwoorden zijn opgeslagen. Als de organisator later de datum vastlegt of iemand nieuwe spellen toevoegt waar jij op moet stemmen, sturen we je via deze link automatisch naar de juiste stap.
+                </p>
+                {currentPlayer && (
+                  <p className="mt-4 rounded-2xl bg-white/80 px-4 py-3 text-sm text-slate-700">
+                    Klaar als <b>{currentPlayer.name}</b>.
+                  </p>
+                )}
+              </div>
+              <div className="flex w-full flex-col gap-2 lg:max-w-xs">
+                <Link href="/" prefetch={false} className="neo-button neo-button-primary justify-center">
+                  <ArrowLeft size={18} /> Naar de hoofdpagina
+                </Link>
+                {viewerProfile ? (
+                  <Link href="/collectie" className="neo-button neo-button-ghost justify-center">
+                    <Dice5 size={18} /> Naar mijn collectie
+                  </Link>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setAuthModalOpen(true)}
+                      className="neo-button neo-button-ghost justify-center"
+                    >
+                      <UserRound size={18} /> Log in
+                    </button>
+                    <p className="rounded-2xl bg-white/75 px-4 py-3 text-sm text-slate-600">
+                      Log in zodat je later zelf een spelavond kan organiseren en je collectie kan beheren.
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </section>
         </>
@@ -1457,8 +1474,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
       {addDatesOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="add-dates-title">
-          <div className="page-card page-card-lime max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
-            <div className="page-band flex items-start justify-between gap-4 px-5 py-4">
+          <div className="page-card page-card-lime flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
+            <div className="page-band shrink-0 flex items-start justify-between gap-4 px-5 py-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Planning</p>
                 <h3 id="add-dates-title" className="mt-1 font-poster text-3xl uppercase leading-none text-slate-950">Voeg extra data toe</h3>
@@ -1468,11 +1485,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 <X size={20} />
               </button>
             </div>
-            <div className="max-h-[calc(92vh-11rem)] overflow-y-auto px-5 py-4">
+            <div className="modal-scroll-area min-h-0 flex-1 overflow-y-auto px-5 py-4">
               <DateOptionCalendar selectedDates={selectedAddDates} onToggleDate={toggleAddDate} disabled={addDatesSaving} />
               <p className="mt-3 text-sm text-slate-500">Geselecteerde datums worden toegevoegd aan de opties voor alle deelnemers. Bestaande datums blijven ongewijzigd.</p>
             </div>
-            <div className="flex flex-col gap-2 border-t border-slate-950/10 bg-white/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="shrink-0 flex flex-col gap-2 border-t border-slate-950/10 bg-white/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-slate-500">{selectedAddDates.length} datumoptie{selectedAddDates.length === 1 ? '' : 's'} geselecteerd</p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button type="button" onClick={closeAddDatesModal} disabled={addDatesSaving} className="neo-button neo-button-ghost disabled:opacity-50">Annuleren</button>
@@ -1492,8 +1509,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
       {addGamesOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="add-games-title">
-          <div className="page-card page-card-peach max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
-            <div className="page-band flex items-start justify-between gap-4 px-5 py-4">
+          <div className="page-card page-card-peach flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
+            <div className="page-band shrink-0 flex items-start justify-between gap-4 px-5 py-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Spellen toevoegen</p>
                 <h3 id="add-games-title" className="mt-1 font-poster text-3xl uppercase leading-none text-slate-950">Kies extra spellen</h3>
@@ -1503,7 +1520,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 <X size={20} />
               </button>
             </div>
-            <div className="max-h-[calc(92vh-11rem)] overflow-y-auto px-5 py-4">
+            <div className="modal-scroll-area min-h-0 flex-1 overflow-y-auto px-5 py-4">
               <GameCollectionPicker
                 selectedIds={selectedAddGameIds}
                 onSelectedIdsChange={setSelectedAddGameIds}
@@ -1514,7 +1531,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 maxHeightClassName="max-h-[26rem]"
               />
             </div>
-            <div className="flex flex-col gap-2 border-t border-slate-950/10 bg-white/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="shrink-0 flex flex-col gap-2 border-t border-slate-950/10 bg-white/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-slate-500">{selectedAddGameIds.length} spel{selectedAddGameIds.length === 1 ? '' : 'len'} geselecteerd</p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button type="button" onClick={closeAddGamesModal} disabled={addGamesSaving} className="neo-button neo-button-ghost disabled:opacity-50">Annuleren</button>
@@ -1524,7 +1541,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   disabled={!selectedAddGameIds.length || addGamesSaving}
                   className="neo-button neo-button-primary disabled:opacity-50"
                 >
-                  {addGamesSaving ? 'Toevoegen...' : <><Plus size={18} /> Toevoegen aan spelavond</>}
+                  {addGamesSaving ? 'Bevestigen...' : <><Plus size={18} /> Bevestigen</>}
                 </button>
               </div>
             </div>

@@ -91,7 +91,7 @@ export default function DateOptionCalendar({
   selectedDates,
   onToggleDate,
   disabled = false,
-  selectedClassName = 'border-slate-950 bg-[#84d7ff]/60 shadow-sm shadow-sky-200/70'
+  selectedClassName = 'border-slate-950 bg-[#84d7ff] text-slate-950 shadow-sm shadow-sky-200/80'
 }: {
   selectedDates: string[];
   onToggleDate: (date: string) => void;

@@ -337,7 +337,11 @@ export default function CollectionOverview() {
     <>
       <div className="space-y-5">
         <section id="nieuwe-groep" className="page-card page-card-peach p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <Link href="/" className="neo-button neo-button-ghost text-sm">
+            &lt;- Terug naar start
+          </Link>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="font-poster text-3xl uppercase leading-none text-slate-950">Mijn collectie</h2>
               <p className="mt-2 text-sm text-slate-700">
@@ -345,20 +349,9 @@ export default function CollectionOverview() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2 self-start">
-              <Link href="/" className="neo-button neo-button-ghost text-sm">
-                &lt;- Terug naar start
-              </Link>
               <Link href="/games" className="neo-button neo-button-primary text-sm">
                 Spellen toevoegen of verwijderen
               </Link>
-              <button
-                type="button"
-                onClick={() => setShowCreateForm((current) => !current)}
-                className="neo-button neo-button-ghost text-sm"
-              >
-                <Plus size={16} />
-                Nieuwe groep
-              </button>
             </div>
           </div>
 

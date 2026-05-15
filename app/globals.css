@@ -206,6 +206,12 @@ button:disabled { cursor: not-allowed; }
     background: rgba(255, 255, 255, 0.58);
     padding: 1rem;
   }
+
+  .modal-scroll-area {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
 }
 
 .preference-slider::-webkit-slider-thumb {
