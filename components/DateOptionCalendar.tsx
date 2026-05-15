@@ -157,8 +157,11 @@ export default function DateOptionCalendar({
                     title={dateTitle(cellDate)}
                     className={[
                       'relative block aspect-square w-full overflow-hidden rounded-lg border-2 text-left transition',
-                      cell.isSelectable ? 'cursor-pointer border-slate-950/10 bg-white hover:border-slate-950/30 hover:bg-sky-50/70' : 'cursor-not-allowed border-transparent bg-slate-100/70 text-slate-300',
-                      selected ? selectedClassName : '',
+                      !cell.isSelectable
+                        ? 'cursor-not-allowed border-transparent bg-slate-100/70 text-slate-300'
+                        : selected
+                          ? `cursor-pointer ${selectedClassName}`
+                          : 'cursor-pointer border-slate-950/10 bg-white hover:border-slate-950/30 hover:bg-sky-50/70',
                       cell.isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
                       disabled ? 'opacity-70' : ''
                     ].join(' ')}

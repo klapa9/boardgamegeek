@@ -10,6 +10,7 @@ import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto, UserProfile
 import { sessionUrl } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
+import NativeTimeInput from './NativeTimeInput';
 
 type ResultRow = {
   game: GameDto;
@@ -904,12 +905,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 <p className="text-sm font-bold text-slate-700">Afspreekuur</p>
                 {isAdmin ? (
                   <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <input
-                      type="time"
+                    <NativeTimeInput
                       value={meetingTimeInput}
-                      onChange={(event) => setMeetingTimeInput(event.target.value)}
+                      onChange={setMeetingTimeInput}
                       disabled={saving}
-                      className="neo-input w-full sm:max-w-xs"
+                      id="session-meeting-time"
                     />
                     <button
                       type="button"

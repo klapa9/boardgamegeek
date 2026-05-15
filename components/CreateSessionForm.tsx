@@ -6,6 +6,7 @@ import { api, loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
+import NativeTimeInput from './NativeTimeInput';
 
 type CreateSessionFormMode = 'details' | 'planning' | 'games';
 type PlanningMode = 'fixed_day' | 'vote_dates';
@@ -461,12 +462,11 @@ export default function CreateSessionForm({
 
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Afspreekuur</label>
-            <input
-              type="time"
+            <NativeTimeInput
               value={meetingTime}
-              onChange={(event) => setMeetingTime(event.target.value)}
-              className="neo-input w-full sm:max-w-xs"
+              onChange={setMeetingTime}
               required
+              id="create-meeting-time"
             />
             <p className="mt-2 text-sm text-slate-500">Onthoudt je laatste keuze. Eerste keer: standaard 20:00.</p>
           </div>
