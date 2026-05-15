@@ -749,7 +749,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       setSession(data.session);
       setSelectedAddDates([]);
       setAddDatesOpen(false);
-      setMessage(`${data.session.date_options.length} datumoptie${data.session.date_options.length === 1 ? '' : 's'} beschikbaar.`);
+      setMessage('Klaar!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Datumopties toevoegen mislukt.');
     } finally {
@@ -992,46 +992,48 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 {session.meeting_time && <p className="mt-1 text-sm font-semibold">Afspreekuur: {formatMeetingTime(session.meeting_time)}</p>}
               </div>
             )}
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-              {dateRows.map((row) => {
-                const isChosenDate = session.chosen_day === row.date;
-                const myAvailability = currentPlayerId ? availabilityByPlayerDay.get(playerDateKey(currentPlayerId, row.date)) ?? null : null;
+            <div className="summary-scroll-area max-h-[32rem] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                {dateRows.map((row) => {
+                  const isChosenDate = session.chosen_day === row.date;
+                  const myAvailability = currentPlayerId ? availabilityByPlayerDay.get(playerDateKey(currentPlayerId, row.date)) ?? null : null;
 
-                return (
-                  <article key={row.date} className={`rounded-2xl border-2 p-4 ${isChosenDate ? 'border-emerald-700 bg-emerald-50' : 'border-slate-950/10 bg-white/75'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
-                        <p className="mt-1 text-sm text-slate-600">{row.display.full}</p>
-                        {session.meeting_time && <p className="mt-1 text-sm font-semibold text-slate-700">Afspreekuur: {formatMeetingTime(session.meeting_time)}</p>}
-                      </div>
-                      {isChosenDate && <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Vast</span>}
-                    </div>
-                    {currentPlayer && (
-                      <p className="mt-3 text-sm text-slate-700">
-                        Jouw status:{' '}
-                        <b>
-                          {myAvailability
-                            ? (myAvailability.available ? 'aanwezig' : 'afwezig')
-                            : 'nog niet bevestigd'}
-                        </b>
-                      </p>
-                    )}
-                    <div className="mt-4 space-y-3 text-sm">
-                      <div>
-                        <p className="font-bold text-slate-900">Beschikbaar</p>
-                        <p className="mt-1 text-slate-600">{row.availablePlayers.length ? row.availablePlayers.map((player) => player.name).join(', ') : 'Nog niemand'}</p>
-                      </div>
-                      {!!row.unavailablePlayers.length && (
+                  return (
+                    <article key={row.date} className={`rounded-2xl border-2 p-4 ${isChosenDate ? 'border-emerald-700 bg-emerald-50' : 'border-slate-950/10 bg-white/75'}`}>
+                      <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-bold text-slate-900">Niet beschikbaar</p>
-                          <p className="mt-1 text-slate-600">{row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
+                          <h3 className="text-lg font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
+                          <p className="mt-1 text-sm text-slate-600">{row.display.full}</p>
+                          {session.meeting_time && <p className="mt-1 text-sm font-semibold text-slate-700">Afspreekuur: {formatMeetingTime(session.meeting_time)}</p>}
                         </div>
+                        {isChosenDate && <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Vast</span>}
+                      </div>
+                      {currentPlayer && (
+                        <p className="mt-3 text-sm text-slate-700">
+                          Jouw status:{' '}
+                          <b>
+                            {myAvailability
+                              ? (myAvailability.available ? 'aanwezig' : 'afwezig')
+                              : 'nog niet bevestigd'}
+                          </b>
+                        </p>
                       )}
-                    </div>
-                  </article>
-                );
-              })}
+                      <div className="mt-4 space-y-3 text-sm">
+                        <div>
+                          <p className="font-bold text-slate-900">Beschikbaar</p>
+                          <p className="mt-1 text-slate-600">{row.availablePlayers.length ? row.availablePlayers.map((player) => player.name).join(', ') : 'Nog niemand'}</p>
+                        </div>
+                        {!!row.unavailablePlayers.length && (
+                          <div>
+                            <p className="font-bold text-slate-900">Niet beschikbaar</p>
+                            <p className="mt-1 text-slate-600">{row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             </div>
           </section>
 
@@ -1073,7 +1075,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="summary-scroll-area max-h-[32rem] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
+              <div className="space-y-2">
               {results.map((row, index) => (
                 <article key={row.game.id} className="page-subcard px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
@@ -1104,6 +1107,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   Er staan nog geen spellen in deze spelavond.
                 </p>
               )}
+              </div>
             </div>
           </section>
 
