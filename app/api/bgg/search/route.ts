@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { NextResponse } from 'next/server';
+import { fetchBgg } from '@/lib/bgg-api';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
   if (!query || query.length < 2) return NextResponse.json({ results: [] });
 
   const url = `https://boardgamegeek.com/xmlapi2/search?type=boardgame&query=${encodeURIComponent(query)}`;
-  const response = await fetch(url, { next: { revalidate: 60 * 60 * 24 } });
+  const response = await fetchBgg(url, { next: { revalidate: 60 * 60 * 24 } }, 'search');
   if (!response.ok) return NextResponse.json({ error: 'BoardGameGeek zoeken is mislukt.' }, { status: 502 });
 
   const xml = await response.text();

@@ -1,13 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { CollectionSeed, BggThingDetails, parseCollectionSeeds, parseThingDetails } from '@/lib/bgg-xml';
+import { fetchBgg } from '@/lib/bgg-api';
 import { preloadBggThumbnail } from '@/lib/image-cache';
-
-const BGG_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari',
-  Accept: 'application/xml,text/xml,*/*',
-  'Accept-Language': 'nl-BE,nl;q=0.9,en;q=0.8'
-};
 
 const BGG_REQUEST_TIMEOUT_MS = 30000;
 const BGG_THING_BATCH_SIZE = 20;
@@ -73,11 +68,10 @@ async function fetchCollectionSeedsFromBgg(username: string): Promise<{ pending:
 
   for (let attempt = 0; attempt <= BGG_COLLECTION_RETRY_DELAYS_MS.length; attempt += 1) {
     try {
-      const response = await fetch(url, {
-        headers: BGG_HEADERS,
+      const response = await fetchBgg(url, {
         cache: 'no-store',
         signal: AbortSignal.timeout(BGG_REQUEST_TIMEOUT_MS)
-      });
+      }, 'collection');
       const body = await response.text();
 
       if (response.status === 202) {
@@ -119,11 +113,10 @@ async function fetchThingBatch(ids: number[]): Promise<BggThingDetails[]> {
 
   for (let attempt = 0; attempt <= BGG_THING_RETRY_DELAYS_MS.length; attempt += 1) {
     try {
-      const response = await fetch(url, {
-        headers: BGG_HEADERS,
+      const response = await fetchBgg(url, {
         cache: 'no-store',
         signal: AbortSignal.timeout(BGG_REQUEST_TIMEOUT_MS)
-      });
+      }, 'thing-batch');
       const body = await response.text();
 
       if (response.status === 429 || response.status >= 500) {

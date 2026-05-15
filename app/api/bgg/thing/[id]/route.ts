@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fetchBgg } from '@/lib/bgg-api';
 import { parseThingDetails } from '@/lib/bgg-xml';
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
@@ -6,7 +7,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   if (!Number.isFinite(id)) return NextResponse.json({ error: 'Ongeldige BGG id.' }, { status: 400 });
 
   const url = `https://boardgamegeek.com/xmlapi2/thing?id=${id}&stats=1`;
-  const response = await fetch(url, { next: { revalidate: 60 * 60 * 24 * 7 } });
+  const response = await fetchBgg(url, { next: { revalidate: 60 * 60 * 24 * 7 } }, 'thing-single');
   if (!response.ok) return NextResponse.json({ error: 'BoardGameGeek details ophalen is mislukt.' }, { status: 502 });
 
   const item = parseThingDetails(await response.text()).find((game) => game.bggId === id);
