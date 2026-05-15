@@ -98,6 +98,9 @@ export type CollectionGameDto = {
   community_players: number[];
   player_count_poll: CommunityPlayerPollDto[];
   ranks: BggRankDto[];
+  in_bgg_collection: boolean;
+  manually_added: boolean;
+  manually_removed: boolean;
   hidden: boolean;
   source: string;
   last_synced_at: string | null;
@@ -150,6 +153,8 @@ export type SessionBundle = {
 export type CollectionBundle = {
   games: CollectionGameDto[];
   groups: CollectionGroupDto[];
+  added_games: CollectionGameDto[];
+  removed_games: CollectionGameDto[];
   sync_state: CollectionSyncStateDto | null;
 };
 

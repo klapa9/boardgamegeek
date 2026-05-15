@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { collectionGroupInclude } from '@/lib/collection-groups';
+import { fetchBgg } from '@/lib/bgg-api';
+import { parseThingDetails } from '@/lib/bgg-xml';
 import { prisma } from '@/lib/db';
 import { collectionGameInclude } from '@/lib/collection-games';
+import { deriveCollectionPresentation } from '@/lib/collection-state';
+import { ensureCollectionTaxonomyMaps, replaceCollectionGameTaxonomy } from '@/lib/collection-taxonomy';
+import { preloadBggThumbnail } from '@/lib/image-cache';
 import { serializeCollectionGame, serializeCollectionGroup, serializeCollectionSyncState } from '@/lib/serializers';
 import { getCurrentUserProfile } from '@/lib/user-profile';
 
@@ -15,13 +20,23 @@ function normalizeIdList(value: unknown) {
   ));
 }
 
+async function fetchBggGameDetails(bggId: number) {
+  const url = `https://boardgamegeek.com/xmlapi2/thing?id=${bggId}&stats=1`;
+  const response = await fetchBgg(url, { cache: 'no-store' }, 'collection-add');
+  if (!response.ok) {
+    throw new Error('BoardGameGeek details ophalen is mislukt.');
+  }
+
+  return parseThingDetails(await response.text()).find((game) => game.bggId === bggId) ?? null;
+}
+
 export async function GET() {
   const viewerProfile = await getCurrentUserProfile();
   if (!viewerProfile) {
     return NextResponse.json({ error: 'Je moet eerst inloggen om je collectie te bekijken.' }, { status: 401 });
   }
 
-  const [games, groups, syncState] = await Promise.all([
+  const [games, groups, syncState, addedGames, removedGames] = await Promise.all([
     prisma.collectionGame.findMany({
       include: collectionGameInclude,
       where: {
@@ -35,12 +50,32 @@ export async function GET() {
       where: { userProfileId: viewerProfile.id },
       orderBy: { name: 'asc' }
     }),
-    prisma.collectionSyncState.findUnique({ where: { userProfileId: viewerProfile.id } })
+    prisma.collectionSyncState.findUnique({ where: { userProfileId: viewerProfile.id } }),
+    prisma.collectionGame.findMany({
+      include: collectionGameInclude,
+      where: {
+        userProfileId: viewerProfile.id,
+        manuallyAdded: true,
+        inBggCollection: false
+      },
+      orderBy: { title: 'asc' }
+    }),
+    prisma.collectionGame.findMany({
+      include: collectionGameInclude,
+      where: {
+        userProfileId: viewerProfile.id,
+        manuallyRemoved: true,
+        inBggCollection: true
+      },
+      orderBy: { title: 'asc' }
+    })
   ]);
 
   return NextResponse.json({
     games: games.map(serializeCollectionGame),
     groups: groups.map(serializeCollectionGroup),
+    added_games: addedGames.map(serializeCollectionGame),
+    removed_games: removedGames.map(serializeCollectionGame),
     sync_state: serializeCollectionSyncState(syncState) ?? {
       bgg_username: null,
       last_synced_at: null,
@@ -61,27 +96,115 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const title = String(body.title ?? '').trim();
-  if (!title) return NextResponse.json({ error: 'Spelnaam is verplicht.' }, { status: 400 });
+  const rawBggId = Number(body.bgg_id);
+  if (!Number.isFinite(rawBggId)) {
+    return NextResponse.json({ error: 'Kies eerst een spel uit de BGG zoekresultaten.' }, { status: 400 });
+  }
+
+  const details = await fetchBggGameDetails(rawBggId);
+  if (!details) {
+    return NextResponse.json({ error: 'Spel niet gevonden op BoardGameGeek.' }, { status: 404 });
+  }
 
   const duplicate = await prisma.collectionGame.findFirst({
     where: {
       userProfileId: viewerProfile.id,
-      title: { equals: title, mode: 'insensitive' },
+      bggId: rawBggId,
       hidden: false
-    }
+    },
+    select: { id: true }
   });
-  if (duplicate) return NextResponse.json({ error: 'Dit spel staat al in je lokale lijst.' }, { status: 409 });
+  if (duplicate) return NextResponse.json({ error: 'Dit spel staat al in je collectie.' }, { status: 409 });
 
-  const game = await prisma.collectionGame.create({
-    data: {
-      userProfileId: viewerProfile.id,
-      title,
-      source: 'manual'
-    }
+  const now = new Date();
+  const savedId = await prisma.$transaction(async (tx) => {
+    const existing = await tx.collectionGame.findUnique({
+      where: {
+        userProfileId_bggId: {
+          userProfileId: viewerProfile.id,
+          bggId: rawBggId
+        }
+      },
+      select: {
+        id: true,
+        inBggCollection: true,
+        manuallyAdded: true,
+        manuallyRemoved: true
+      }
+    });
+    const nextState = {
+      inBggCollection: existing?.inBggCollection ?? false,
+      manuallyAdded: true,
+      manuallyRemoved: false
+    };
+    const presentation = deriveCollectionPresentation(nextState);
+    const taxonomyMaps = await ensureCollectionTaxonomyMaps(tx, [details]);
+
+    const savedGame = existing
+      ? await tx.collectionGame.update({
+        where: { id: existing.id },
+        data: {
+          title: details.title,
+          yearPublished: details.yearPublished,
+          thumbnailUrl: details.thumbnailUrl,
+          imageUrl: details.imageUrl,
+          minPlayers: details.minPlayers,
+          maxPlayers: details.maxPlayers,
+          playingTime: details.playingTime,
+          minAge: details.minAge,
+          bggRating: details.bggRating,
+          bggBayesRating: details.bggBayesRating,
+          bggWeight: details.bggWeight,
+          designers: details.designers,
+          playMode: details.playMode,
+          communityPlayers: details.communityPlayers,
+          playerCountPoll: details.playerCountPoll,
+          ranks: details.ranks,
+          inBggCollection: nextState.inBggCollection,
+          manuallyAdded: nextState.manuallyAdded,
+          manuallyRemoved: nextState.manuallyRemoved,
+          hidden: presentation.hidden,
+          source: presentation.source,
+          lastSyncedAt: now
+        }
+      })
+      : await tx.collectionGame.create({
+        data: {
+          userProfileId: viewerProfile.id,
+          bggId: details.bggId,
+          title: details.title,
+          yearPublished: details.yearPublished,
+          thumbnailUrl: details.thumbnailUrl,
+          imageUrl: details.imageUrl,
+          minPlayers: details.minPlayers,
+          maxPlayers: details.maxPlayers,
+          playingTime: details.playingTime,
+          minAge: details.minAge,
+          bggRating: details.bggRating,
+          bggBayesRating: details.bggBayesRating,
+          bggWeight: details.bggWeight,
+          designers: details.designers,
+          playMode: details.playMode,
+          communityPlayers: details.communityPlayers,
+          playerCountPoll: details.playerCountPoll,
+          ranks: details.ranks,
+          inBggCollection: nextState.inBggCollection,
+          manuallyAdded: nextState.manuallyAdded,
+          manuallyRemoved: nextState.manuallyRemoved,
+          hidden: presentation.hidden,
+          source: presentation.source,
+          lastSyncedAt: now
+        }
+      });
+
+    await replaceCollectionGameTaxonomy(tx, savedGame.id, details, taxonomyMaps);
+    return savedGame.id;
   });
+
+  await preloadBggThumbnail(details.bggId, details.thumbnailUrl ?? details.imageUrl);
+
   const hydratedGame = await prisma.collectionGame.findUnique({
-    where: { id: game.id },
+    where: { id: savedId },
     include: collectionGameInclude
   });
 
@@ -154,13 +277,39 @@ export async function DELETE(request: Request) {
       userProfileId: viewerProfile.id,
       hidden: false
     },
-    select: { id: true }
+    select: {
+      id: true,
+      inBggCollection: true
+    }
   });
   if (!game) return NextResponse.json({ error: 'Spel niet gevonden.' }, { status: 404 });
 
   await prisma.$transaction(async (tx) => {
     await tx.collectionGroupGame.deleteMany({ where: { collectionGameId: id } });
-    await tx.collectionGame.update({ where: { id }, data: { hidden: true } });
+
+    const nextState = game.inBggCollection
+      ? {
+        inBggCollection: true,
+        manuallyAdded: false,
+        manuallyRemoved: true
+      }
+      : {
+        inBggCollection: false,
+        manuallyAdded: false,
+        manuallyRemoved: false
+      };
+    const presentation = deriveCollectionPresentation(nextState);
+
+    await tx.collectionGame.update({
+      where: { id },
+      data: {
+        inBggCollection: nextState.inBggCollection,
+        manuallyAdded: nextState.manuallyAdded,
+        manuallyRemoved: nextState.manuallyRemoved,
+        hidden: presentation.hidden,
+        source: presentation.source
+      }
+    });
   });
 
   return NextResponse.json({ ok: true });

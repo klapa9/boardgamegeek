@@ -8,9 +8,9 @@ export default function GamesPage() {
         <header className="page-card page-card-peach p-5 sm:p-6">
           <Link href="/" className="neo-button neo-button-ghost text-sm">&lt;- Terug naar start</Link>
           <p className="page-chip mt-4 w-fit">Collectiebeheer</p>
-          <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Collectie synchroniseren</h1>
+          <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Mijn spellen</h1>
           <p className="mt-3 text-slate-700">
-            Synchroniseer hier je BGG collectie of voeg manueel spellen toe. Je overzicht vind je op de collectiepagina.
+            Zoek spellen op BoardGameGeek, voeg ze toe aan je collectie en verwijder ze hier ook weer wanneer nodig.
           </p>
         </header>
 

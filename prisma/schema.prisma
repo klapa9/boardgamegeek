@@ -145,6 +145,9 @@ model CollectionGame {
   communityPlayers Int[]    @default([])
   playerCountPoll  Json?
   ranks            Json?
+  inBggCollection  Boolean  @default(false)
+  manuallyAdded    Boolean  @default(false)
+  manuallyRemoved  Boolean  @default(false)
   hidden           Boolean  @default(false)
   source           String   @default("manual")
   lastSyncedAt     DateTime?

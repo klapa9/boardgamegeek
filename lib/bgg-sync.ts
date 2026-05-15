@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { CollectionSeed, BggThingDetails, parseCollectionSeeds, parseThingDetails } from '@/lib/bgg-xml';
 import { fetchBgg } from '@/lib/bgg-api';
+import { deriveCollectionPresentation } from '@/lib/collection-state';
+import { ensureCollectionTaxonomyMaps, replaceCollectionGameTaxonomy } from '@/lib/collection-taxonomy';
 import { preloadBggThumbnail } from '@/lib/image-cache';
 
 const BGG_REQUEST_TIMEOUT_MS = 30000;
@@ -142,34 +144,31 @@ async function fetchThingBatch(ids: number[]): Promise<BggThingDetails[]> {
 
 async function persistCollectionGames(userProfileId: string, username: string, games: BggThingDetails[]) {
   const now = new Date();
-  const allMechanics = Array.from(new Set(games.flatMap((game) => game.mechanics))).sort((left, right) => left.localeCompare(right));
-  const allCategories = Array.from(new Set(games.flatMap((game) => game.categories))).sort((left, right) => left.localeCompare(right));
   const ownedBggIds = games.map((game) => game.bggId);
 
   await prisma.$transaction(async (tx) => {
-    if (allMechanics.length) {
-      await tx.mechanic.createMany({
-        data: allMechanics.map((name) => ({ name })),
-        skipDuplicates: true
-      });
-    }
-
-    if (allCategories.length) {
-      await tx.category.createMany({
-        data: allCategories.map((name) => ({ name })),
-        skipDuplicates: true
-      });
-    }
-
-    const [mechanics, categories] = await Promise.all([
-      allMechanics.length ? tx.mechanic.findMany({ where: { name: { in: allMechanics } } }) : Promise.resolve([]),
-      allCategories.length ? tx.category.findMany({ where: { name: { in: allCategories } } }) : Promise.resolve([])
-    ]);
-
-    const mechanicIdByName = new Map(mechanics.map((mechanic) => [mechanic.name, mechanic.id]));
-    const categoryIdByName = new Map(categories.map((category) => [category.name, category.id]));
+    const taxonomyMaps = await ensureCollectionTaxonomyMaps(tx, games);
 
     for (const game of games) {
+      const existing = await tx.collectionGame.findUnique({
+        where: {
+          userProfileId_bggId: {
+            userProfileId,
+            bggId: game.bggId
+          }
+        },
+        select: {
+          manuallyAdded: true,
+          manuallyRemoved: true
+        }
+      });
+      const nextState = {
+        inBggCollection: true,
+        manuallyAdded: existing?.manuallyAdded ?? false,
+        manuallyRemoved: existing?.manuallyRemoved ?? false
+      };
+      const presentation = deriveCollectionPresentation(nextState);
+
       const savedGame = await tx.collectionGame.upsert({
         where: {
           userProfileId_bggId: {
@@ -196,8 +195,11 @@ async function persistCollectionGames(userProfileId: string, username: string, g
           communityPlayers: game.communityPlayers,
           playerCountPoll: game.playerCountPoll as Prisma.InputJsonValue,
           ranks: game.ranks as Prisma.InputJsonValue,
-          hidden: false,
-          source: 'bgg',
+          inBggCollection: nextState.inBggCollection,
+          manuallyAdded: nextState.manuallyAdded,
+          manuallyRemoved: nextState.manuallyRemoved,
+          hidden: presentation.hidden,
+          source: presentation.source,
           lastSyncedAt: now
         },
         update: {
@@ -217,46 +219,53 @@ async function persistCollectionGames(userProfileId: string, username: string, g
           communityPlayers: game.communityPlayers,
           playerCountPoll: game.playerCountPoll as Prisma.InputJsonValue,
           ranks: game.ranks as Prisma.InputJsonValue,
-          hidden: false,
-          source: 'bgg',
+          inBggCollection: nextState.inBggCollection,
+          manuallyAdded: nextState.manuallyAdded,
+          manuallyRemoved: nextState.manuallyRemoved,
+          hidden: presentation.hidden,
+          source: presentation.source,
           lastSyncedAt: now
         }
       });
 
-      await tx.collectionGameMechanic.deleteMany({ where: { collectionGameId: savedGame.id } });
-      if (game.mechanics.length) {
-        await tx.collectionGameMechanic.createMany({
-          data: game.mechanics
-            .map((name) => mechanicIdByName.get(name))
-            .filter((id): id is string => Boolean(id))
-            .map((mechanicId) => ({ collectionGameId: savedGame.id, mechanicId })),
-          skipDuplicates: true
-        });
-      }
-
-      await tx.collectionGameCategory.deleteMany({ where: { collectionGameId: savedGame.id } });
-      if (game.categories.length) {
-        await tx.collectionGameCategory.createMany({
-          data: game.categories
-            .map((name) => categoryIdByName.get(name))
-            .filter((id): id is string => Boolean(id))
-            .map((categoryId) => ({ collectionGameId: savedGame.id, categoryId })),
-          skipDuplicates: true
-        });
-      }
+      await replaceCollectionGameTaxonomy(tx, savedGame.id, game, taxonomyMaps);
     }
 
-    await tx.collectionGame.updateMany({
+    const staleBggGames = await tx.collectionGame.findMany({
       where: {
         userProfileId,
-        source: 'bgg',
-        ...(ownedBggIds.length ? { bggId: { notIn: ownedBggIds } } : {})
+        AND: [
+          { bggId: { not: null } },
+          ...(ownedBggIds.length ? [{ bggId: { notIn: ownedBggIds } }] : [])
+        ]
       },
-      data: {
-        hidden: true,
-        lastSyncedAt: now
+      select: {
+        id: true,
+        manuallyAdded: true,
+        manuallyRemoved: true
       }
     });
+
+    for (const staleGame of staleBggGames) {
+      const nextState = {
+        inBggCollection: false,
+        manuallyAdded: staleGame.manuallyAdded,
+        manuallyRemoved: staleGame.manuallyRemoved
+      };
+      const presentation = deriveCollectionPresentation(nextState);
+
+      await tx.collectionGame.update({
+        where: { id: staleGame.id },
+        data: {
+          inBggCollection: nextState.inBggCollection,
+          manuallyAdded: nextState.manuallyAdded,
+          manuallyRemoved: nextState.manuallyRemoved,
+          hidden: presentation.hidden,
+          source: presentation.source,
+          lastSyncedAt: now
+        }
+      });
+    }
 
     await tx.collectionSyncState.upsert({
       where: { userProfileId },
@@ -388,8 +397,8 @@ export async function startCollectionSync(options: { userProfileId: string; user
     started: true,
     pending: true,
     message: options.xml
-      ? 'XML import en verrijking gestart op de achtergrond.'
-      : 'Synchronisatie met BoardGameGeek gestart op de achtergrond.'
+      ? 'XML import en verrijking gestart. Dit kan even duren; je mag deze pagina gerust verlaten.'
+      : 'Synchronisatie met BoardGameGeek gestart. Dit kan tot 5 minuten duren; je mag deze pagina gerust verlaten.'
   };
 }
 

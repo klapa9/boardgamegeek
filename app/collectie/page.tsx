@@ -13,7 +13,10 @@ export default function CollectionPage() {
                 + Nieuw
               </Link>
               <Link href="/games" className="neo-button neo-button-primary text-sm">
-                Synchroniseren
+                Mijn spellen
+              </Link>
+              <Link href="/bgg" className="neo-button neo-button-ghost text-sm">
+                BGG
               </Link>
             </div>
           </div>
