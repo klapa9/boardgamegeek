@@ -33,7 +33,7 @@ const chaoticFacts = [
 const signedInActions = [
   {
     title: 'Mijn spellen',
-    text: 'Beheer je spellen collectie, orden ze slim of synchroniseer van boardgamegeek.com',
+    text: 'Beheer je spelcollectie, orden ze slim of synchroniseer van boardgamegeek.com',
     href: '/collectie',
     icon: Library,
     tone: 'bg-[#84d7ff]'
@@ -67,10 +67,18 @@ export default async function HomePage() {
       </div>
 
       <div className="border-b-4 border-slate-950 bg-[#172036] py-3 text-[#fff7df]">
-        <div className="home-marquee flex min-w-max gap-6 whitespace-nowrap px-4 font-poster text-lg uppercase tracking-[0.2em]">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <span key={index}>boardgamegeek.be</span>
-          ))}
+        <div className="mx-auto flex max-w-6xl min-w-0 items-center gap-3 px-4 sm:px-6">
+          <div className="inline-flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-950 bg-[#ff5a36] px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-white sm:px-4 sm:text-xs sm:tracking-[0.18em]">
+            <Dice5 size={16} className="shrink-0" />
+            <span>boardgamegeek.be</span>
+          </div>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="home-marquee flex min-w-max gap-6 whitespace-nowrap font-poster text-base uppercase tracking-[0.18em] sm:text-lg sm:tracking-[0.2em]">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <span key={index}>boardgamegeek.be</span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
