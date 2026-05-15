@@ -91,12 +91,14 @@ export default function DateOptionCalendar({
   selectedDates,
   onToggleDate,
   disabled = false,
-  selectedClassName = 'border-slate-950 bg-[#84d7ff] text-slate-950 shadow-sm shadow-sky-200/80'
+  selectedClassName = 'border-slate-950 bg-[#84d7ff] text-slate-950 shadow-sm shadow-sky-200/80',
+  selectionMode = 'multiple'
 }: {
   selectedDates: string[];
   onToggleDate: (date: string) => void;
   disabled?: boolean;
   selectedClassName?: string;
+  selectionMode?: 'single' | 'multiple';
 }) {
   const [visibleMonthDate, setVisibleMonthDate] = useState(() => {
     const today = new Date();
@@ -106,6 +108,7 @@ export default function DateOptionCalendar({
   const todayKey = useMemo(() => localDateKey(), []);
   const currentMonthKey = useMemo(() => monthDateKey(new Date()), []);
   const visibleMonth = useMemo(() => buildCalendarMonth(visibleMonthDate, todayKey), [todayKey, visibleMonthDate]);
+  const selectedDatesSet = useMemo(() => new Set(selectedDates), [selectedDates]);
 
   return (
     <div className="max-w-xl">
@@ -134,7 +137,10 @@ export default function DateOptionCalendar({
         <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase text-slate-400">
           {WEEKDAY_LABELS.map((label) => <span key={label} className="py-1">{label}</span>)}
         </div>
-        <div className="mt-1 space-y-1">
+        <div
+          className="mt-1 space-y-1"
+          aria-label={selectionMode === 'single' ? 'Kies 1 datum' : 'Kies 1 of meerdere datums'}
+        >
           {visibleMonth.weeks.map((week, index) => (
             <div key={`${visibleMonth.key}-week-${index}`} className="grid grid-cols-7 gap-1">
               {week.map((cell) => {
@@ -142,28 +148,34 @@ export default function DateOptionCalendar({
                   return <div key={cell.key} className="aspect-square rounded-xl bg-transparent" aria-hidden="true" />;
                 }
 
-                const selected = selectedDates.includes(cell.date);
+                const cellDate = cell.date;
+                const selected = selectedDatesSet.has(cellDate);
 
                 return (
-                  <button
+                  <label
                     key={cell.key}
-                    type="button"
-                    disabled={disabled || !cell.isSelectable}
-                    onClick={() => onToggleDate(cell.date!)}
-                    title={dateTitle(cell.date)}
+                    title={dateTitle(cellDate)}
                     className={[
-                      'relative aspect-square rounded-lg border-2 text-left transition',
-                      cell.isSelectable ? 'border-slate-950/10 bg-white hover:border-slate-950/30' : 'border-transparent bg-slate-100/70 text-slate-300',
+                      'relative block aspect-square w-full overflow-hidden rounded-lg border-2 text-left transition',
+                      cell.isSelectable ? 'cursor-pointer border-slate-950/10 bg-white hover:border-slate-950/30 hover:bg-sky-50/70' : 'cursor-not-allowed border-transparent bg-slate-100/70 text-slate-300',
                       selected ? selectedClassName : '',
                       cell.isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
                       disabled ? 'opacity-70' : ''
                     ].join(' ')}
                   >
-                    <span className="flex h-full flex-col justify-between p-1.5">
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      disabled={disabled || !cell.isSelectable}
+                      onChange={() => onToggleDate(cellDate)}
+                      className="sr-only"
+                      aria-label={dateTitle(cellDate)}
+                    />
+                    <span className="flex h-full w-full flex-col justify-between p-1.5">
                       <span className={`text-xs font-black ${cell.isSelectable ? '' : 'text-slate-300'}`}>{cell.dayNumber}</span>
                       <span className="text-[10px] leading-none text-transparent" aria-hidden="true">.</span>
                     </span>
-                  </button>
+                  </label>
                 );
               })}
             </div>

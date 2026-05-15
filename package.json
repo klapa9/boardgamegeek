@@ -1,5 +1,5 @@
 {
-  "name": "gezelschapsspelkiezer-mvp",
+  "name": "boardgamegeek-be",
   "version": "1.0.0",
   "private": true,
   "scripts": {

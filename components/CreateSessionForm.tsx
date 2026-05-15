@@ -484,7 +484,11 @@ export default function CreateSessionForm({
 
       {mode === 'planning' && (
         <div className="page-subcard p-4">
-          <DateOptionCalendar selectedDates={dateOptions} onToggleDate={toggleDate} />
+          <DateOptionCalendar
+            selectedDates={dateOptions}
+            onToggleDate={toggleDate}
+            selectionMode={planningMode === 'fixed_day' ? 'single' : 'multiple'}
+          />
           <p className="mt-3 text-sm text-slate-500">
             {planningMode === 'fixed_day'
               ? 'Kies exact 1 datum voor je spelavond.'

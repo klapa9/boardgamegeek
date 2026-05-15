@@ -4,8 +4,8 @@ import { ClerkProvider } from '@clerk/nextjs';
 import ProfileLauncher from '@/components/ProfileLauncher';
 
 export const metadata: Metadata = {
-  title: 'Gezelschapsspelkiezer',
-  description: 'Kies simpel een datum en gezelschapsspel met vrienden.'
+  title: 'boardgamegeek.be',
+  description: 'Regel eenvoudig bordspelavonden en beheer je BoardGameGeek-collectie met vrienden.'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

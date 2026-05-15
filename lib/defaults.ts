@@ -1,1 +1,1 @@
-export const DEFAULT_BGG_USERNAME = 'gezelschapspelgroep';
+export const DEFAULT_BGG_USERNAME = 'boardgamegeek.be';

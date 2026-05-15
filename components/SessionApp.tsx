@@ -1486,7 +1486,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               </button>
             </div>
             <div className="modal-scroll-area min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              <DateOptionCalendar selectedDates={selectedAddDates} onToggleDate={toggleAddDate} disabled={addDatesSaving} />
+              <DateOptionCalendar
+                selectedDates={selectedAddDates}
+                onToggleDate={toggleAddDate}
+                disabled={addDatesSaving}
+                selectionMode="multiple"
+              />
               <p className="mt-3 text-sm text-slate-500">Geselecteerde datums worden toegevoegd aan de opties voor alle deelnemers. Bestaande datums blijven ongewijzigd.</p>
             </div>
             <div className="shrink-0 flex flex-col gap-2 border-t border-slate-950/10 bg-white/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

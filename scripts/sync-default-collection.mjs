@@ -3,7 +3,7 @@ import path from 'node:path';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { XMLParser } from 'fast-xml-parser';
 
-const DEFAULT_BGG_USERNAME = 'gezelschapspelgroep';
+const DEFAULT_BGG_USERNAME = 'boardgamegeek.be';
 const BGG_REQUEST_TIMEOUT_MS = 30000;
 const BGG_COLLECTION_RETRY_DELAYS_MS = [3000, 5000, 8000, 12000];
 const BGG_THING_RETRY_DELAYS_MS = [1500, 3000, 5000];
