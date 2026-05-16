@@ -276,9 +276,26 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const dateOptions = session?.date_options ?? [];
   const existingGameTitles = useMemo(() => games.map((game) => game.title), [games]);
   const existingBggIds = useMemo(() => games.map((game) => game.bgg_id).filter((id): id is number => id !== null), [games]);
+  const currentPlayerAvailabilityByDay = useMemo(() => {
+    const map = new Map<string, AvailabilityDto>();
+    if (!currentPlayerId) return map;
+
+    dateOptions.forEach((option) => {
+      const entry = availabilityByPlayerDay.get(playerDateKey(currentPlayerId, option.date));
+      if (entry) map.set(option.date, entry);
+    });
+
+    return map;
+  }, [availabilityByPlayerDay, currentPlayerId, dateOptions]);
+  const currentPlayerMissingAvailabilityDates = useMemo(() => {
+    if (!currentPlayerId) return [];
+    return dateOptions
+      .map((option) => option.date)
+      .filter((date) => !currentPlayerAvailabilityByDay.has(date));
+  }, [currentPlayerAvailabilityByDay, currentPlayerId, dateOptions]);
   const currentPlayerHasPlanning = useMemo(() => (
-    currentPlayerId ? availability.some((item) => item.player_id === currentPlayerId) : false
-  ), [availability, currentPlayerId]);
+    Boolean(currentPlayerId) && dateOptions.length > 0 && currentPlayerMissingAvailabilityDates.length === 0
+  ), [currentPlayerId, currentPlayerMissingAvailabilityDates, dateOptions.length]);
   const currentPlayerChosenDayAvailability = useMemo(() => {
     if (!currentPlayerId || !session?.chosen_day) return null;
     return availabilityByPlayerDay.get(playerDateKey(currentPlayerId, session.chosen_day)) ?? null;
@@ -365,6 +382,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     if (currentPlayerChosenDayAvailability) return;
     setView('availability');
   }, [currentPlayerChosenDayAvailability, currentPlayerId, loading, session?.chosen_day, session?.locked]);
+
+  useEffect(() => {
+    if (loading || !currentPlayerId) return;
+    if (session?.locked && session.chosen_day) return;
+    if (currentPlayerHasPlanning || view === 'availability') return;
+    setSelectedGameId(null);
+    setView('availability');
+  }, [currentPlayerHasPlanning, currentPlayerId, loading, session?.chosen_day, session?.locked, view]);
 
   useEffect(() => {
     if (loading || !currentPlayerId) return;
@@ -490,8 +515,48 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     return playerById.get(playerId)?.name ?? null;
   }
 
-  function confirmAvailability() {
+  async function confirmAvailability() {
     if (!currentPlayer) return;
+    const missingDates = currentPlayerMissingAvailabilityDates;
+
+    if (missingDates.length) {
+      const playerId = currentPlayer.id;
+      const previousAvailability = availability;
+
+      setSaving(true);
+      setError(null);
+      setAvailability((items) => [
+        ...items,
+        ...missingDates.map((date) => ({ player_id: playerId, day: date, available: false }))
+      ]);
+
+      try {
+        const savedEntries = await Promise.all(
+          missingDates.map(async (date) => {
+            const data = await api<{ availability: AvailabilityDto }>(`/api/sessions/${sessionId}/availability`, {
+              method: 'PUT',
+              body: JSON.stringify({ player_id: playerId, day: date, available: false })
+            });
+            return data.availability;
+          })
+        );
+
+        const savedByDay = new Map(savedEntries.map((entry) => [entry.day, entry]));
+        setAvailability((items) => items.map((item) => (
+          item.player_id === playerId && savedByDay.has(item.day)
+            ? savedByDay.get(item.day)!
+            : item
+        )));
+      } catch (err) {
+        setAvailability(previousAvailability);
+        setError(err instanceof Error ? err.message : 'Beschikbaarheid bevestigen mislukt.');
+        await refresh(false);
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
+
     setSelectedGameId(null);
     setView(needsGameChoice ? 'rating' : 'summary');
   }
@@ -1247,7 +1312,9 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {dateRows.map((row) => {
-              const selected = isAvailable(row.date);
+              const myAvailability = currentPlayerId ? currentPlayerAvailabilityByDay.get(row.date) ?? null : null;
+              const selected = Boolean(myAvailability?.available);
+              const explicitlyUnavailable = Boolean(myAvailability && !myAvailability.available);
               const isToday = row.date === localDateKey();
               const isChosenDate = session.chosen_day === row.date;
               const needsLoginHint = !currentPlayer;
@@ -1255,7 +1322,13 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               const availableNames = row.availablePlayers.map((player) => player.name);
               const cardClassName = [
                 'relative rounded-2xl border-2 p-4 transition',
-                isChosenDate ? 'border-emerald-700 bg-emerald-50 text-emerald-950' : selected ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950' : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
+                isChosenDate
+                  ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
+                  : selected
+                    ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950'
+                    : explicitlyUnavailable
+                      ? 'border-slate-300 bg-slate-100 text-slate-700'
+                      : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
                 isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
                 saving ? 'opacity-60' : ''
               ].join(' ');
@@ -1276,10 +1349,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   <div className="pointer-events-none relative z-10 flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <h3 className="text-base font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
-                      <p className={`mt-1 text-xs font-bold ${selected || isChosenDate ? 'text-emerald-700' : 'text-slate-500'}`}>
+                      <p className={`mt-1 text-xs font-bold ${selected || isChosenDate ? 'text-emerald-700' : explicitlyUnavailable ? 'text-slate-600' : 'text-slate-500'}`}>
                         {session.locked
                           ? (isChosenDate ? 'Deze datum ligt vast' : 'Datumopties zijn gesloten')
-                          : selected ? 'Jij bent beschikbaar' : 'Klik om beschikbaar te zijn'}
+                          : selected
+                            ? 'Jij bent beschikbaar'
+                            : explicitlyUnavailable
+                              ? 'Jij bent niet beschikbaar'
+                              : 'Nog niet ingevuld'}
                       </p>
                     </div>
                     <div className="pointer-events-auto flex items-center gap-2">
@@ -1330,7 +1407,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               </span>
             </div>
           )}
-          <button onClick={confirmAvailability} disabled={!currentPlayer || Boolean(session.locked && session.chosen_day && !currentPlayerChosenDayAvailability)} className="neo-button neo-button-primary mt-5 flex w-full disabled:opacity-50">
+          <button onClick={confirmAvailability} disabled={!currentPlayer || saving || Boolean(session.locked && session.chosen_day && !currentPlayerChosenDayAvailability)} className="neo-button neo-button-primary mt-5 flex w-full disabled:opacity-50">
             <Check size={20} /> {session.locked ? 'Bevestig aanwezigheid en ga verder' : 'Bevestig aanwezigheid'}
           </button>
         </section>
