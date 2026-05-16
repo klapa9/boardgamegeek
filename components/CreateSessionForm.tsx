@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
@@ -94,6 +94,7 @@ export default function CreateSessionForm({
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const draftKey = useMemo(() => sessionDraftKey(editSessionId), [editSessionId]);
   const backToPlanningHref = editSessionId ? `/planning?bewerk=${editSessionId}` : '/planning';
 
@@ -293,6 +294,22 @@ export default function CreateSessionForm({
     router.push(backToPlanningHref);
   }
 
+  function handleTitleInputFocus(event: React.FocusEvent<HTMLInputElement>) {
+    event.currentTarget.select();
+  }
+
+  function handleTitleInputPointerUp(event: React.PointerEvent<HTMLInputElement>) {
+    if (document.activeElement === event.currentTarget) {
+      event.preventDefault();
+    }
+  }
+
+  function handleTitleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    titleInputRef.current?.blur();
+  }
+
   async function confirmPlanning(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -370,10 +387,15 @@ export default function CreateSessionForm({
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-700">Naam van de spelavond</label>
             <input
+              ref={titleInputRef}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
+              onFocus={handleTitleInputFocus}
+              onPointerUp={handleTitleInputPointerUp}
+              onKeyDown={handleTitleInputKeyDown}
               className="neo-input"
               placeholder="Spelavond vrijdag"
+              enterKeyHint="go"
               required
             />
           </div>
