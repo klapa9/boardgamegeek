@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Pencil, Plus, Search, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import GameCollectionPicker from '@/components/GameCollectionPicker';
 import { api } from '@/lib/api';
 import { CollectionBundle, CollectionGameDto, CollectionGroupDto } from '@/lib/types';
@@ -50,6 +50,10 @@ function buildGroups(games: CollectionGameDto[], groups: CollectionGroupDto[]): 
       is_default: false
     }))
   ];
+}
+
+function toggleId(ids: string[], id: string) {
+  return ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
 }
 
 function GameFan({ games }: { games: CollectionGameDto[] }) {
@@ -172,15 +176,18 @@ export default function CollectionOverview() {
   const [groups, setGroups] = useState<CollectionGroupDto[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState(ALL_GAMES_GROUP_ID);
   const [query, setQuery] = useState('');
+  const [showUngroupedOnly, setShowUngroupedOnly] = useState(false);
   const [createName, setCreateName] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [showAddGamesModal, setShowAddGamesModal] = useState(false);
   const [modalSelectedIds, setModalSelectedIds] = useState<string[]>([]);
+  const [expandedGameId, setExpandedGameId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [updatingGameId, setUpdatingGameId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -211,14 +218,38 @@ export default function CollectionOverview() {
     [selectedGroupId, viewGroups]
   );
   const gameById = useMemo(() => new Map(games.map((game) => [game.id, game])), [games]);
+  const groupsByGameId = useMemo(() => {
+    const map = new Map<string, CollectionGroupDto[]>();
+
+    games.forEach((game) => {
+      map.set(game.id, []);
+    });
+
+    groups.forEach((group) => {
+      group.game_ids.forEach((gameId) => {
+        const gameGroups = map.get(gameId);
+        if (gameGroups) gameGroups.push(group);
+      });
+    });
+
+    return map;
+  }, [games, groups]);
+  const ungroupedGameCount = useMemo(
+    () => games.filter((game) => !(groupsByGameId.get(game.id) ?? []).length).length,
+    [games, groupsByGameId]
+  );
   const selectedGroupGames = useMemo(() => {
     if (!selectedGroup) return [];
-    if (selectedGroup.is_default) return games;
+    if (selectedGroup.is_default) {
+      return showUngroupedOnly
+        ? games.filter((game) => !(groupsByGameId.get(game.id) ?? []).length)
+        : games;
+    }
 
     return selectedGroup.game_ids
       .map((gameId) => gameById.get(gameId) ?? null)
       .filter((game): game is CollectionGameDto => Boolean(game));
-  }, [gameById, games, selectedGroup]);
+  }, [gameById, games, groupsByGameId, selectedGroup, showUngroupedOnly]);
   const visibleGroupGames = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return selectedGroupGames;
@@ -330,8 +361,34 @@ export default function CollectionOverview() {
     }
   }
 
+  async function toggleGameGroup(gameId: string, groupId: string) {
+    const currentGroupIds = (groupsByGameId.get(gameId) ?? []).map((group) => group.id);
+    const nextGroupIds = toggleId(currentGroupIds, groupId);
+
+    setUpdatingGameId(gameId);
+    setError(null);
+
+    try {
+      await api(`/api/collection/games?id=${encodeURIComponent(gameId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ group_ids: nextGroupIds })
+      });
+
+      await loadBundle(selectedGroupId);
+      setExpandedGameId(gameId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Spelgroepen aanpassen mislukt.');
+    } finally {
+      setUpdatingGameId((current) => (current === gameId ? null : current));
+    }
+  }
+
   if (loading) return <section className="page-card p-5">Laden...</section>;
   if (!selectedGroup) return <section className="page-card p-5">Geen collectie gevonden.</section>;
+
+  const selectedGroupCountLabel = selectedGroup.is_default && showUngroupedOnly
+    ? `${selectedGroupGames.length} spel${selectedGroupGames.length === 1 ? '' : 'len'} zonder groep in je collectie.`
+    : `${selectedGroup.game_count} spel${selectedGroup.game_count === 1 ? '' : 'len'}${selectedGroup.is_default ? ' in je volledige collectie.' : ' in deze groep.'}`;
 
   return (
     <>
@@ -372,6 +429,7 @@ export default function CollectionOverview() {
                   setQuery('');
                   setRenaming(false);
                   setShowAddGamesModal(false);
+                  setExpandedGameId(null);
                 }}
                 className={`min-w-0 overflow-hidden rounded-[2rem] border-4 p-4 text-left transition ${
                   selectedGroupId === group.id
@@ -458,10 +516,7 @@ export default function CollectionOverview() {
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="font-poster text-3xl uppercase leading-none text-slate-950">{selectedGroup.name}</h2>
-              <p className="mt-2 text-sm text-slate-700">
-                {selectedGroup.game_count} spel{selectedGroup.game_count === 1 ? '' : 'len'}
-                {selectedGroup.is_default ? ' in je volledige collectie.' : ' in deze groep.'}
-              </p>
+              <p className="mt-2 text-sm text-slate-700">{selectedGroupCountLabel}</p>
             </div>
 
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
@@ -474,6 +529,20 @@ export default function CollectionOverview() {
                   className="neo-input w-full py-3 pl-9 pr-4 sm:w-72"
                 />
               </div>
+
+              {selectedGroup.is_default && groups.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowUngroupedOnly((current) => !current)}
+                  className={`rounded-2xl border-2 px-3 py-2 text-sm font-semibold transition ${
+                    showUngroupedOnly
+                      ? 'border-slate-950 bg-slate-950 text-white'
+                      : 'border-slate-950/15 bg-white/70 text-slate-700 hover:bg-white'
+                  }`}
+                >
+                  {showUngroupedOnly ? 'Toon alle spellen' : `Zonder groep (${ungroupedGameCount})`}
+                </button>
+              )}
 
               {!selectedGroup.is_default && (
                 <div className="flex flex-wrap gap-2">
@@ -536,25 +605,98 @@ export default function CollectionOverview() {
           <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2">
             {visibleGroupGames.map((game) => {
               const imageUrl = listImageUrl(game);
+              const gameGroups = groupsByGameId.get(game.id) ?? [];
+              const isExpanded = expandedGameId === game.id;
+              const isSavingThisGame = updatingGameId === game.id;
 
               return (
                 <article key={game.id} className="page-subcard min-w-0 overflow-hidden p-3">
-                  <div className="flex min-w-0 gap-3">
-                    {imageUrl ? (
-                      <img src={imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" />
-                    ) : (
-                      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-bold text-slate-500">
-                        Geen
-                      </div>
-                    )}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedGameId((current) => current === game.id ? null : game.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex min-w-0 gap-3">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" />
+                      ) : (
+                        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-bold text-slate-500">
+                          Geen
+                        </div>
+                      )}
 
-                    <div className="min-w-0 flex-1">
-                      <h3 className="break-words font-black [overflow-wrap:anywhere]">{game.title}</h3>
-                      <p className="mt-1 break-words text-sm leading-5 text-slate-500 [overflow-wrap:anywhere]">
-                        {formatMeta(game) || (game.source === 'manual' ? 'Manueel toegevoegd' : 'Geen extra info')}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="break-words font-black [overflow-wrap:anywhere]">{game.title}</h3>
+                        <p className="mt-1 break-words text-sm leading-5 text-slate-500 [overflow-wrap:anywhere]">
+                          {formatMeta(game) || (game.source === 'manual' ? 'Manueel toegevoegd' : 'Geen extra info')}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {gameGroups.length ? (
+                            gameGroups.map((group) => (
+                              <span key={group.id} className="rounded-full bg-[#172036] px-3 py-1 text-xs font-bold text-white">
+                                {group.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">
+                              Nog in geen groep
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="mt-3 rounded-[1.5rem] border-2 border-slate-950/10 bg-white/75 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-slate-900">Zet dit spel in deze groepen:</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Klik meerdere groepen aan of uit. Dit venster blijft open terwijl je kiest.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedGameId(null)}
+                          className="rounded-2xl p-2 text-slate-500 transition hover:bg-white"
+                          aria-label="Groepenmenu sluiten"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      {groups.length ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {groups.map((group) => {
+                            const selected = gameGroups.some((entry) => entry.id === group.id);
+
+                            return (
+                              <button
+                                key={group.id}
+                                type="button"
+                                disabled={isSavingThisGame}
+                                onClick={() => void toggleGameGroup(game.id, group.id)}
+                                className={`inline-flex items-center gap-2 rounded-full border-2 px-3 py-2 text-sm font-semibold transition disabled:opacity-60 ${
+                                  selected
+                                    ? 'border-slate-950 bg-[#84d7ff] text-slate-950'
+                                    : 'border-slate-950/15 bg-white text-slate-700 hover:border-slate-950/30'
+                                }`}
+                              >
+                                <span className={`flex h-5 w-5 items-center justify-center rounded-full ${selected ? 'bg-slate-950 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                  {selected ? <Check size={12} /> : '+'}
+                                </span>
+                                {group.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-slate-500">Maak eerst een groep aan om spellen te kunnen indelen.</p>
+                      )}
+                    </div>
+                  )}
                 </article>
               );
             })}
@@ -564,7 +706,9 @@ export default function CollectionOverview() {
                 {query.trim()
                   ? 'Geen spellen gevonden voor deze zoekterm.'
                   : selectedGroup.is_default
-                    ? <p>Je collectie bevat nog geen spellen. <Link href="/games" className="font-semibold text-slate-800 underline underline-offset-2">Voeg je spellen toe in je collectiepagina</Link>.</p>
+                    ? showUngroupedOnly
+                      ? 'Alle spellen in je collectie zitten al in minstens een groep.'
+                      : <p>Je collectie bevat nog geen spellen. <Link href="/games" className="font-semibold text-slate-800 underline underline-offset-2">Voeg je spellen toe in je collectiepagina</Link>.</p>
                     : 'Er zitten nog geen spellen in deze groep.'}
               </div>
             )}

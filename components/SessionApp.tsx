@@ -375,6 +375,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }, [currentPlayerId, loading, needsGameChoice, view]);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [view]);
+
+  useEffect(() => {
     if (!session || initialShareIntentHandled.current) return;
     if (searchParams.get('share') !== 'invite') return;
     if (!viewerIsOrganizer || view !== 'summary') return;
@@ -914,7 +918,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   if (chosenGame) summaryParts.push(chosenGame.title);
   if (session.chosen_day) summaryParts.push(formatDate(session.chosen_day));
   if (session.meeting_time) summaryParts.push(formatMeetingTime(session.meeting_time));
-  const pageChip = view === 'summary' ? 'Samenvatting' : view === 'availability' ? 'Planning' : 'Spelkeuze';
+  const pageChip = view === 'summary' ? 'Klaar!' : view === 'availability' ? 'Planning' : 'Spelkeuze';
   const isPlanningView = view === 'availability';
   const isGameView = ['rating', 'results', 'chosen_game'].includes(view);
   const openGameChoice = () => {
@@ -1149,7 +1153,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           <section className="page-card page-card-peach p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="max-w-3xl">
-                <p className="page-chip w-fit">Klaar</p>
+                <p className="page-chip w-fit">Klaar!</p>
                 <h2 className="mt-3 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Je hoeft nu niets meer te doen.</h2>
                 <p className="mt-3 text-base leading-7 text-slate-700">
                   Je antwoorden zijn opgeslagen. Als de organisator later de datum vastlegt of iemand nieuwe spellen toevoegt waar jij op moet stemmen, sturen we je via deze link automatisch naar de juiste stap.
