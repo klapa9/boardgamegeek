@@ -68,10 +68,6 @@ export default async function HomePage() {
 
       <div className="border-b-4 border-slate-950 bg-[#172036] py-3 text-[#fff7df]">
         <div className="mx-auto flex max-w-6xl min-w-0 items-center gap-3 px-4 sm:px-6">
-          <div className="inline-flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-950 bg-[#ff5a36] px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-white sm:px-4 sm:text-xs sm:tracking-[0.18em]">
-            <Dice5 size={16} className="shrink-0" />
-            <span>boardgamegeek.be</span>
-          </div>
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="home-marquee flex min-w-max gap-6 whitespace-nowrap font-poster text-base uppercase tracking-[0.18em] sm:text-lg sm:tracking-[0.2em]">
               {Array.from({ length: 8 }).map((_, index) => (
@@ -87,12 +83,12 @@ export default async function HomePage() {
           <>
             <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
               <div className="flex items-center gap-2 border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:gap-3 sm:px-6">
-                <div className="home-float inline-flex min-w-0 flex-1 items-center rounded-full border-2 border-slate-950 bg-[#ff5a36] px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-white sm:px-4 sm:py-1 sm:text-xs sm:tracking-[0.18em]">
-                  <span className="[overflow-wrap:anywhere]">boardgamegeek.be</span>
-                </div>
                 <div className="inline-flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-700 sm:text-xs sm:tracking-[0.18em]">
                   <CircleAlert size={16} />
                   <span>ingelogd</span>
+                </div>
+                <div className="home-float inline-flex min-w-0 flex-1 items-center rounded-full border-2 border-slate-950 bg-[#ff5a36] px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-white sm:px-4 sm:py-1 sm:text-xs sm:tracking-[0.18em]">
+                  <span className="[overflow-wrap:anywhere]">boardgamegeek.be</span>
                 </div>
               </div>
 

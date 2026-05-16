@@ -26,6 +26,7 @@ export type CollectionSeed = {
 
 export type BggThingDetails = {
   bggId: number;
+  itemType: string | null;
   title: string;
   yearPublished: number | null;
   thumbnailUrl: string | null;
@@ -190,6 +191,7 @@ export function parseThingDetails(xml: string): BggThingDetails[] {
 
       return {
         bggId,
+        itemType: typeof item.type === 'string' ? item.type : null,
         title: primaryName(item.name),
         yearPublished: num((item.yearpublished as Record<string, unknown> | undefined)?.value),
         thumbnailUrl: text(item.thumbnail),
@@ -211,5 +213,22 @@ export function parseThingDetails(xml: string): BggThingDetails[] {
       } satisfies BggThingDetails;
     })
     .filter((item): item is BggThingDetails => Boolean(item));
+}
+
+export function parseThingTypes(xml: string): Array<{ bggId: number; itemType: string | null }> {
+  const parsed = parser.parse(xml);
+  const items = asArray<Record<string, unknown>>(parsed.items?.item as Record<string, unknown>[] | Record<string, unknown> | undefined);
+
+  return items
+    .map((item) => {
+      const bggId = Number(item.id);
+      if (!Number.isFinite(bggId)) return null;
+
+      return {
+        bggId,
+        itemType: typeof item.type === 'string' ? item.type : null
+      };
+    })
+    .filter((item): item is { bggId: number; itemType: string | null } => Boolean(item));
 }
 

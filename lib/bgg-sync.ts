@@ -32,6 +32,7 @@ function delay(ms: number) {
 function toThingFallback(seed: CollectionSeed): BggThingDetails {
   return {
     bggId: seed.bggId,
+    itemType: 'boardgame',
     title: seed.title,
     yearPublished: seed.yearPublished,
     thumbnailUrl: null,
