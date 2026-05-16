@@ -138,7 +138,7 @@ function AddGamesModal({ group, saving, selectedIds, onClose, onSave, onSelected
             selectedIds={selectedIds}
             onSelectedIdsChange={onSelectedIdsChange}
             title={`Spellen voor ${group.name}`}
-            subtitle="Dit werkt hetzelfde als bij spelkeuze: je kan zoeken, filteren en meerdere spellen selecteren."
+            subtitle="Je kan zoeken, filteren en meerdere spellen selecteren."
             emptyText="Geen spellen beschikbaar."
             maxHeightClassName="max-h-[50vh]"
           />
