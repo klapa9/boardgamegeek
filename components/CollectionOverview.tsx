@@ -640,7 +640,7 @@ export default function CollectionOverview() {
                         <div>
                           <p className="text-sm font-black text-slate-900">Zet dit spel in deze groepen:</p>
                           <p className="mt-1 text-xs text-slate-500">
-                            Klik meerdere groepen aan of uit. Dit venster blijft open terwijl je kiest.
+                            Klik meerdere groepen aan of uit.
                           </p>
                         </div>
                         <button
