@@ -128,6 +128,15 @@ export type CollectionSyncStateDto = {
   processed_games: number;
 };
 
+export type FilteredBggExpansionDto = {
+  id: string;
+  bgg_id: number;
+  title: string;
+  year_published: number | null;
+  thumbnail_url: string | null;
+  image_url: string | null;
+};
+
 export type AvailabilityDto = {
   player_id: string;
   day: string;
@@ -156,6 +165,7 @@ export type CollectionBundle = {
   groups: CollectionGroupDto[];
   added_games: CollectionGameDto[];
   removed_games: CollectionGameDto[];
+  filtered_bgg_expansions: FilteredBggExpansionDto[];
   sync_state: CollectionSyncStateDto | null;
 };
 

@@ -2,7 +2,7 @@ import { Availability, CollectionSyncState, Game, Player, Rating, Session, Sessi
 import { collectionGameCategoryNames, collectionGameMechanicNames, CollectionGameWithRelations } from '@/lib/collection-games';
 import { CollectionGroupWithRelations } from '@/lib/collection-groups';
 import { cachedImageUrl } from '@/lib/image-cache';
-import { BggRankDto, CommunityPlayerPollDto } from '@/lib/types';
+import { BggRankDto, CommunityPlayerPollDto, FilteredBggExpansionDto } from '@/lib/types';
 
 function asPollDtos(value: unknown): CommunityPlayerPollDto[] {
   if (!Array.isArray(value)) return [];
@@ -48,6 +48,40 @@ function asRankDtos(value: unknown): BggRankDto[] {
       } satisfies BggRankDto;
     })
     .filter((entry): entry is BggRankDto => Boolean(entry));
+}
+
+export function asFilteredBggExpansionDtos(value: unknown): FilteredBggExpansionDto[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const row = entry as Record<string, unknown>;
+      const bggId = Number(row.bggId);
+      if (!Number.isFinite(bggId)) return null;
+
+      const yearPublished = row.yearPublished === null || typeof row.yearPublished === 'undefined'
+        ? null
+        : Number(row.yearPublished);
+
+      return {
+        id: `bgg-expansion-${bggId}`,
+        bgg_id: bggId,
+        title: String(row.title ?? 'Onbekende uitbreiding'),
+        year_published: Number.isFinite(yearPublished) ? yearPublished : null,
+        thumbnail_url: cachedImageUrl(
+          typeof row.thumbnailUrl === 'string' ? row.thumbnailUrl : typeof row.imageUrl === 'string' ? row.imageUrl : null,
+          'thumb',
+          bggId
+        ),
+        image_url: cachedImageUrl(
+          typeof row.imageUrl === 'string' ? row.imageUrl : typeof row.thumbnailUrl === 'string' ? row.thumbnailUrl : null,
+          'full',
+          bggId
+        )
+      } satisfies FilteredBggExpansionDto;
+    })
+    .filter((entry): entry is FilteredBggExpansionDto => Boolean(entry));
 }
 
 export function serializeDateOption(option: SessionDateOption) {

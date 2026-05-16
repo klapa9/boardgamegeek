@@ -7,7 +7,7 @@ import { collectionGameInclude } from '@/lib/collection-games';
 import { deriveCollectionPresentation } from '@/lib/collection-state';
 import { ensureCollectionTaxonomyMaps, replaceCollectionGameTaxonomy } from '@/lib/collection-taxonomy';
 import { preloadBggThumbnail } from '@/lib/image-cache';
-import { serializeCollectionGame, serializeCollectionGroup, serializeCollectionSyncState } from '@/lib/serializers';
+import { asFilteredBggExpansionDtos, serializeCollectionGame, serializeCollectionGroup, serializeCollectionSyncState } from '@/lib/serializers';
 import { getCurrentUserProfile } from '@/lib/user-profile';
 
 function normalizeIdList(value: unknown) {
@@ -76,6 +76,7 @@ export async function GET() {
     groups: groups.map(serializeCollectionGroup),
     added_games: addedGames.map(serializeCollectionGame),
     removed_games: removedGames.map(serializeCollectionGame),
+    filtered_bgg_expansions: asFilteredBggExpansionDtos(syncState?.filteredBggExpansions),
     sync_state: serializeCollectionSyncState(syncState) ?? {
       bgg_username: null,
       last_synced_at: null,

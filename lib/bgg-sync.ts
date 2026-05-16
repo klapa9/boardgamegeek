@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { CollectionSeed, BggThingDetails, parseCollectionSeeds, parseThingDetails } from '@/lib/bgg-xml';
 import { fetchBgg } from '@/lib/bgg-api';
+import { isBggExpansion } from '@/lib/bgg-filters';
 import { deriveCollectionPresentation } from '@/lib/collection-state';
 import { ensureCollectionTaxonomyMaps, replaceCollectionGameTaxonomy } from '@/lib/collection-taxonomy';
 import { preloadBggThumbnail } from '@/lib/image-cache';
@@ -24,6 +25,13 @@ export type StartCollectionSyncResult = {
 
 const activeSyncPromises = new Map<string, Promise<void>>();
 type SyncStatePatch = Partial<Prisma.CollectionSyncStateUncheckedCreateInput>;
+type FilteredBggExpansionRecord = {
+  bggId: number;
+  title: string;
+  yearPublished: number | null;
+  thumbnailUrl: string | null;
+  imageUrl: string | null;
+};
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -293,6 +301,35 @@ async function persistCollectionGames(userProfileId: string, username: string, g
   });
 }
 
+function toFilteredExpansionRecord(game: BggThingDetails): FilteredBggExpansionRecord {
+  return {
+    bggId: game.bggId,
+    title: game.title,
+    yearPublished: game.yearPublished,
+    thumbnailUrl: game.thumbnailUrl,
+    imageUrl: game.imageUrl
+  };
+}
+
+async function persistSyncResults(
+  userProfileId: string,
+  username: string,
+  games: BggThingDetails[],
+  filteredExpansions: FilteredBggExpansionRecord[]
+) {
+  await persistCollectionGames(userProfileId, username, games);
+
+  await prisma.collectionSyncState.update({
+    where: { userProfileId },
+    data: {
+      filteredBggExpansions: filteredExpansions as Prisma.InputJsonValue,
+      lastStatus: filteredExpansions.length
+        ? `${games.length} basisspellen gesynchroniseerd. ${filteredExpansions.length} uitbreiding${filteredExpansions.length === 1 ? '' : 'en'} weggefilterd.`
+        : `${games.length} spellen gesynchroniseerd.`
+    }
+  });
+}
+
 async function runCollectionSync(userProfileId: string, username: string, xml?: string) {
   const startedAt = new Date();
   await updateSyncState(userProfileId, {
@@ -331,6 +368,7 @@ async function runCollectionSync(userProfileId: string, username: string, xml?: 
     });
 
     const detailedGames: BggThingDetails[] = [];
+    const filteredExpansions: FilteredBggExpansionRecord[] = [];
 
     for (let index = 0; index < seeds.length; index += BGG_THING_BATCH_SIZE) {
       const batchSeeds = seeds.slice(index, index + BGG_THING_BATCH_SIZE);
@@ -348,7 +386,13 @@ async function runCollectionSync(userProfileId: string, username: string, xml?: 
           : toThingFallback(seed);
       });
 
-      detailedGames.push(...mergedBatch);
+      const visibleBatch = mergedBatch.filter((game) => !isBggExpansion(game));
+      const filteredBatch = mergedBatch
+        .filter((game) => isBggExpansion(game))
+        .map(toFilteredExpansionRecord);
+
+      detailedGames.push(...visibleBatch);
+      filteredExpansions.push(...filteredBatch);
       await Promise.all(mergedBatch.map((game) => preloadBggThumbnail(game.bggId, game.thumbnailUrl ?? game.imageUrl)));
 
       await updateSyncState(userProfileId, {
@@ -363,7 +407,7 @@ async function runCollectionSync(userProfileId: string, username: string, xml?: 
       }
     }
 
-    await persistCollectionGames(userProfileId, username, detailedGames);
+    await persistSyncResults(userProfileId, username, detailedGames, filteredExpansions);
   } catch (error) {
     const message = error instanceof Error ? error.message : BGG_TEMPORARY_ERROR_MESSAGE;
     await updateSyncState(userProfileId, {

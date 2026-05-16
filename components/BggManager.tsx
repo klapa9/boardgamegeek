@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
-import { CollectionBundle, CollectionGameDto } from '@/lib/types';
+import { CollectionBundle, CollectionGameDto, FilteredBggExpansionDto } from '@/lib/types';
 
-function listImageUrl(game: CollectionGameDto) {
+type BggListItem = Pick<CollectionGameDto, 'title' | 'bgg_id' | 'year_published' | 'thumbnail_url' | 'image_url' | 'id'>
+  | FilteredBggExpansionDto;
+
+function listImageUrl(game: Pick<BggListItem, 'thumbnail_url' | 'image_url'>) {
   return game.thumbnail_url ?? game.image_url;
 }
 
@@ -17,7 +20,7 @@ function formatSyncMoment(value: string | null) {
   }).format(new Date(value));
 }
 
-function DiffList({ title, games, emptyText }: { title: string; games: CollectionGameDto[]; emptyText: string }) {
+function DiffList({ title, games, emptyText }: { title: string; games: BggListItem[]; emptyText: string }) {
   return (
     <section className="page-subcard p-4">
       <div className="flex items-center justify-between gap-3">
@@ -60,6 +63,7 @@ export default function BggManager() {
   const [storedUsername, setStoredUsername] = useState<string | null>(null);
   const [addedGames, setAddedGames] = useState<CollectionGameDto[]>([]);
   const [removedGames, setRemovedGames] = useState<CollectionGameDto[]>([]);
+  const [filteredExpansions, setFilteredExpansions] = useState<FilteredBggExpansionDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -73,6 +77,7 @@ export default function BggManager() {
     setUsername(data.sync_state?.bgg_username ?? '');
     setAddedGames(data.added_games);
     setRemovedGames(data.removed_games);
+    setFilteredExpansions(data.filtered_bgg_expansions);
     setLastSyncedAt(data.sync_state?.last_synced_at ?? null);
     setLastStatus(data.sync_state?.last_status ?? null);
     setSyncing(Boolean(data.sync_state?.sync_in_progress));
@@ -177,6 +182,14 @@ export default function BggManager() {
             title="Verwijderd op deze site, nog wel in BGG"
             games={removedGames}
             emptyText="Er zijn momenteel geen lokale verwijderingen die afwijken van BGG."
+          />
+        </div>
+
+        <div className="mt-4">
+          <DiffList
+            title="Weggefilterde uitbreidingen uit je BGG-collectie"
+            games={filteredExpansions}
+            emptyText="Er zijn momenteel geen uitbreidingen weggefilterd uit je BGG-collectie."
           />
         </div>
       </section>

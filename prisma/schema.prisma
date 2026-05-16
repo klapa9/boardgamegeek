@@ -172,6 +172,7 @@ model CollectionSyncState {
   id             String   @id @default(cuid())
   userProfileId  String?  @unique
   bggUsername    String?
+  filteredBggExpansions Json?
   lastSyncedAt   DateTime?
   lastStatus     String?
   syncInProgress Boolean  @default(false)
