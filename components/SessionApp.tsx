@@ -43,30 +43,31 @@ type InviteTemplateInput = {
   chosenGameTitle: string;
   url: string;
   gameListWithOverflow: string;
+  meetingTimeLabel: string;
 };
 
-function inviteTemplateGameFixedDateFixed({ title, dateLabel, chosenGameTitle, url }: InviteTemplateInput) {
-  return `${title}\n\nOp ${dateLabel} spelen we het spel: ${chosenGameTitle}.\n\nBevestig je aanwezigheid via:\n${url}`;
+function inviteTemplateGameFixedDateFixed({ title, dateLabel, chosenGameTitle, meetingTimeLabel, url }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt vast: ${dateLabel}${meetingTimeLabel}.\nWe spelen ${chosenGameTitle}.\n\nBevestig je aanwezigheid via:\n${url}`;
 }
 
-function inviteTemplateGameFixedDateOpen({ title, dateOptions, chosenGameTitle, url }: InviteTemplateInput) {
-  return `${title}\n\nWe gaan ${chosenGameTitle} spelen. Wie kan wanneer?\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
+function inviteTemplateGameFixedDateOpen({ title, dateOptions, chosenGameTitle, meetingTimeLabel, url }: InviteTemplateInput) {
+  return `${title}\n\nWe spelen ${chosenGameTitle}, maar de datum ligt nog niet vast${meetingTimeLabel}.\nKies hieronder wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
 }
 
-function inviteTemplateGameOpenDateFixedWithList({ title, dateLabel, url, gameListWithOverflow }: InviteTemplateInput) {
-  return `${title}\n\nOp ${dateLabel} ligt de datum vast. Welk spel zie jij zitten?\n\nGeef je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
+function inviteTemplateGameOpenDateFixedWithList({ title, dateLabel, meetingTimeLabel, url, gameListWithOverflow }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt vast: ${dateLabel}${meetingTimeLabel}.\nOver het spel wordt nog gestemd.\n\nGeef je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
 }
 
-function inviteTemplateGameOpenDateOpenWithList({ title, dateOptions, url, gameListWithOverflow }: InviteTemplateInput) {
-  return `${title}\n\nWie kan wanneer?\n${dateOptions}\n\nGeef je beschikbaarheid en je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
+function inviteTemplateGameOpenDateOpenWithList({ title, dateOptions, meetingTimeLabel, url, gameListWithOverflow }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt nog niet vast${meetingTimeLabel} en over het spel wordt ook nog gestemd.\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid en spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
 }
 
-function inviteTemplateNoPreselectDateFixed({ title, dateLabel, url }: InviteTemplateInput) {
-  return `${title}\n\nOp ${dateLabel} ligt de datum vast.\n\nBevestig je aanwezigheid via:\n${url}`;
+function inviteTemplateNoPreselectDateFixed({ title, dateLabel, meetingTimeLabel, url }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt vast: ${dateLabel}${meetingTimeLabel}.\nHet spel kiezen we niet op voorhand.\n\nBevestig je aanwezigheid via:\n${url}`;
 }
 
-function inviteTemplateNoPreselectDateOpen({ title, dateOptions, url }: InviteTemplateInput) {
-  return `${title}\n\nWie kan wanneer?\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
+function inviteTemplateNoPreselectDateOpen({ title, dateOptions, meetingTimeLabel, url }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt nog niet vast${meetingTimeLabel}.\nHet spel kiezen we niet op voorhand.\n\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
 }
 
 const SCORE_BADGES: Record<number, { label: string; className: string }> = {
@@ -145,6 +146,55 @@ function formatMeetingTime(value: string) {
 
 function shareSupported() {
   return typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+}
+
+function formatDateOptionsList(dateOptions: SessionDto['date_options']) {
+  return dateOptions.map((option) => `${LIST_BULLET} ${formatDate(option.date)}`).join('\n') || `${LIST_BULLET} datum nog te bepalen`;
+}
+
+function formatGameListWithOverflow(games: GameDto[]) {
+  const gameList = games.slice(0, 8).map((game) => `${LIST_BULLET} ${game.title}`).join('\n');
+  const extraGames = games.length > 8 ? `\n${LIST_BULLET} ... en nog ${games.length - 8} spel${games.length - 8 === 1 ? '' : 'len'}` : '';
+  return `${gameList}${extraGames}`;
+}
+
+function buildInviteTextFromSession(session: SessionDto, games: GameDto[], url: string) {
+  const dateLabel = session.chosen_day ? formatDate(session.chosen_day) : 'datum nog te bepalen';
+  const dateOptions = formatDateOptionsList(session.date_options);
+  const chosenGame = session.chosen_game_id ? games.find((game) => game.id === session.chosen_game_id) ?? null : null;
+  const input: InviteTemplateInput = {
+    title: session.title || 'Spelavond',
+    dateLabel,
+    dateOptions,
+    chosenGameTitle: chosenGame?.title ?? 'het gekozen spel',
+    url,
+    gameListWithOverflow: formatGameListWithOverflow(games),
+    meetingTimeLabel: session.meeting_time ? ` om ${formatMeetingTime(session.meeting_time)}` : ''
+  };
+
+  const dateIsFixed = Boolean(session.locked && session.chosen_day);
+  const gameSelectionState = session.game_selection_mode === 'no_preselect'
+    ? 'no_preselect'
+    : chosenGame
+      ? 'game_fixed'
+      : 'vote_game';
+
+  if (dateIsFixed && gameSelectionState === 'game_fixed') {
+    return inviteTemplateGameFixedDateFixed(input);
+  }
+  if (!dateIsFixed && gameSelectionState === 'game_fixed') {
+    return inviteTemplateGameFixedDateOpen(input);
+  }
+  if (dateIsFixed && gameSelectionState === 'vote_game') {
+    return inviteTemplateGameOpenDateFixedWithList(input);
+  }
+  if (!dateIsFixed && gameSelectionState === 'vote_game') {
+    return inviteTemplateGameOpenDateOpenWithList(input);
+  }
+  if (dateIsFixed) {
+    return inviteTemplateNoPreselectDateFixed(input);
+  }
+  return inviteTemplateNoPreselectDateOpen(input);
 }
 
 function playerDateKey(playerId: string, date: string) {
@@ -255,8 +305,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       }
       setError(null);
       if (showMessage) setMessage('Alles is bijgewerkt.');
+      return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sessie laden mislukt.');
+      return null;
     } finally {
       setLoading(false);
     }
@@ -327,7 +379,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     if (searchParams.get('share') !== 'invite') return;
     if (!viewerIsOrganizer || view !== 'summary') return;
     initialShareIntentHandled.current = true;
-    openShareModal('Spelavond delen', buildInviteText());
+    void shareInvite();
     clearShareIntent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, session, view, viewerIsOrganizer]);
@@ -805,43 +857,6 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
-  function buildInviteText() {
-    const url = sessionUrl(window.location.origin, sessionId, session?.title);
-    const dateLabel = session?.chosen_day ? formatDate(session.chosen_day) : 'datum nog te bepalen';
-    const dateOptions = dateRows.map((row) => `${LIST_BULLET} ${row.label}`).join('\n') || `${LIST_BULLET} datum nog te bepalen`;
-    const chosenGame = session?.chosen_game_id ? games.find((game) => game.id === session.chosen_game_id) ?? null : null;
-    const chosenGameTitle = chosenGame?.title ?? 'dit spel';
-    const gameList = games.slice(0, 8).map((game) => `${LIST_BULLET} ${game.title}`).join('\n');
-    const extraGames = games.length > 8 ? `\n${LIST_BULLET} ... en nog ${games.length - 8} spel${games.length - 8 === 1 ? '' : 'len'}` : '';
-    const hasGameOptions = Boolean(gameList);
-    const gameListWithOverflow = `${gameList}${extraGames}`;
-    const input: InviteTemplateInput = {
-      title: session?.title ?? 'Spelavond',
-      dateLabel,
-      dateOptions,
-      chosenGameTitle,
-      url,
-      gameListWithOverflow
-    };
-
-    if (chosenGame && session?.locked) {
-      return inviteTemplateGameFixedDateFixed(input);
-    }
-    if (chosenGame) {
-      return inviteTemplateGameFixedDateOpen(input);
-    }
-    if (session?.locked && hasGameOptions) {
-      return inviteTemplateGameOpenDateFixedWithList(input);
-    }
-    if (!session?.locked && hasGameOptions) {
-      return inviteTemplateGameOpenDateOpenWithList(input);
-    }
-    if (session?.locked) {
-      return inviteTemplateNoPreselectDateFixed(input);
-    }
-    return inviteTemplateNoPreselectDateOpen(input);
-  }
-
   function clearShareIntent() {
     const params = new URLSearchParams(searchParams.toString());
     if (!params.has('share')) return;
@@ -855,8 +870,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     setError(null);
   }
 
-  function shareInvite() {
-    openShareModal('Spelavond delen', buildInviteText());
+  async function shareInvite() {
+    if (!session) return;
+    setError(null);
+    const latest = await refresh(false);
+    const sourceSession = latest?.session ?? session;
+    const sourceGames = latest?.games ?? games;
+    const url = sessionUrl(window.location.origin, sessionId, sourceSession.title);
+    openShareModal('Spelavond delen', buildInviteTextFromSession(sourceSession, sourceGames, url));
   }
 
   function closeShareModal() {

@@ -161,6 +161,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         data: {
           title,
           meetingTime,
+          planningMode,
+          gameSelectionMode,
           chosenDay,
           chosenGameId: null,
           locked

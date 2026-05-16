@@ -28,6 +28,8 @@ export type SessionDto = {
   title: string;
   meeting_time: string;
   organizer_user_profile_id: string | null;
+  planning_mode: 'fixed_day' | 'vote_dates';
+  game_selection_mode: 'no_preselect' | 'host_pick' | 'players_pick';
   chosen_day: string | null;
   chosen_game_id: string | null;
   locked: boolean;

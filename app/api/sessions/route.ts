@@ -81,6 +81,8 @@ export async function POST(request: Request) {
       title,
       meetingTime,
       organizerUserProfileId: viewerProfile.id,
+      planningMode,
+      gameSelectionMode,
       chosenDay,
       locked,
       dateOptions: { create: normalizedDateOptions.map((date) => ({ date })) },

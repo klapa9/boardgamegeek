@@ -13,6 +13,8 @@ model Session {
   meetingTime  String   @default("20:00")
   adminToken   String   @unique @default(cuid())
   organizerUserProfileId String?
+  planningMode String   @default("vote_dates")
+  gameSelectionMode String @default("players_pick")
   chosenDay    String?
   chosenGameId String?
   locked       Boolean  @default(false)

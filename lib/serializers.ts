@@ -99,6 +99,12 @@ export function serializeSession(session: Session, dateOptions: SessionDateOptio
     title: session.title,
     meeting_time: session.meetingTime,
     organizer_user_profile_id: session.organizerUserProfileId,
+    planning_mode: session.planningMode === 'fixed_day' ? 'fixed_day' : 'vote_dates',
+    game_selection_mode: session.gameSelectionMode === 'host_pick'
+      ? 'host_pick'
+      : session.gameSelectionMode === 'no_preselect'
+        ? 'no_preselect'
+        : 'players_pick',
     chosen_day: session.chosenDay,
     chosen_game_id: session.chosenGameId,
     locked: session.locked,

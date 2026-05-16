@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Search, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { BggSearchResult, CollectionBundle, CollectionGameDto } from '@/lib/types';
@@ -28,6 +28,7 @@ function formatMeta(game: CollectionGameDto) {
 export default function CollectionManager() {
   const [games, setGames] = useState<CollectionGameDto[]>([]);
   const [query, setQuery] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BggSearchResult[]>([]);
   const [searchPage, setSearchPage] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -37,7 +38,6 @@ export default function CollectionManager() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncedUsername, setSyncedUsername] = useState<string | null>(null);
-  const searchTimer = useRef<number | null>(null);
 
   async function loadBundle() {
     const data = await api<CollectionBundle>('/api/collection/games');
@@ -52,29 +52,31 @@ export default function CollectionManager() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
+  async function searchBgg(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     const trimmedQuery = query.trim();
-    if (searchTimer.current) window.clearTimeout(searchTimer.current);
     setSearchPage(0);
+    setError(null);
 
     if (trimmedQuery.length < 2) {
+      setSubmittedQuery('');
       setSearchResults([]);
       setSearching(false);
       return;
     }
 
+    setSubmittedQuery(trimmedQuery);
     setSearching(true);
-    searchTimer.current = window.setTimeout(() => {
-      api<{ results: BggSearchResult[] }>(`/api/bgg/search?q=${encodeURIComponent(trimmedQuery)}`)
-        .then((data) => setSearchResults(data.results))
-        .catch((err) => setError(err instanceof Error ? err.message : 'Zoeken op BoardGameGeek mislukt.'))
-        .finally(() => setSearching(false));
-    }, 250);
-
-    return () => {
-      if (searchTimer.current) window.clearTimeout(searchTimer.current);
-    };
-  }, [query]);
+    try {
+      const data = await api<{ results: BggSearchResult[] }>(`/api/bgg/search?q=${encodeURIComponent(trimmedQuery)}`);
+      setSearchResults(data.results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Zoeken op BoardGameGeek mislukt.');
+    } finally {
+      setSearching(false);
+    }
+  }
 
   const filteredGames = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -163,16 +165,26 @@ export default function CollectionManager() {
           </div>
         )}
 
-        <div className="relative mt-4">
-          <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Zoek bijvoorbeeld Catan"
-            className="neo-input w-full py-3 pl-9 pr-10"
-          />
-          {searching && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
-        </div>
+        <form onSubmit={searchBgg} className="mt-4 flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Zoek bijvoorbeeld Catan"
+              enterKeyHint="search"
+              className="neo-input w-full py-3 pl-9 pr-10"
+            />
+            {searching && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
+          </div>
+          <button
+            type="submit"
+            disabled={searching || query.trim().length < 2}
+            className="neo-button neo-button-primary shrink-0 disabled:opacity-60"
+          >
+            Zoek
+          </button>
+        </form>
 
         <div className="mt-4 grid gap-4 xl:grid-cols-2">
           <div className="page-subcard p-4">
@@ -183,8 +195,8 @@ export default function CollectionManager() {
               </span>
             </div>
             <div className="mt-3 space-y-2">
-              {!query.trim() || query.trim().length < 2 ? (
-                <div className="neo-muted-panel text-center text-slate-500">Typ minstens 2 letters om BoardGameGeek te doorzoeken.</div>
+              {!submittedQuery ? (
+                <div className="neo-muted-panel text-center text-slate-500">Typ minstens 2 letters en druk op Enter of op Zoek om BoardGameGeek te doorzoeken.</div>
               ) : visibleBggResults.length ? (
                 visibleBggResults.map((result) => {
                   const alreadyInCollection = gameIdsInCollection.has(result.bggId);

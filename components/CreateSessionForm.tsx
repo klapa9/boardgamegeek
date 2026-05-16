@@ -41,16 +41,6 @@ function sessionDraftKey(editSessionId?: string | null) {
   return editSessionId ? `${SESSION_DRAFT_KEY}-${editSessionId}` : SESSION_DRAFT_KEY;
 }
 
-function inferPlanningMode(dateOptions: string[]) {
-  return dateOptions.length === 1 ? 'fixed_day' : 'vote_dates';
-}
-
-function inferGameSelectionMode(gameCount: number, chosenGameId: string | null): GameSelectionMode {
-  if (!gameCount) return 'no_preselect';
-  if (gameCount === 1 && chosenGameId) return 'host_pick';
-  return 'players_pick';
-}
-
 function readSessionDraft(draftKey: string): SessionDraft | null {
   try {
     const raw = localStorage.getItem(draftKey);
@@ -126,8 +116,8 @@ export default function CreateSessionForm({
           const defaultMeetingTime = readLastMeetingTime();
           const nextDateOptions = data.session.date_options.map((option) => option.date);
           setTitle(data.session.title.trim() || 'Spelavond');
-          setPlanningMode(inferPlanningMode(nextDateOptions));
-          setGameSelectionMode(inferGameSelectionMode(data.games.length, data.session.chosen_game_id));
+          setPlanningMode(data.session.planning_mode);
+          setGameSelectionMode(data.session.game_selection_mode);
           setMeetingTime(data.session.meeting_time || defaultMeetingTime);
           setDateOptions(nextDateOptions);
           setSelectedIds([]);
