@@ -54,11 +54,11 @@ export default function GameCollectionPicker({
   autoSelectTitles = [],
   autoSelectBggIds = [],
   disabledReason = 'Dit spel staat al in de lijst.',
-  title = 'Kies spellen uit je lokale lijst',
+  title = 'Kies spellen uit je collectie',
   subtitle = 'Je kan meerdere spellen selecteren.',
   emptyText = 'Geen spellen gevonden.',
   maxHeightClassName = 'max-h-80',
-  searchPlaceholder = 'Zoek in lokale spellenlijst'
+  searchPlaceholder = 'Zoek in je collectie...'
 }: GameCollectionPickerProps) {
   const [collection, setCollection] = useState<CollectionGameDto[]>([]);
   const [groups, setGroups] = useState<CollectionGroupDto[]>([]);

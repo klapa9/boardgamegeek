@@ -630,20 +630,6 @@ export default function CollectionOverview() {
                         <p className="mt-1 break-words text-sm leading-5 text-slate-500 [overflow-wrap:anywhere]">
                           {formatMeta(game) || (game.source === 'manual' ? 'Manueel toegevoegd' : 'Geen extra info')}
                         </p>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {gameGroups.length ? (
-                            gameGroups.map((group) => (
-                              <span key={group.id} className="rounded-full bg-[#172036] px-3 py-1 text-xs font-bold text-white">
-                                {group.name}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">
-                              Nog in geen groep
-                            </span>
-                          )}
-                        </div>
                       </div>
                     </div>
                   </button>
