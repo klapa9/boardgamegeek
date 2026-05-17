@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, loadSessionBundle } from '@/lib/api';
-import { sessionPath } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
 import NativeTimeInput from './NativeTimeInput';
@@ -258,7 +257,9 @@ export default function CreateSessionForm({
 
       localStorage.setItem(LAST_MEETING_TIME_KEY, draft.meetingTime);
       localStorage.removeItem(draftKey);
-      if (editSessionId) router.push(sessionPath(editSessionId, draft.title));
+      if (editSessionId) {
+        router.push(`/spelavond/voltooid?id=${editSessionId}&bewerkt=1`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : editSessionId ? 'Sessie wijzigen mislukt.' : 'Sessie maken mislukt.');
     } finally {

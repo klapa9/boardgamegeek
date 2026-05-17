@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Clock3, Dice5, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, CheckCircle2, Clock3, Dice5, Users } from 'lucide-react';
 import { loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
 import { SessionBundle } from '@/lib/types';
@@ -54,10 +55,35 @@ function nextStepText(bundle: SessionBundle) {
   return 'Vul nu zelf je planning in.';
 }
 
-export default function SessionCreatedOverview({ sessionId }: { sessionId: string }) {
+function getPlanningOptions(bundle: SessionBundle) {
+  if (bundle.session.planning_mode === 'fixed_day') {
+    const fixedDate = bundle.session.chosen_day ?? bundle.session.date_options[0]?.date ?? null;
+    return fixedDate ? [formatDate(fixedDate)] : [];
+  }
+
+  return bundle.session.date_options.map((option) => formatDate(option.date));
+}
+
+function getGameOptions(bundle: SessionBundle) {
+  if (bundle.session.game_selection_mode === 'no_preselect') {
+    return [];
+  }
+
+  return bundle.games.map((game) => game.title);
+}
+
+export default function SessionCreatedOverview({
+  sessionId,
+  isEdited = false
+}: {
+  sessionId: string;
+  isEdited?: boolean;
+}) {
+  const router = useRouter();
   const [bundle, setBundle] = useState<SessionBundle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [preparingEdit, setPreparingEdit] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,13 +135,20 @@ export default function SessionCreatedOverview({ sessionId }: { sessionId: strin
   const { session } = bundle;
   const title = session.title.trim() || 'Spelavond';
   const sessionHref = sessionPath(session.id, title);
+  const planningOptions = getPlanningOptions(bundle);
+  const gameOptions = getGameOptions(bundle);
+
+  function continueEditing() {
+    setPreparingEdit(true);
+    router.push(`/spelavond?bewerk=${session.id}`);
+  }
 
   return (
     <div className="mt-8 space-y-5">
       <div>
-        <p className="page-chip w-fit">Nieuwe spelavond</p>
+        <p className="page-chip w-fit">{isEdited ? 'Spelavond gewijzigd' : 'Nieuwe spelavond'}</p>
         <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 md:text-6xl">
-          Stap 4: {title} is aangemaakt!
+          Stap 4: {title} is {isEdited ? 'gewijzigd' : 'aangemaakt'}!
         </h1>
       </div>
 
@@ -137,6 +170,17 @@ export default function SessionCreatedOverview({ sessionId }: { sessionId: strin
               <p className="text-sm font-bold">Planning</p>
             </div>
             <p className="mt-2 text-sm text-slate-700">{planningSummary(bundle)}</p>
+            <div className="mt-3 max-h-32 overflow-y-auto rounded-2xl bg-white/70 p-3">
+              {planningOptions.length ? (
+                <ul className="space-y-1 text-sm text-slate-700">
+                  {planningOptions.map((option) => (
+                    <li key={option}>- {option}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500">Nog geen datumopties beschikbaar.</p>
+              )}
+            </div>
           </article>
 
           <article className="page-subcard-soft p-4">
@@ -145,6 +189,17 @@ export default function SessionCreatedOverview({ sessionId }: { sessionId: strin
               <p className="text-sm font-bold">Spelkeuze</p>
             </div>
             <p className="mt-2 text-sm text-slate-700">{gameSummary(bundle)}</p>
+            <div className="mt-3 max-h-32 overflow-y-auto rounded-2xl bg-white/70 p-3">
+              {gameOptions.length ? (
+                <ul className="space-y-1 text-sm text-slate-700">
+                  {gameOptions.map((option) => (
+                    <li key={option}>- {option}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500">Er zijn geen spelopties vooraf ingesteld.</p>
+              )}
+            </div>
           </article>
 
           <article className="page-subcard-soft p-4">
@@ -169,9 +224,21 @@ export default function SessionCreatedOverview({ sessionId }: { sessionId: strin
         </p>
       </section>
 
-      <Link href={sessionHref} className="neo-button neo-button-primary w-full">
-        Ga naar {title}
-      </Link>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={continueEditing}
+          disabled={preparingEdit}
+          className="neo-button neo-button-ghost w-full disabled:opacity-60"
+        >
+          <ArrowLeft size={18} />
+          {preparingEdit ? 'Instellingen openen...' : 'Toch nog iets wijzigen'}
+        </button>
+
+        <Link href={sessionHref} className="neo-button neo-button-primary w-full">
+          Ga naar {title}
+        </Link>
+      </div>
     </div>
   );
 }

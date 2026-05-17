@@ -1070,9 +1070,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
         <>
           <section className="page-card page-card-lime p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarDays size={20} />
-                <h2 className="text-xl font-black">Planning</h2>
+              <div>
+                <p className="page-chip w-fit">Klaar!</p>
+                <div className="mt-3 flex items-center gap-2">
+                  <CalendarDays size={20} />
+                  <h2 className="text-xl font-black">Planning</h2>
+                </div>
               </div>
               <button type="button" onClick={() => setView('availability')} className="neo-button neo-button-ghost text-sm">
                 Nog iets wijzigen
@@ -1143,9 +1146,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
           <section className="page-card p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
-                <Trophy size={20} />
-                <h2 className="text-xl font-black">Spelkeuze</h2>
+              <div>
+                <p className="page-chip w-fit">Klaar!</p>
+                <div className="mt-3 flex items-center gap-2">
+                  <Trophy size={20} />
+                  <h2 className="text-xl font-black">Spelkeuze</h2>
+                </div>
               </div>
               <button type="button" onClick={openGameChoice} className="neo-button neo-button-ghost text-sm">
                 Nog iets wijzigen
