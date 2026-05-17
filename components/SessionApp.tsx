@@ -1286,7 +1286,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 </div>
               </div>
               <button type="button" onClick={() => setView('availability')} className="neo-button neo-button-ghost text-sm">
-                Nog iets wijzigen
+                Je keuze wijzigen
               </button>
             </div>
             {session.locked && chosenDateRow && (
@@ -1367,11 +1367,9 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2 sm:justify-end">
-                        {questionIndex === 0 && (
-                          <button type="button" onClick={openQuestionChoice} className="neo-button neo-button-ghost text-sm">
-                            Je keuze wijzigen
-                          </button>
-                        )}
+                        <button type="button" onClick={openQuestionChoice} className="neo-button neo-button-ghost text-sm">
+                          Je keuze wijzigen
+                        </button>
                         {question.locked && (
                           <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
                             Vergrendeld
@@ -1415,7 +1413,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 </div>
               </div>
               <button type="button" onClick={openGameChoice} className="neo-button neo-button-ghost text-sm">
-                Nog iets wijzigen
+                Je keuze wijzigen
               </button>
             </div>
 
