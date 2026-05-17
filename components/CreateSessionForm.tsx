@@ -253,7 +253,7 @@ export default function CreateSessionForm({
           })
         });
 
-        router.push(`${sessionPath(data.session.id, draft.title)}?share=invite`);
+        router.push(`/spelavond/voltooid?id=${data.session.id}`);
       }
 
       localStorage.setItem(LAST_MEETING_TIME_KEY, draft.meetingTime);
