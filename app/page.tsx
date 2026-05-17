@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { auth } from '@clerk/nextjs/server';
-import { ArrowRight, CalendarDays, CircleAlert, Dice5, ExternalLink, Library, LogIn, PlusSquare, Users } from 'lucide-react';
+import { ArrowRight, CalendarDays, CircleAlert, Dice5, ExternalLink, Library, LogIn, Users } from 'lucide-react';
 
 const featureCards = [
   {
@@ -24,39 +24,60 @@ const featureCards = [
 ];
 
 const chaoticFacts = [
-  'Maak gemakkelijk een spelavond aan.',
-  'Verdeel je collectie in zelfgemaakte categoriën.',
-  'Laat je spelers op voorhand stemmen welk spel je zal spelen.',
-  'Laat je spelers stemmen voor de ideale datum.'
-];
-
-const signedInActions = [
   {
-    title: 'Mijn spellen',
-    text: 'Beheer je spelcollectie, orden ze slim of synchroniseer van boardgamegeek.com',
-    href: '/collectie',
-    icon: Library,
-    tone: 'bg-[#84d7ff]'
+    eyebrow: 'Spelavond',
+    text: 'Maak gemakkelijk een spelavond aan.',
+    icon: CalendarDays,
+    tone: 'bg-[#84d7ff]',
+    tilt: 'sm:rotate-[-2deg] lg:translate-y-6'
   },
   {
-    title: 'Mijn spelavonden',
-    text: 'Bekijk je spelsessies, voeg spelopties of afspreekdata toe, of wijzig je stem.',
-    href: '/spelavonden',
-    icon: Users,
+    eyebrow: 'Collectie',
+    text: 'Verdeel je collectie in zelfgemaakte categorieen.',
+    icon: Library,
     tone: 'bg-[#d8ff63]'
   },
   {
-    title: 'Nieuwe spelavond maken',
-    text: 'Spreek af met vrienden voor een boardgame, regel de planning of beslis op voorhand over het spel.',
-    href: '/spelavond?nieuw=1',
-    icon: PlusSquare,
-    tone: 'bg-[#ffc7b8]'
+    eyebrow: 'Spelkeuze',
+    text: 'Laat je spelers op voorhand stemmen welk spel je zal spelen.',
+    icon: Dice5,
+    tone: 'bg-[#ffc7b8]',
+    tilt: 'sm:rotate-[-2deg] lg:translate-y-10'
+  },
+  {
+    eyebrow: 'Planning',
+    text: 'Laat je spelers stemmen voor de ideale datum.',
+    icon: Users,
+    tone: 'bg-white',
+    tilt: 'sm:rotate-[2deg] lg:-translate-y-1'
   }
 ];
 
 export default async function HomePage() {
   const { userId } = await auth();
   const primaryHref = userId ? '/spelavonden' : '/sign-in';
+  const marqueeItems = userId
+    ? Array.from({ length: 8 }, () => 'boardgamegeek.be')
+    : [
+        'boardgamegeek.be',
+        'plan samen',
+        'stem op spellen',
+        'kies je datum',
+        'speel sneller',
+        'boardgamegeek.be',
+        'plan samen',
+        'stem op spellen'
+      ];
+  const heroRibbonItems = [
+    'boardgamegeek.be',
+    'spelen plannen',
+    'collectie bruikbaar maken',
+    'vrienden rond de tafel',
+    'boardgamegeek.be',
+    'spelen plannen',
+    'collectie bruikbaar maken',
+    'vrienden rond de tafel'
+  ];
 
   return (
     <main className="home-noise min-h-screen overflow-hidden">
@@ -70,8 +91,8 @@ export default async function HomePage() {
         <div className="mx-auto flex max-w-6xl min-w-0 items-center gap-3 px-4 sm:px-6">
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="home-marquee flex min-w-max gap-6 whitespace-nowrap font-poster text-base uppercase tracking-[0.18em] sm:text-lg sm:tracking-[0.2em]">
-              {Array.from({ length: 8 }).map((_, index) => (
-                <span key={index}>boardgamegeek.be</span>
+              {marqueeItems.map((item, index) => (
+                <span key={`${item}-${index}`}>{item}</span>
               ))}
             </div>
           </div>
@@ -122,58 +143,94 @@ export default async function HomePage() {
                 </div>
               </div>
             </section>
-
-            <section className="mt-6 grid w-full min-w-0 gap-4 lg:grid-cols-3">
-              {signedInActions.map(({ title, text, href, icon: Icon, tone }) => (
-                <Link
-                  key={title}
-                  href={href}
-                  className={`group rounded-[2rem] border-4 border-slate-950 ${tone} p-5 shadow-[0_14px_0_0_#172036] transition hover:translate-y-[-5px] sm:p-6`}
-                >
-                  <div className="flex min-h-[18rem] flex-col justify-between gap-6 sm:min-h-[22rem]">
-                    <div>
-                      <div className="inline-flex rounded-[1.2rem] border-2 border-slate-950 bg-white p-4 text-slate-950">
-                        <Icon size={32} />
-                      </div>
-                      <h2 className="mt-5 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">{title}</h2>
-                      <p className="mt-4 max-w-sm text-base leading-7 text-slate-800 sm:text-lg">{text}</p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </section>
           </>
         ) : (
           <>
-            <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
-              <div className="px-4 py-5 sm:px-6 sm:py-8">
+            <section className="relative w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="home-spotlight absolute left-[-3rem] top-[-4rem] h-52 w-52 rounded-full bg-[#ff5a36]/18 blur-3xl" />
+                <div className="home-orbit absolute right-[-3rem] top-8 h-40 w-40 rounded-full border-2 border-slate-950/20" />
+                <div className="home-orbit-delayed absolute bottom-6 right-[18%] h-24 w-24 rounded-full border-2 border-[#84d7ff]/80" />
+                <div className="home-drift absolute bottom-[-2rem] left-[15%] h-28 w-28 rounded-full bg-[#d8ff63]/22 blur-2xl" />
+              </div>
+
+              <div className="relative grid gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)] lg:gap-8">
                 <div className="max-w-3xl space-y-5">
-                  <div className="home-float inline-flex max-w-full flex-wrap items-center gap-2 rounded-[1.6rem] border-4 border-slate-950 bg-[#ff5a36] px-4 py-3 font-poster text-[clamp(1.8rem,8vw,3.5rem)] uppercase leading-none text-white shadow-[0_10px_0_0_#172036]">
-                    <Dice5 size={24} className="shrink-0" />
-                    <span className="[overflow-wrap:anywhere]">boardgamegeek.be</span>
-                  </div>
+                  <Link
+                    href={primaryHref}
+                    className="group inline-flex max-w-full overflow-hidden rounded-[1.8rem] border-4 border-slate-950 bg-[#ff5a36] text-white shadow-[0_10px_0_0_#172036] transition hover:translate-y-[-3px] hover:bg-[#ff6d4d]"
+                  >
+                    <span className="home-ribbon-track flex min-w-max items-center gap-4 px-4 py-3 font-poster text-[clamp(1.15rem,5vw,2.2rem)] uppercase leading-none">
+                      <Dice5 size={24} className="shrink-0" />
+                      {heroRibbonItems.map((item, index) => (
+                        <span key={`${item}-${index}`} className={index % 2 === 0 ? 'text-white' : 'text-[#fff2bd]'}>
+                          {item}
+                        </span>
+                      ))}
+                    </span>
+                  </Link>
 
-                  <p className="max-w-2xl text-lg leading-7 text-slate-700 sm:text-xl">
-                    Dit is de praktische site waar je bordspelavonden regelt, je
-                    BoardGameGeek-collectie bruikbaar maakt en vrienden sneller rond een tafel krijgt.
-                  </p>
+                  <Link
+                    href={primaryHref}
+                    className="group block rounded-[1.7rem] border-2 border-slate-950 bg-white/80 px-5 py-5 shadow-[0_10px_0_0_rgba(23,32,54,0.08)] transition hover:translate-y-[-4px] hover:bg-white"
+                  >
+                    <p className="max-w-2xl text-lg leading-8 text-slate-700 sm:text-xl">
+                      Dit is de praktische site waar je bordspelavonden regelt, je
+                      BoardGameGeek-collectie bruikbaar maakt en vrienden sneller rond een tafel krijgt.
+                    </p>
+                  </Link>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {chaoticFacts.map((fact) => (
-                      <div key={fact} className="rounded-[1.5rem] border-2 border-slate-950 bg-white px-4 py-3 text-sm font-bold text-slate-800 shadow-soft">
-                        {fact}
-                      </div>
-                    ))}
+                  <div className="flex flex-wrap gap-3">
+                    <Link
+                      href={primaryHref}
+                      className="home-bob inline-flex items-center rounded-full border-2 border-slate-950 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-700 transition hover:translate-y-[-2px]"
+                    >
+                      stemmen zonder chaos
+                    </Link>
+                    <Link
+                      href={primaryHref}
+                      className="home-bob inline-flex items-center rounded-full border-2 border-slate-950 bg-[#d8ff63] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition [animation-delay:180ms] hover:translate-y-[-2px]"
+                    >
+                      collectie meteen bruikbaar
+                    </Link>
+                    <Link
+                      href={primaryHref}
+                      className="home-bob inline-flex items-center rounded-full border-2 border-slate-950 bg-[#84d7ff] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-950 transition [animation-delay:360ms] hover:translate-y-[-2px]"
+                    >
+                      sneller aan tafel
+                    </Link>
                   </div>
 
                   <Link
                     href={primaryHref}
-                    className="inline-flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-[1.8rem] border-4 border-slate-950 bg-[#ff5a36] px-5 py-4 text-center font-poster text-xl uppercase text-white shadow-[0_10px_0_0_#172036] transition hover:translate-y-[-3px] hover:bg-[#ff6d4d] sm:w-auto sm:px-7 sm:text-2xl"
+                    className="inline-flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-[1.8rem] border-4 border-slate-950 bg-[#172036] px-5 py-4 text-center font-poster text-xl uppercase text-[#fff7df] shadow-[0_10px_0_0_#ff5a36] transition hover:translate-y-[-3px] hover:bg-[#25314d] sm:w-auto sm:px-7 sm:text-2xl"
                   >
                     <LogIn size={24} className="shrink-0" />
                     <span className="[overflow-wrap:anywhere]">Log in</span>
                     <ArrowRight size={24} className="shrink-0" />
                   </Link>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {chaoticFacts.map(({ eyebrow, text, icon: Icon, tone, tilt }, index) => (
+                    <Link
+                      key={text}
+                      href={primaryHref}
+                      className={`home-card-sway group relative overflow-hidden rounded-[1.7rem] border-4 border-slate-950 ${tone} p-4 shadow-[0_12px_0_0_#172036] transition hover:translate-y-[-6px] ${tilt ?? ''}`}
+                      style={{ animationDelay: `${index * 180}ms` }}
+                    >
+                      <div className="absolute inset-x-0 top-0 h-2 bg-white/35" />
+                      <div className="flex min-h-[13rem] flex-col justify-between gap-5">
+                        <div className="inline-flex w-fit rounded-[1.2rem] border-2 border-slate-950 bg-white p-3 text-slate-950">
+                          <Icon size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-700">{eyebrow}</p>
+                          <p className="mt-3 text-base font-black leading-7 text-slate-950 sm:text-lg">{text}</p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               </div>
             </section>
@@ -197,12 +254,11 @@ export default async function HomePage() {
                 </Link>
               ))}
             </section>
-
           </>
         )}
 
         <footer className="mt-6 w-full min-w-0 rounded-[2rem] border-4 border-slate-950 bg-[#172036] px-4 py-5 text-[#fff7df] shadow-soft sm:px-6">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#84d7ff]">Officiële verwijzing, geen identiteitsfraude</p>
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#84d7ff]">Officiele verwijzing, geen identiteitsfraude</p>
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-2xl text-sm leading-6 text-[#fff7df]/88">
               Deze site is bedoeld als handige compagnon voor je BoardGameGeek-collectie en spelplanning, maar is niet

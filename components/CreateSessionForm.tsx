@@ -10,6 +10,18 @@ import NativeTimeInput from './NativeTimeInput';
 type CreateSessionFormMode = 'details' | 'planning' | 'games';
 type PlanningMode = 'fixed_day' | 'vote_dates';
 type GameSelectionMode = 'no_preselect' | 'host_pick' | 'players_pick';
+type SessionDraftQuestionOption = {
+  id: string | null;
+  clientId: string;
+  label: string;
+};
+type SessionDraftQuestion = {
+  id: string | null;
+  clientId: string;
+  prompt: string;
+  allowMultiple: boolean;
+  options: SessionDraftQuestionOption[];
+};
 
 type SessionDraft = {
   title: string;
@@ -17,6 +29,7 @@ type SessionDraft = {
   gameSelectionMode: GameSelectionMode;
   meetingTime: string;
   dateOptions: string[];
+  extraQuestions: SessionDraftQuestion[];
 };
 
 const SESSION_DRAFT_KEY = 'gsk-session-draft';
@@ -40,6 +53,33 @@ function sessionDraftKey(editSessionId?: string | null) {
   return editSessionId ? `${SESSION_DRAFT_KEY}-${editSessionId}` : SESSION_DRAFT_KEY;
 }
 
+function createClientId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `draft-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+function createDraftOption(option?: Partial<Pick<SessionDraftQuestionOption, 'id' | 'label'>>) {
+  return {
+    id: option?.id ?? null,
+    clientId: createClientId(),
+    label: option?.label ?? ''
+  } satisfies SessionDraftQuestionOption;
+}
+
+function createDraftQuestion(question?: Partial<Pick<SessionDraftQuestion, 'id' | 'prompt' | 'allowMultiple'>> & { options?: Array<Partial<Pick<SessionDraftQuestionOption, 'id' | 'label'>>> }) {
+  return {
+    id: question?.id ?? null,
+    clientId: createClientId(),
+    prompt: question?.prompt ?? '',
+    allowMultiple: question?.allowMultiple ?? false,
+    options: question?.options?.length
+      ? question.options.map((option) => createDraftOption(option))
+      : [createDraftOption(), createDraftOption()]
+  } satisfies SessionDraftQuestion;
+}
+
 function readSessionDraft(draftKey: string): SessionDraft | null {
   try {
     const raw = localStorage.getItem(draftKey);
@@ -50,12 +90,31 @@ function readSessionDraft(draftKey: string): SessionDraft | null {
     if (parsed.gameSelectionMode !== 'no_preselect' && parsed.gameSelectionMode !== 'host_pick' && parsed.gameSelectionMode !== 'players_pick') return null;
     if (typeof parsed.meetingTime !== 'string' || !isValidTime(parsed.meetingTime)) return null;
     if (!Array.isArray(parsed.dateOptions)) return null;
+    const extraQuestions = Array.isArray(parsed.extraQuestions)
+      ? parsed.extraQuestions.map((question) => {
+        if (!question || typeof question !== 'object') return null;
+        const row = question as Record<string, unknown>;
+        const options = Array.isArray(row.options) ? row.options : [];
+        return createDraftQuestion({
+          id: typeof row.id === 'string' && row.id.trim() ? row.id.trim() : null,
+          prompt: typeof row.prompt === 'string' ? row.prompt : '',
+          allowMultiple: Boolean(row.allowMultiple),
+          options: options
+            .filter((option): option is Record<string, unknown> => Boolean(option) && typeof option === 'object')
+            .map((option) => ({
+              id: typeof option.id === 'string' && option.id.trim() ? option.id.trim() : null,
+              label: typeof option.label === 'string' ? option.label : ''
+            }))
+        });
+      }).filter((question): question is SessionDraftQuestion => Boolean(question))
+      : [];
     return {
       title: parsed.title,
       planningMode: parsed.planningMode,
       gameSelectionMode: parsed.gameSelectionMode,
       meetingTime: parsed.meetingTime,
-      dateOptions: parsed.dateOptions.filter((date): date is string => typeof date === 'string')
+      dateOptions: parsed.dateOptions.filter((date): date is string => typeof date === 'string'),
+      extraQuestions
     };
   } catch {
     return null;
@@ -70,6 +129,65 @@ function formatMeetingTime(value: string) {
   const [hours, minutes] = value.split(':');
   if (!hours || !minutes) return value;
   return minutes === '00' ? `${Number(hours)}u` : `${Number(hours)}u${minutes}`;
+}
+
+function normalizeExtraQuestionsForPayload(extraQuestions: SessionDraftQuestion[]): (
+  | {
+    error: string;
+  }
+  | {
+    payload: Array<{
+      id: string | null;
+      prompt: string;
+      allow_multiple: boolean;
+      options: Array<{
+        id: string | null;
+        label: string;
+      }>;
+    }>;
+  }
+) {
+  const payload: Array<{
+    id: string | null;
+    prompt: string;
+    allow_multiple: boolean;
+    options: Array<{
+      id: string | null;
+      label: string;
+    }>;
+  }> = [];
+
+  for (const [questionIndex, question] of extraQuestions.entries()) {
+    const prompt = question.prompt.trim();
+    if (!prompt) {
+      return { error: `Vraag ${questionIndex + 1} heeft nog geen tekst.` };
+    }
+
+    const options = question.options.map((option) => ({
+      id: option.id,
+      label: option.label.trim()
+    }));
+    if (options.length < 2) {
+      return { error: `Vraag ${questionIndex + 1} moet minstens 2 antwoordopties hebben.` };
+    }
+    if (options.some((option) => !option.label)) {
+      return { error: `Vraag ${questionIndex + 1} heeft nog lege antwoordopties.` };
+    }
+
+    const distinctOptions = new Set(options.map((option) => option.label.toLocaleLowerCase()));
+    if (distinctOptions.size !== options.length) {
+      return { error: `Vraag ${questionIndex + 1} bevat dubbele antwoordopties.` };
+    }
+
+    payload.push({
+      id: question.id,
+      prompt,
+      allow_multiple: question.allowMultiple,
+      options
+    });
+  }
+
+  return { payload };
 }
 
 export default function CreateSessionForm({
@@ -87,6 +205,7 @@ export default function CreateSessionForm({
   const [gameSelectionMode, setGameSelectionMode] = useState<GameSelectionMode>('players_pick');
   const [meetingTime, setMeetingTime] = useState(DEFAULT_MEETING_TIME);
   const [dateOptions, setDateOptions] = useState<string[]>([]);
+  const [extraQuestions, setExtraQuestions] = useState<SessionDraftQuestion[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [initialGameTitles, setInitialGameTitles] = useState<string[]>([]);
   const [initialGameBggIds, setInitialGameBggIds] = useState<number[]>([]);
@@ -120,6 +239,15 @@ export default function CreateSessionForm({
           setGameSelectionMode(data.session.game_selection_mode);
           setMeetingTime(data.session.meeting_time || defaultMeetingTime);
           setDateOptions(nextDateOptions);
+          setExtraQuestions(data.questions.map((question) => createDraftQuestion({
+            id: question.id,
+            prompt: question.prompt,
+            allowMultiple: question.allow_multiple,
+            options: question.options.map((option) => ({
+              id: option.id,
+              label: option.label
+            }))
+          })));
           setSelectedIds([]);
           setInitialGameTitles(data.games.map((game) => game.title));
           setInitialGameBggIds(data.games.map((game) => game.bgg_id).filter((id): id is number => id !== null));
@@ -141,6 +269,7 @@ export default function CreateSessionForm({
         setGameSelectionMode(draft?.gameSelectionMode ?? 'players_pick');
         setMeetingTime(draft?.meetingTime ?? defaultMeetingTime);
         setDateOptions(draft?.dateOptions ?? []);
+        setExtraQuestions(draft?.extraQuestions ?? []);
         setSelectedIds([]);
         setInitialGameTitles([]);
         setInitialGameBggIds([]);
@@ -164,6 +293,7 @@ export default function CreateSessionForm({
       setGameSelectionMode(draft.gameSelectionMode);
       setMeetingTime(draft.meetingTime);
       setDateOptions(draft.dateOptions);
+      setExtraQuestions(draft.extraQuestions);
       setSelectedIds([]);
 
       if (mode === 'games' && editSessionId) {
@@ -216,8 +346,15 @@ export default function CreateSessionForm({
       planningMode,
       gameSelectionMode,
       meetingTime,
-      dateOptions
+      dateOptions,
+      extraQuestions
     };
+
+    const normalizedExtraQuestions = normalizeExtraQuestionsForPayload(draft.extraQuestions);
+    if ('error' in normalizedExtraQuestions) {
+      setError(normalizedExtraQuestions.error);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -236,7 +373,8 @@ export default function CreateSessionForm({
             collection_game_ids: selectedGameIds,
             planning_mode: draft.planningMode,
             game_selection_mode: draft.gameSelectionMode,
-            meeting_time: draft.meetingTime
+            meeting_time: draft.meetingTime,
+            extra_questions: normalizedExtraQuestions.payload
           })
         });
       } else {
@@ -248,7 +386,8 @@ export default function CreateSessionForm({
             collection_game_ids: selectedGameIds,
             planning_mode: draft.planningMode,
             game_selection_mode: draft.gameSelectionMode,
-            meeting_time: draft.meetingTime
+            meeting_time: draft.meetingTime,
+            extra_questions: normalizedExtraQuestions.payload
           })
         });
 
@@ -281,13 +420,20 @@ export default function CreateSessionForm({
       return;
     }
 
+    const normalizedExtraQuestions = normalizeExtraQuestionsForPayload(extraQuestions);
+    if ('error' in normalizedExtraQuestions) {
+      setError(normalizedExtraQuestions.error);
+      return;
+    }
+
     const normalizedDateOptions = planningMode === 'fixed_day' ? (dateOptions[0] ? [dateOptions[0]] : []) : dateOptions;
     const draft: SessionDraft = {
       title: trimmedTitle,
       planningMode,
       gameSelectionMode,
       meetingTime,
-      dateOptions: normalizedDateOptions
+      dateOptions: normalizedDateOptions,
+      extraQuestions
     };
 
     writeSessionDraft(draftKey, draft);
@@ -311,6 +457,54 @@ export default function CreateSessionForm({
     titleInputRef.current?.blur();
   }
 
+  function addExtraQuestion() {
+    setExtraQuestions((current) => [...current, createDraftQuestion()]);
+  }
+
+  function removeExtraQuestion(clientId: string) {
+    setExtraQuestions((current) => current.filter((question) => question.clientId !== clientId));
+  }
+
+  function updateExtraQuestion(clientId: string, updates: Partial<Pick<SessionDraftQuestion, 'prompt' | 'allowMultiple'>>) {
+    setExtraQuestions((current) => current.map((question) => (
+      question.clientId === clientId ? { ...question, ...updates } : question
+    )));
+  }
+
+  function addExtraQuestionOption(questionClientId: string) {
+    setExtraQuestions((current) => current.map((question) => (
+      question.clientId === questionClientId
+        ? { ...question, options: [...question.options, createDraftOption()] }
+        : question
+    )));
+  }
+
+  function updateExtraQuestionOption(questionClientId: string, optionClientId: string, label: string) {
+    setExtraQuestions((current) => current.map((question) => (
+      question.clientId === questionClientId
+        ? {
+          ...question,
+          options: question.options.map((option) => (
+            option.clientId === optionClientId ? { ...option, label } : option
+          ))
+        }
+        : question
+    )));
+  }
+
+  function removeExtraQuestionOption(questionClientId: string, optionClientId: string) {
+    setExtraQuestions((current) => current.map((question) => (
+      question.clientId === questionClientId
+        ? {
+          ...question,
+          options: question.options.length <= 2
+            ? question.options
+            : question.options.filter((option) => option.clientId !== optionClientId)
+        }
+        : question
+    )));
+  }
+
   async function confirmPlanning(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -326,7 +520,8 @@ export default function CreateSessionForm({
       planningMode,
       gameSelectionMode,
       meetingTime,
-      dateOptions: normalizedDateOptions
+      dateOptions: normalizedDateOptions,
+      extraQuestions
     };
 
     writeSessionDraft(draftKey, draft);
@@ -376,6 +571,9 @@ export default function CreateSessionForm({
     ? 'Dit spel staat vast voor deze spelavond.'
     : 'Deze lijst wordt straks de stemlijst van je spelers.';
   const hostPickHasTooManySelected = gameSelectionMode === 'host_pick' && selectedIds.length > 1;
+  const extraQuestionsSummary = extraQuestions.length
+    ? `${extraQuestions.length} extra vraag${extraQuestions.length === 1 ? '' : 'vragen'}`
+    : 'Geen extra vragen';
 
   if (initializing) {
     return <div className="neo-muted-panel mt-8 text-sm text-slate-500">Instellingen laden...</div>;
@@ -483,6 +681,112 @@ export default function CreateSessionForm({
             />
             <p className="mt-2 text-sm text-slate-500">Onthoudt je laatste keuze. Eerste keer: standaard 20:00.</p>
           </div>
+
+          <div className="page-subcard p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-700">Extra vragen voor deelnemers</p>
+                <p className="mt-1 text-sm text-slate-500">Voeg optionele instellingen toe zoals snacks, vervoer of andere praktische keuzes. Deelnemers moeten elke vraag beantwoorden.</p>
+              </div>
+              <button type="button" onClick={addExtraQuestion} className="neo-button neo-button-ghost text-sm">
+                Vraag toevoegen
+              </button>
+            </div>
+
+            {!extraQuestions.length && (
+              <p className="mt-4 rounded-2xl bg-white/80 px-4 py-3 text-sm text-slate-500">
+                Nog geen extra vragen toegevoegd.
+              </p>
+            )}
+
+            {!!extraQuestions.length && (
+              <div className="mt-4 space-y-4">
+                {extraQuestions.map((question, questionIndex) => (
+                  <div key={question.clientId} className="rounded-2xl border border-slate-950/10 bg-white/80 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">Vraag {questionIndex + 1}</p>
+                        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          {question.allowMultiple ? 'Meerdere antwoorden mogelijk' : '1 antwoord mogelijk'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeExtraQuestion(question.clientId)}
+                        className="neo-button neo-button-ghost text-sm text-red-700"
+                      >
+                        Verwijderen
+                      </button>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">Vraagtekst</label>
+                      <input
+                        value={question.prompt}
+                        onChange={(event) => updateExtraQuestion(question.clientId, { prompt: event.target.value })}
+                        className="neo-input"
+                        placeholder="Bijvoorbeeld: Wie brengt snacks mee?"
+                      />
+                    </div>
+
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${!question.allowMultiple ? 'border-slate-950 bg-[#fff2bd]' : 'border-slate-950/10 bg-white/80'}`}>
+                        <input
+                          type="radio"
+                          name={`question-mode-${question.clientId}`}
+                          checked={!question.allowMultiple}
+                          onChange={() => updateExtraQuestion(question.clientId, { allowMultiple: false })}
+                          className="sr-only"
+                        />
+                        <p className="font-bold text-slate-900">1 antwoord</p>
+                        <p className="text-sm text-slate-600">Elke deelnemer kiest precies 1 optie.</p>
+                      </label>
+                      <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${question.allowMultiple ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
+                        <input
+                          type="radio"
+                          name={`question-mode-${question.clientId}`}
+                          checked={question.allowMultiple}
+                          onChange={() => updateExtraQuestion(question.clientId, { allowMultiple: true })}
+                          className="sr-only"
+                        />
+                        <p className="font-bold text-slate-900">Meerdere antwoorden</p>
+                        <p className="text-sm text-slate-600">Deelnemers mogen meerdere opties tegelijk aanduiden.</p>
+                      </label>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      {question.options.map((option, optionIndex) => (
+                        <div key={option.clientId} className="flex items-center gap-2">
+                          <input
+                            value={option.label}
+                            onChange={(event) => updateExtraQuestionOption(question.clientId, option.clientId, event.target.value)}
+                            className="neo-input flex-1"
+                            placeholder={`Antwoordoptie ${optionIndex + 1}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeExtraQuestionOption(question.clientId, option.clientId)}
+                            disabled={question.options.length <= 2}
+                            className="neo-button neo-button-ghost text-sm disabled:opacity-40"
+                          >
+                            Weg
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => addExtraQuestionOption(question.clientId)}
+                      className="neo-button neo-button-ghost mt-3 text-sm"
+                    >
+                      Antwoordoptie toevoegen
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
 
@@ -492,6 +796,7 @@ export default function CreateSessionForm({
           <span className="block">Planning: {planningSummary}</span>
           <span className="block">Spelkeuze: {gameSummary}</span>
           <span className="block">Afspreekuur: {formatMeetingTime(meetingTime)}</span>
+          <span className="block">Extra vragen: {extraQuestionsSummary}</span>
         </div>
       )}
 

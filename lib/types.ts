@@ -37,6 +37,33 @@ export type SessionDto = {
   date_options: PlannerDateDto[];
 };
 
+export type SessionQuestionOptionDto = {
+  id: string;
+  question_id: string;
+  label: string;
+  sort_order: number;
+  created_at: string;
+};
+
+export type SessionQuestionDto = {
+  id: string;
+  session_id: string;
+  prompt: string;
+  allow_multiple: boolean;
+  locked: boolean;
+  chosen_option_id: string | null;
+  sort_order: number;
+  created_at: string;
+  options: SessionQuestionOptionDto[];
+};
+
+export type SessionQuestionAnswerDto = {
+  question_id: string;
+  option_id: string;
+  player_id: string;
+  created_at: string;
+};
+
 export type PlayerDto = {
   id: string;
   session_id: string;
@@ -157,6 +184,8 @@ export type SessionBundle = {
   games: GameDto[];
   availability: AvailabilityDto[];
   ratings: RatingDto[];
+  questions: SessionQuestionDto[];
+  question_answers: SessionQuestionAnswerDto[];
   viewer_profile: UserProfileDto | null;
   viewer_player_id: string | null;
   viewer_is_organizer: boolean;

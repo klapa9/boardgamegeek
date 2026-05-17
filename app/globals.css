@@ -259,6 +259,31 @@ button:disabled { cursor: not-allowed; }
   animation: home-marquee 18s linear infinite;
 }
 
+.home-ribbon-track {
+  animation: home-ribbon 18s linear infinite;
+}
+
+.home-card-sway {
+  animation: home-card-sway 6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.home-orbit {
+  animation: home-orbit 14s linear infinite;
+}
+
+.home-orbit-delayed {
+  animation: home-orbit 10s linear infinite reverse;
+}
+
+.home-drift {
+  animation: home-drift 8s ease-in-out infinite;
+}
+
+.home-spotlight {
+  animation: home-spotlight 7s ease-in-out infinite;
+}
+
 @keyframes home-float {
   0%, 100% { transform: translateY(0) rotate(-2deg); }
   50% { transform: translateY(-8px) rotate(1deg); }
@@ -272,6 +297,34 @@ button:disabled { cursor: not-allowed; }
 @keyframes home-marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
+}
+
+@keyframes home-ribbon {
+  from { transform: translateX(0); }
+  to { transform: translateX(-22%); }
+}
+
+@keyframes home-card-sway {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1.2deg); }
+}
+
+@keyframes home-orbit {
+  0% { transform: rotate(0deg) translateX(0) translateY(0); }
+  25% { transform: rotate(90deg) translateX(-8px) translateY(8px); }
+  50% { transform: rotate(180deg) translateX(0) translateY(16px); }
+  75% { transform: rotate(270deg) translateX(8px) translateY(8px); }
+  100% { transform: rotate(360deg) translateX(0) translateY(0); }
+}
+
+@keyframes home-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(12px, -14px, 0) scale(1.08); }
+}
+
+@keyframes home-spotlight {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(1.18); }
 }
 
 .preference-slider::-moz-range-thumb {

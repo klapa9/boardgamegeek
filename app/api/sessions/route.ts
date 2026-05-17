@@ -7,6 +7,13 @@ import { getCurrentUserProfile } from '@/lib/user-profile';
 
 type PlanningMode = 'fixed_day' | 'vote_dates';
 type GameSelectionMode = 'no_preselect' | 'host_pick' | 'players_pick';
+type NormalizedExtraQuestion = {
+  prompt: string;
+  allowMultiple: boolean;
+  options: {
+    label: string;
+  }[];
+};
 
 function normalizeMeetingTime(value: unknown) {
   const time = String(value ?? '').trim();
@@ -26,6 +33,42 @@ function normalizeGameSelectionMode(value: unknown): GameSelectionMode {
   if (value === 'host_pick') return 'host_pick';
   if (value === 'no_preselect') return 'no_preselect';
   return 'players_pick';
+}
+
+function normalizeExtraQuestions(value: unknown): NormalizedExtraQuestion[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+
+  const normalizedQuestions: NormalizedExtraQuestion[] = [];
+
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') return null;
+    const row = entry as Record<string, unknown>;
+    const prompt = String(row.prompt ?? '').trim();
+    const options = Array.isArray(row.options) ? row.options : null;
+    if (!prompt || !options) return null;
+
+    const normalizedOptions = options.map((option) => {
+      if (!option || typeof option !== 'object') return null;
+      const optionRow = option as Record<string, unknown>;
+      const label = String(optionRow.label ?? '').trim();
+      return label ? { label } : null;
+    });
+
+    if (normalizedOptions.some((option) => option === null)) return null;
+    const validOptions = normalizedOptions.filter((option): option is { label: string } => Boolean(option));
+    const distinctOptions = new Set(validOptions.map((option) => option.label.toLocaleLowerCase()));
+
+    if (validOptions.length < 2 || distinctOptions.size !== validOptions.length) return null;
+
+    normalizedQuestions.push({
+      prompt,
+      allowMultiple: Boolean(row.allow_multiple),
+      options: validOptions
+    });
+  }
+
+  return normalizedQuestions;
 }
 
 function defaultDateOptions() {
@@ -52,6 +95,7 @@ export async function POST(request: Request) {
   const gameSelectionMode = normalizeGameSelectionMode(body.game_selection_mode);
   const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
   const providedDates = Array.isArray(body.date_options) ? body.date_options.map(normalizeDate).filter(Boolean) as string[] : [];
+  const extraQuestions = normalizeExtraQuestions(body.extra_questions);
   const dateOptions = Array.from(new Set(providedDates.length ? providedDates : defaultDateOptions())).sort();
   const normalizedDateOptions = planningMode === 'fixed_day' ? (dateOptions[0] ? [dateOptions[0]] : []) : dateOptions;
   const chosenDay = planningMode === 'fixed_day' ? normalizedDateOptions[0] ?? null : null;
@@ -60,6 +104,9 @@ export async function POST(request: Request) {
   if (!title) return NextResponse.json({ error: 'Titel is verplicht.' }, { status: 400 });
   if (!meetingTime) return NextResponse.json({ error: 'Kies een geldig afspreekuur.' }, { status: 400 });
   if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
+  if (extraQuestions === null) {
+    return NextResponse.json({ error: 'Extra vragen moeten een vraagtekst en minstens 2 unieke antwoordopties hebben.' }, { status: 400 });
+  }
 
   const collectionGames = collectionGameIds.length
     ? await prisma.collectionGame.findMany({
@@ -86,6 +133,19 @@ export async function POST(request: Request) {
       chosenDay,
       locked,
       dateOptions: { create: normalizedDateOptions.map((date) => ({ date })) },
+      questions: {
+        create: extraQuestions.map((question, questionIndex) => ({
+          prompt: question.prompt,
+          allowMultiple: question.allowMultiple,
+          sortOrder: questionIndex,
+          options: {
+            create: question.options.map((option, optionIndex) => ({
+              label: option.label,
+              sortOrder: optionIndex
+            }))
+          }
+        }))
+      },
       ...(gamesFromCollection.length ? { games: { create: gamesFromCollection } } : {})
     },
     include: {

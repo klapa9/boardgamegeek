@@ -72,6 +72,10 @@ function getGameOptions(bundle: SessionBundle) {
   return bundle.games.map((game) => game.title);
 }
 
+function getExtraQuestionPrompts(bundle: SessionBundle) {
+  return bundle.questions.map((question) => question.prompt.trim()).filter(Boolean);
+}
+
 export default function SessionCreatedOverview({
   sessionId,
   isEdited = false
@@ -137,6 +141,7 @@ export default function SessionCreatedOverview({
   const sessionHref = sessionPath(session.id, title);
   const planningOptions = getPlanningOptions(bundle);
   const gameOptions = getGameOptions(bundle);
+  const extraQuestionPrompts = getExtraQuestionPrompts(bundle);
 
   function continueEditing() {
     setPreparingEdit(true);
@@ -163,7 +168,7 @@ export default function SessionCreatedOverview({
           </div>
         </div>
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className={`mt-5 grid gap-3 ${extraQuestionPrompts.length ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3'}`}>
           <article className="page-subcard-soft p-4">
             <div className="flex items-center gap-2 text-slate-700">
               <Users size={18} />
@@ -209,6 +214,25 @@ export default function SessionCreatedOverview({
             </div>
             <p className="mt-2 text-sm text-slate-700">{formatMeetingTime(session.meeting_time)}</p>
           </article>
+
+          {!!extraQuestionPrompts.length && (
+            <article className="page-subcard-soft p-4">
+              <div className="flex items-center gap-2 text-slate-700">
+                <CheckCircle2 size={18} />
+                <p className="text-sm font-bold">Extra vragen</p>
+              </div>
+              <p className="mt-2 text-sm text-slate-700">
+                {extraQuestionPrompts.length} {extraQuestionPrompts.length === 1 ? 'vraag' : 'vragen'} ingesteld
+              </p>
+              <div className="mt-3 max-h-32 overflow-y-auto rounded-2xl bg-white/70 p-3">
+                <ul className="space-y-1 text-sm text-slate-700">
+                  {extraQuestionPrompts.map((prompt) => (
+                    <li key={prompt}>- {prompt}</li>
+                  ))}
+                </ul>
+              </div>
+            </article>
+          )}
         </div>
       </section>
 

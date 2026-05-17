@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { SignIn, useUser } from '@clerk/nextjs';
 import { ArrowLeft, CalendarDays, Check, Dice5, Lock, Plus, Share2, Trash2, Trophy, Unlock, UserRound, X } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
-import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto, UserProfileDto } from '@/lib/types';
+import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto, SessionQuestionAnswerDto, SessionQuestionDto, UserProfileDto } from '@/lib/types';
 import { sessionUrl } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
@@ -28,7 +28,7 @@ type DateRow = SessionDto['date_options'][number] & {
   unavailablePlayers: PlayerDto[];
   pendingPlayers: PlayerDto[];
 };
-type FlowView = 'availability' | 'rating' | 'results' | 'chosen_game' | 'summary';
+type FlowView = 'availability' | 'questions' | 'rating' | 'results' | 'chosen_game' | 'summary';
 
 const SCORE_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 const SESSION_REFRESH_INTERVAL_MS = 15000;
@@ -205,6 +205,16 @@ function playerGameKey(playerId: string, gameId: string) {
   return `${playerId}:${gameId}`;
 }
 
+function playerQuestionKey(playerId: string, questionId: string) {
+  return `${playerId}:${questionId}`;
+}
+
+function sameSelection(left: string[], right: string[]) {
+  if (left.length !== right.length) return false;
+  const leftSet = new Set(left);
+  return right.every((item) => leftSet.has(item));
+}
+
 export default function SessionApp({ sessionId }: { sessionId: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -215,6 +225,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const [games, setGames] = useState<GameDto[]>([]);
   const [availability, setAvailability] = useState<AvailabilityDto[]>([]);
   const [ratings, setRatings] = useState<RatingDto[]>([]);
+  const [questions, setQuestions] = useState<SessionQuestionDto[]>([]);
+  const [questionAnswers, setQuestionAnswers] = useState<SessionQuestionAnswerDto[]>([]);
+  const [questionSelections, setQuestionSelections] = useState<Record<string, string[]>>({});
+  const [questionSelectionsDirty, setQuestionSelectionsDirty] = useState(false);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
   const [viewerProfile, setViewerProfile] = useState<UserProfileDto | null>(null);
   const [viewerIsOrganizer, setViewerIsOrganizer] = useState(false);
@@ -236,7 +250,9 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const [shareTextValue, setShareTextValue] = useState('');
   const [sharing, setSharing] = useState(false);
   const [meetingTimeInput, setMeetingTimeInput] = useState('20:00');
+  const [questionSaving, setQuestionSaving] = useState(false);
   const scoreSaveTimers = useRef<Record<string, number>>({});
+  const questionSelectionSignatureRef = useRef<string | null>(null);
   const initialViewResolved = useRef(false);
   const initialShareIntentHandled = useRef(false);
   const autoJoinAttemptedSessionId = useRef<string | null>(null);
@@ -271,6 +287,26 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     });
     return map;
   }, [ratings]);
+  const questionAnswersByPlayerQuestion = useMemo(() => {
+    const map = new Map<string, string[]>();
+    questionAnswers.forEach((answer) => {
+      const key = playerQuestionKey(answer.player_id, answer.question_id);
+      const existing = map.get(key);
+      if (existing) {
+        existing.push(answer.option_id);
+        return;
+      }
+      map.set(key, [answer.option_id]);
+    });
+    return map;
+  }, [questionAnswers]);
+  const questionAnswerCountsByOptionId = useMemo(() => {
+    const map = new Map<string, number>();
+    questionAnswers.forEach((answer) => {
+      map.set(answer.option_id, (map.get(answer.option_id) ?? 0) + 1);
+    });
+    return map;
+  }, [questionAnswers]);
   const currentPlayer = currentPlayerId ? playerById.get(currentPlayerId) ?? null : null;
   const isAdmin = viewerIsOrganizer;
   const dateOptions = session?.date_options ?? [];
@@ -304,7 +340,28 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     if (!currentPlayerId) return false;
     return games.some((game) => !scoreByPlayerGame.has(playerGameKey(currentPlayerId, game.id)));
   }, [currentPlayerId, games, scoreByPlayerGame]);
+  const currentPlayerSelectionsByQuestion = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!currentPlayerId) return map;
+    questions.forEach((question) => {
+      map.set(question.id, questionAnswersByPlayerQuestion.get(playerQuestionKey(currentPlayerId, question.id)) ?? []);
+    });
+    return map;
+  }, [currentPlayerId, questionAnswersByPlayerQuestion, questions]);
+  const currentPlayerMissingQuestionIds = useMemo(() => {
+    if (!currentPlayerId) return [];
+    return questions
+      .map((question) => question.id)
+      .filter((questionId) => (questionSelections[questionId] ?? []).length === 0);
+  }, [currentPlayerId, questionSelections, questions]);
+  const hasQuestionSelectionChanges = useMemo(() => (
+    questions.some((question) => !sameSelection(
+      questionSelections[question.id] ?? [],
+      currentPlayerSelectionsByQuestion.get(question.id) ?? []
+    ))
+  ), [currentPlayerSelectionsByQuestion, questionSelections, questions]);
   const needsGameChoice = Boolean(!session?.chosen_game_id && currentPlayerHasUnratedGames);
+  const needsQuestionAnswers = Boolean(currentPlayerId) && questions.length > 0 && currentPlayerMissingQuestionIds.length > 0;
 
   async function refresh(showMessage = false) {
     try {
@@ -314,6 +371,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       setGames(data.games);
       setAvailability(data.availability);
       setRatings(data.ratings);
+      setQuestions(data.questions);
+      setQuestionAnswers(data.question_answers);
       setViewerProfile(data.viewer_profile);
       setViewerIsOrganizer(data.viewer_is_organizer);
       if (data.viewer_player_id) {
@@ -355,7 +414,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       return;
     }
 
-    const nextView: FlowView = needsGameChoice ? 'rating' : 'summary';
+    const nextView: FlowView = needsQuestionAnswers ? 'questions' : needsGameChoice ? 'rating' : 'summary';
 
     if (session?.locked && session.chosen_day) {
       if (!currentPlayerChosenDayAvailability) {
@@ -374,7 +433,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
     setView(nextView);
     initialViewResolved.current = true;
-  }, [currentPlayerChosenDayAvailability, currentPlayerHasPlanning, currentPlayerId, loading, needsGameChoice, session?.chosen_day, session?.locked]);
+  }, [currentPlayerChosenDayAvailability, currentPlayerHasPlanning, currentPlayerId, loading, needsGameChoice, needsQuestionAnswers, session?.chosen_day, session?.locked]);
 
   useEffect(() => {
     if (loading || !currentPlayerId) return;
@@ -393,11 +452,26 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
 
   useEffect(() => {
     if (loading || !currentPlayerId) return;
+    if (!currentPlayerHasPlanning || view === 'availability') return;
+    if (!needsQuestionAnswers || view === 'questions') return;
+    setSelectedGameId(null);
+    setView('questions');
+  }, [currentPlayerHasPlanning, currentPlayerId, loading, needsQuestionAnswers, view]);
+
+  useEffect(() => {
+    if (loading || !currentPlayerId) return;
     if (!needsGameChoice) return;
     if (!['results', 'summary'].includes(view)) return;
     setSelectedGameId(null);
     setView('rating');
   }, [currentPlayerId, loading, needsGameChoice, view]);
+
+  useEffect(() => {
+    if (loading || view !== 'questions') return;
+    if (!currentPlayerId || !currentPlayerHasPlanning) return;
+    if (questions.length) return;
+    setView(needsGameChoice ? 'rating' : 'summary');
+  }, [currentPlayerHasPlanning, currentPlayerId, loading, needsGameChoice, questions.length, view]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
@@ -485,6 +559,20 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }, [session?.meeting_time]);
 
   useEffect(() => {
+    const signature = `${currentPlayerId ?? 'guest'}:${questions.map((question) => question.id).join('|')}`;
+    const signatureChanged = questionSelectionSignatureRef.current !== signature;
+    questionSelectionSignatureRef.current = signature;
+    if (questionSelectionsDirty && !signatureChanged) return;
+
+    const nextSelections: Record<string, string[]> = {};
+    questions.forEach((question) => {
+      nextSelections[question.id] = currentPlayerSelectionsByQuestion.get(question.id) ?? [];
+    });
+    setQuestionSelections(nextSelections);
+    if (questionSelectionsDirty) setQuestionSelectionsDirty(false);
+  }, [currentPlayerId, currentPlayerSelectionsByQuestion, questionSelectionsDirty, questions]);
+
+  useEffect(() => {
     const modalOpen = addDatesOpen || addGamesOpen || Boolean(shareModal) || authModalOpen;
     if (!modalOpen) return;
 
@@ -558,7 +646,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
 
     setSelectedGameId(null);
-    setView(needsGameChoice ? 'rating' : 'summary');
+    setView(needsQuestionAnswers ? 'questions' : needsGameChoice ? 'rating' : 'summary');
   }
 
   async function joinSession(event?: React.FormEvent, options?: { silent?: boolean }) {
@@ -926,6 +1014,117 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
+  function toggleQuestionOption(question: SessionQuestionDto, optionId: string) {
+    if (!currentPlayerId) return;
+    const existingAnswerIds = currentPlayerSelectionsByQuestion.get(question.id) ?? [];
+    const questionIsLockedForPlayer = question.locked && existingAnswerIds.length > 0;
+    if (questionIsLockedForPlayer || questionSaving) return;
+
+    setQuestionSelectionsDirty(true);
+    setQuestionSelections((current) => {
+      const currentSelection = current[question.id] ?? [];
+      if (question.allow_multiple) {
+        return {
+          ...current,
+          [question.id]: currentSelection.includes(optionId)
+            ? currentSelection.filter((item) => item !== optionId)
+            : [...currentSelection, optionId]
+        };
+      }
+
+      return {
+        ...current,
+        [question.id]: currentSelection[0] === optionId ? [] : [optionId]
+      };
+    });
+  }
+
+  async function confirmQuestionAnswers() {
+    if (!currentPlayerId) return;
+    if (currentPlayerMissingQuestionIds.length) {
+      setError('Beantwoord eerst alle extra vragen.');
+      return;
+    }
+
+    if (!hasQuestionSelectionChanges) {
+      setSelectedGameId(null);
+      setView(needsGameChoice ? 'rating' : 'summary');
+      return;
+    }
+
+    setQuestionSaving(true);
+    setError(null);
+    try {
+      const data = await api<{ question_answers: SessionQuestionAnswerDto[] }>(`/api/sessions/${sessionId}/question-answers`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          player_id: currentPlayerId,
+          answers: questions.map((question) => ({
+            question_id: question.id,
+            option_ids: questionSelections[question.id] ?? []
+          }))
+        })
+      });
+      setQuestionSelectionsDirty(false);
+      setQuestionAnswers(data.question_answers);
+      setMessage('Je antwoorden op de extra vragen zijn opgeslagen.');
+      setSelectedGameId(null);
+      setView(needsGameChoice ? 'rating' : 'summary');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Extra antwoorden opslaan mislukt.');
+      await refresh(false);
+    } finally {
+      setQuestionSaving(false);
+    }
+  }
+
+  async function setQuestionLocked(question: SessionQuestionDto, locked: boolean) {
+    if (!isAdmin) return;
+    if (locked && !window.confirm('Deze vraag wordt vergrendeld. Deelnemers met een bestaand antwoord kunnen het daarna niet meer aanpassen.')) {
+      return;
+    }
+    if (!locked && !window.confirm('Deze vraag wordt opnieuw opengezet. Deelnemers kunnen hun antwoord daarna weer aanpassen.')) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await api<{ question: SessionQuestionDto }>(`/api/sessions/${sessionId}/questions/${question.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ locked })
+      });
+      setMessage(locked ? 'Vraag vergrendeld.' : 'Vraag opnieuw opengezet.');
+      await refresh(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Vraag aanpassen mislukt.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function chooseQuestionOption(question: SessionQuestionDto, optionId: string | null) {
+    if (!isAdmin) return;
+    if (optionId && !window.confirm('Ben je zeker dat je dit definitieve antwoord wilt vastzetten?')) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await api<{ question: SessionQuestionDto }>(`/api/sessions/${sessionId}/questions/${question.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ chosen_option_id: optionId })
+      });
+      setMessage(optionId ? 'Definitief antwoord vastgezet.' : 'Definitief antwoord gewist.');
+      await refresh(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Definitief antwoord opslaan mislukt.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function clearShareIntent() {
     const params = new URLSearchParams(searchParams.toString());
     if (!params.has('share')) return;
@@ -983,12 +1182,16 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   if (chosenGame) summaryParts.push(chosenGame.title);
   if (session.chosen_day) summaryParts.push(formatDate(session.chosen_day));
   if (session.meeting_time) summaryParts.push(formatMeetingTime(session.meeting_time));
-  const pageChip = view === 'summary' ? 'Klaar!' : view === 'availability' ? 'Planning' : 'Spelkeuze';
+  const pageChip = view === 'summary' ? 'Klaar!' : view === 'availability' ? 'Planning' : view === 'questions' ? 'Vragen' : 'Spelkeuze';
   const isPlanningView = view === 'availability';
+  const isQuestionView = view === 'questions';
   const isGameView = ['rating', 'results', 'chosen_game'].includes(view);
   const openGameChoice = () => {
     setSelectedGameId(null);
     setView(session.chosen_game_id ? 'chosen_game' : (needsGameChoice ? 'rating' : 'results'));
+  };
+  const openQuestionChoice = () => {
+    setView('questions');
   };
 
   return (
@@ -1025,12 +1228,17 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 )}
               </div>
             )}
+            {isQuestionView && questions.length > 0 && (
+              <p className="mt-4 rounded-2xl bg-white/80 px-4 py-3 text-sm text-slate-700">
+                Beantwoord de extra vragen van de organisator. Je antwoorden worden meegenomen in het overzicht van deze spelavond.
+              </p>
+            )}
             {isGameView && !chosenGame && games.length > 0 && (
               <p className="mt-4 rounded-2xl bg-white/80 px-4 py-3 text-sm text-slate-700">Stem op het spel dat je wilt spelen.</p>
             )}
           </div>
           <div className="flex flex-wrap justify-end gap-2">
-            {isGameView && (
+            {(isQuestionView || isGameView) && (
               <button type="button" onClick={() => setView('availability')} className="neo-button neo-button-ghost p-3" title="Terug naar planning">
                 <CalendarDays size={20} />
               </button>
@@ -1143,6 +1351,59 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
               </div>
             </div>
           </section>
+
+          {questions.length > 0 && (
+            <>
+              {questions.map((question, questionIndex) => {
+                const totalAnswers = question.options.reduce((sum, option) => sum + (questionAnswerCountsByOptionId.get(option.id) ?? 0), 0);
+                return (
+                  <section key={question.id} className="page-card p-5">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="page-chip w-fit">Klaar!</p>
+                        <h2 className="mt-3 text-xl font-black text-slate-950">{question.prompt}</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {question.allow_multiple ? 'Meerdere antwoorden per deelnemer' : '1 antwoord per deelnemer'} - {totalAnswers} antwoord{totalAnswers === 1 ? '' : 'en'}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        {questionIndex === 0 && (
+                          <button type="button" onClick={openQuestionChoice} className="neo-button neo-button-ghost text-sm">
+                            Je keuze wijzigen
+                          </button>
+                        )}
+                        {question.locked && (
+                          <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
+                            Vergrendeld
+                          </span>
+                        )}
+                        {question.chosen_option_id && (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">
+                            Definitief antwoord gekozen
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                      {question.options.map((option) => {
+                        const count = questionAnswerCountsByOptionId.get(option.id) ?? 0;
+                        const isChosen = question.chosen_option_id === option.id;
+                        return (
+                          <div key={option.id} className={`rounded-2xl border px-4 py-3 ${isChosen ? 'border-emerald-700 bg-emerald-50 text-emerald-950' : 'border-slate-200 bg-white text-slate-700'}`}>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="font-bold">{option.label}</span>
+                              <span className="text-sm font-semibold">{count} antwoord{count === 1 ? '' : 'en'}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+            </>
+          )}
 
           <section className="page-card p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1417,6 +1678,139 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             <Check size={20} /> {session.locked ? 'Bevestig aanwezigheid en ga verder' : 'Bevestig aanwezigheid'}
           </button>
         </section>
+      )}
+
+      {view === 'questions' && (
+        <>
+          {questions.map((question, questionIndex) => {
+            const selectedOptionIds = questionSelections[question.id] ?? [];
+            const existingAnswerIds = currentPlayerSelectionsByQuestion.get(question.id) ?? [];
+            const questionLockedForPlayer = question.locked && existingAnswerIds.length > 0;
+            const chosenOption = question.chosen_option_id
+              ? question.options.find((option) => option.id === question.chosen_option_id) ?? null
+              : null;
+            const totalAnswers = question.options.reduce((sum, option) => sum + (questionAnswerCountsByOptionId.get(option.id) ?? 0), 0);
+
+            return (
+              <section key={question.id} className="page-card page-card-peach p-5">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="page-chip w-fit">Vraag {questionIndex + 1}</p>
+                    <h2 className="mt-3 text-xl font-black text-slate-950">{question.prompt}</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {question.allow_multiple ? 'Meerdere antwoorden mogelijk' : '1 antwoord mogelijk'} - {totalAnswers} antwoord{totalAnswers === 1 ? '' : 'en'} verzameld
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {question.locked && (
+                      <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">
+                        Vergrendeld
+                      </span>
+                    )}
+                    {chosenOption && (
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">
+                        Definitief: {chosenOption.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {questionLockedForPlayer && (
+                  <p className="mt-3 rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
+                    Je antwoord is vergrendeld en kan niet meer aangepast worden.
+                  </p>
+                )}
+
+                <div className="mt-4 space-y-2">
+                  {question.options.map((option) => {
+                    const selected = selectedOptionIds.includes(option.id);
+                    const count = questionAnswerCountsByOptionId.get(option.id) ?? 0;
+                    const isChosen = question.chosen_option_id === option.id;
+                    const canSelectOption = Boolean(currentPlayer) && !questionSaving && !questionLockedForPlayer;
+                    return (
+                      <div
+                        key={option.id}
+                        role={canSelectOption ? 'button' : undefined}
+                        tabIndex={canSelectOption ? 0 : undefined}
+                        aria-pressed={canSelectOption ? selected : undefined}
+                        onClick={() => {
+                          if (!canSelectOption) return;
+                          toggleQuestionOption(question, option.id);
+                        }}
+                        onKeyDown={(event) => {
+                          if (!canSelectOption) return;
+                          if (event.key !== 'Enter' && event.key !== ' ') return;
+                          event.preventDefault();
+                          toggleQuestionOption(question, option.id);
+                        }}
+                        className={`rounded-2xl border px-4 py-3 ${selected ? 'border-slate-950 bg-[#d8ff63]/55 text-slate-950' : isChosen ? 'border-emerald-700 bg-emerald-50 text-emerald-950' : 'border-slate-200 bg-white text-slate-700'} ${canSelectOption ? 'cursor-pointer transition hover:border-slate-950/40 focus:outline-none focus:ring-2 focus:ring-slate-950/20' : ''}`}
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className={`text-left ${canSelectOption ? '' : 'opacity-60'}`}>
+                            <span className="block font-bold">{option.label}</span>
+                            <span className="mt-1 block text-sm text-slate-500">
+                              {selected ? 'Jouw keuze' : question.allow_multiple ? 'Aanduiden als extra keuze' : 'Kies deze optie'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                              {count} antwoord{count === 1 ? '' : 'en'}
+                            </span>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void chooseQuestionOption(question, option.id);
+                                }}
+                                disabled={saving}
+                                className={`neo-button text-sm disabled:opacity-50 ${isChosen ? 'neo-button-primary' : 'neo-button-ghost'}`}
+                              >
+                                <Lock size={16} /> {isChosen ? 'Vastgezet' : 'Zet vast'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {isAdmin && (
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => setQuestionLocked(question, !question.locked)}
+                      disabled={saving}
+                      className="neo-button neo-button-ghost text-sm disabled:opacity-50"
+                    >
+                      {question.locked ? <><Unlock size={16} /> Vraag heropenen</> : <><Lock size={16} /> Antwoorden vergrendelen</>}
+                    </button>
+                    {question.chosen_option_id && (
+                      <button
+                        type="button"
+                        onClick={() => chooseQuestionOption(question, null)}
+                        disabled={saving}
+                        className="neo-button neo-button-ghost text-sm disabled:opacity-50"
+                      >
+                        Definitieve keuze wissen
+                      </button>
+                    )}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={confirmQuestionAnswers}
+            disabled={!currentPlayer || questionSaving || currentPlayerMissingQuestionIds.length > 0}
+            className="neo-button neo-button-primary flex w-full disabled:opacity-50"
+          >
+            <Check size={20} /> {hasQuestionSelectionChanges ? 'Bevestig antwoorden' : (needsGameChoice ? 'Verder naar spelkeuze' : 'Verder naar overzicht')}
+          </button>
+        </>
       )}
 
       {view === 'chosen_game' && chosenGame && (

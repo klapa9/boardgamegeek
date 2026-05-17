@@ -1,4 +1,4 @@
-import { Availability, CollectionSyncState, Game, Player, Rating, Session, SessionDateOption, UserProfile } from '@prisma/client';
+import { Availability, CollectionSyncState, Game, Player, Rating, Session, SessionDateOption, SessionQuestion, SessionQuestionAnswer, SessionQuestionOption, UserProfile } from '@prisma/client';
 import { collectionGameCategoryNames, collectionGameMechanicNames, CollectionGameWithRelations } from '@/lib/collection-games';
 import { CollectionGroupWithRelations } from '@/lib/collection-groups';
 import { cachedImageUrl } from '@/lib/image-cache';
@@ -110,6 +110,39 @@ export function serializeSession(session: Session, dateOptions: SessionDateOptio
     locked: session.locked,
     created_at: session.createdAt.toISOString(),
     date_options: dateOptions.map(serializeDateOption)
+  };
+}
+
+export function serializeSessionQuestionOption(option: SessionQuestionOption) {
+  return {
+    id: option.id,
+    question_id: option.questionId,
+    label: option.label,
+    sort_order: option.sortOrder,
+    created_at: option.createdAt.toISOString()
+  };
+}
+
+export function serializeSessionQuestion(question: SessionQuestion, options: SessionQuestionOption[] = []) {
+  return {
+    id: question.id,
+    session_id: question.sessionId,
+    prompt: question.prompt,
+    allow_multiple: question.allowMultiple,
+    locked: question.locked,
+    chosen_option_id: question.chosenOptionId,
+    sort_order: question.sortOrder,
+    created_at: question.createdAt.toISOString(),
+    options: options.map(serializeSessionQuestionOption)
+  };
+}
+
+export function serializeSessionQuestionAnswer(answer: SessionQuestionAnswer) {
+  return {
+    question_id: answer.questionId,
+    option_id: answer.optionId,
+    player_id: answer.playerId,
+    created_at: answer.createdAt.toISOString()
   };
 }
 

@@ -57,3 +57,5 @@ export function collectionGameToSessionGameData(game: CollectionGameWithRelation
   };
 }
 
+export type SessionGameData = ReturnType<typeof collectionGameToSessionGameData>;
+

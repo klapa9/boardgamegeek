@@ -1,10 +1,23 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
-import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
-import { serializeAvailability, serializeGame, serializePlayer, serializeRating, serializeSession, serializeUserProfile } from '@/lib/serializers';
+import { collectionGameInclude, collectionGameToSessionGameData, SessionGameData } from '@/lib/collection-games';
+import { serializeAvailability, serializeGame, serializePlayer, serializeRating, serializeSession, serializeSessionQuestion, serializeSessionQuestionAnswer, serializeUserProfile } from '@/lib/serializers';
 import { getCurrentUserProfile, getOrCreateUserProfile } from '@/lib/user-profile';
 import { ensureSessionOrganizerAccess, viewerIsOrganizer } from '@/lib/session-organizer';
+
+type GameSelectionMode = 'no_preselect' | 'host_pick' | 'players_pick';
+type NormalizedExtraQuestionOption = {
+  id: string | null;
+  label: string;
+};
+type NormalizedExtraQuestion = {
+  id: string | null;
+  prompt: string;
+  allowMultiple: boolean;
+  options: NormalizedExtraQuestionOption[];
+};
 
 function normalizeDate(value: unknown) {
   const date = String(value ?? '').trim();
@@ -26,6 +39,260 @@ function normalizeGameSelectionMode(value: unknown) {
   return 'players_pick';
 }
 
+function normalizeExtraQuestions(value: unknown): NormalizedExtraQuestion[] | null {
+  if (!Array.isArray(value)) return null;
+
+  const normalizedQuestions: NormalizedExtraQuestion[] = [];
+
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') return null;
+    const row = entry as Record<string, unknown>;
+    const prompt = String(row.prompt ?? '').trim();
+    const options = Array.isArray(row.options) ? row.options : null;
+    if (!prompt || !options) return null;
+
+    const normalizedOptions: NormalizedExtraQuestionOption[] = [];
+    for (const option of options) {
+      if (!option || typeof option !== 'object') return null;
+      const optionRow = option as Record<string, unknown>;
+      const label = String(optionRow.label ?? '').trim();
+      if (!label) return null;
+      normalizedOptions.push({
+        id: typeof optionRow.id === 'string' && optionRow.id.trim() ? optionRow.id.trim() : null,
+        label
+      });
+    }
+
+    const distinctOptions = new Set(normalizedOptions.map((option) => option.label.toLocaleLowerCase()));
+    if (normalizedOptions.length < 2 || distinctOptions.size !== normalizedOptions.length) return null;
+
+    normalizedQuestions.push({
+      id: typeof row.id === 'string' && row.id.trim() ? row.id.trim() : null,
+      prompt,
+      allowMultiple: Boolean(row.allow_multiple),
+      options: normalizedOptions
+    });
+  }
+
+  return normalizedQuestions;
+}
+
+async function reconcileSessionQuestions(
+  tx: Prisma.TransactionClient,
+  sessionId: string,
+  questions: NormalizedExtraQuestion[]
+) {
+  const existingQuestions = await tx.sessionQuestion.findMany({
+    where: { sessionId },
+    include: {
+      options: { orderBy: { sortOrder: 'asc' } }
+    },
+    orderBy: { sortOrder: 'asc' }
+  });
+
+  const keptQuestionIds = new Set<string>();
+
+  for (const [questionIndex, question] of questions.entries()) {
+    const existingQuestion = question.id
+      ? existingQuestions.find((item) => item.id === question.id) ?? null
+      : null;
+
+    let questionId = existingQuestion?.id ?? null;
+
+    if (existingQuestion) {
+      await tx.sessionQuestion.update({
+        where: { id: existingQuestion.id },
+        data: {
+          prompt: question.prompt,
+          allowMultiple: question.allowMultiple,
+          sortOrder: questionIndex
+        }
+      });
+    } else {
+      const createdQuestion = await tx.sessionQuestion.create({
+        data: {
+          sessionId,
+          prompt: question.prompt,
+          allowMultiple: question.allowMultiple,
+          sortOrder: questionIndex
+        }
+      });
+      questionId = createdQuestion.id;
+    }
+
+    if (!questionId) continue;
+    keptQuestionIds.add(questionId);
+
+    const questionOptions = existingQuestion?.options ?? [];
+    const keptOptionIds = new Set<string>();
+
+    for (const [optionIndex, option] of question.options.entries()) {
+      const existingOption = option.id
+        ? questionOptions.find((item) => item.id === option.id) ?? null
+        : null;
+
+      if (existingOption) {
+        keptOptionIds.add(existingOption.id);
+        await tx.sessionQuestionOption.update({
+          where: { id: existingOption.id },
+          data: {
+            label: option.label,
+            sortOrder: optionIndex
+          }
+        });
+      } else {
+        const createdOption = await tx.sessionQuestionOption.create({
+          data: {
+            questionId,
+            label: option.label,
+            sortOrder: optionIndex
+          }
+        });
+        keptOptionIds.add(createdOption.id);
+      }
+    }
+
+    const removedOptionIds = questionOptions
+      .filter((option) => !keptOptionIds.has(option.id))
+      .map((option) => option.id);
+
+    if (removedOptionIds.length) {
+      await tx.sessionQuestionAnswer.deleteMany({
+        where: {
+          questionId,
+          optionId: { in: removedOptionIds }
+        }
+      });
+      await tx.sessionQuestionOption.deleteMany({
+        where: {
+          id: { in: removedOptionIds }
+        }
+      });
+    }
+
+    if (existingQuestion?.chosenOptionId && removedOptionIds.includes(existingQuestion.chosenOptionId)) {
+      await tx.sessionQuestion.update({
+        where: { id: questionId },
+        data: { chosenOptionId: null }
+      });
+    }
+
+    if (!question.allowMultiple) {
+      const currentAnswers = await tx.sessionQuestionAnswer.findMany({
+        where: { questionId },
+        include: {
+          option: {
+            select: {
+              id: true,
+              sortOrder: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      const extrasToDelete: string[] = [];
+      const answersByPlayer = new Map<string, typeof currentAnswers>();
+
+      currentAnswers.forEach((answer) => {
+        const list = answersByPlayer.get(answer.playerId);
+        if (list) {
+          list.push(answer);
+          return;
+        }
+        answersByPlayer.set(answer.playerId, [answer]);
+      });
+
+      answersByPlayer.forEach((answers) => {
+        if (answers.length <= 1) return;
+        const orderedAnswers = [...answers].sort((left, right) => (
+          left.option.sortOrder - right.option.sortOrder
+          || left.createdAt.getTime() - right.createdAt.getTime()
+        ));
+        orderedAnswers.slice(1).forEach((answer) => extrasToDelete.push(answer.id));
+      });
+
+      if (extrasToDelete.length) {
+        await tx.sessionQuestionAnswer.deleteMany({
+          where: {
+            id: { in: extrasToDelete }
+          }
+        });
+      }
+    }
+  }
+
+  const removedQuestionIds = existingQuestions
+    .filter((question) => !keptQuestionIds.has(question.id))
+    .map((question) => question.id);
+
+  if (removedQuestionIds.length) {
+    await tx.sessionQuestion.deleteMany({
+      where: {
+        id: { in: removedQuestionIds }
+      }
+    });
+  }
+}
+
+async function resetSessionGamesAndDates(
+  tx: Prisma.TransactionClient,
+  sessionId: string,
+  {
+    title,
+    meetingTime,
+    planningMode,
+    gameSelectionMode,
+    chosenDay,
+    locked,
+    normalizedDateOptions,
+    gamesToCreate
+  }: {
+    title: string;
+    meetingTime: string;
+    planningMode: 'fixed_day' | 'vote_dates';
+    gameSelectionMode: GameSelectionMode;
+    chosenDay: string | null;
+    locked: boolean;
+    normalizedDateOptions: string[];
+    gamesToCreate: SessionGameData[];
+  }
+) {
+  await tx.session.update({
+    where: { id: sessionId },
+    data: {
+      title,
+      meetingTime,
+      planningMode,
+      gameSelectionMode,
+      chosenDay,
+      chosenGameId: null,
+      locked
+    }
+  });
+
+  await tx.availability.deleteMany({ where: { sessionId } });
+  await tx.rating.deleteMany({ where: { sessionId } });
+  await tx.sessionDateOption.deleteMany({ where: { sessionId } });
+  await tx.game.deleteMany({ where: { sessionId } });
+
+  await tx.sessionDateOption.createMany({
+    data: normalizedDateOptions.map((date) => ({ sessionId, date }))
+  });
+
+  const createdGames = [];
+  for (const game of gamesToCreate) {
+    createdGames.push(await tx.game.create({ data: { sessionId, ...game } }));
+  }
+
+  if (gameSelectionMode === 'host_pick' && createdGames.length === 1) {
+    await tx.session.update({
+      where: { id: sessionId },
+      data: { chosenGameId: createdGames[0].id }
+    });
+  }
+}
+
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const { userId } = await auth();
   const session = await prisma.session.findUnique({
@@ -36,11 +303,27 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
   const viewerProfile = userId ? await getOrCreateUserProfile(userId) : null;
 
-  const [players, games, availability, ratings] = await Promise.all([
+  const [players, games, availability, ratings, questions, questionAnswers] = await Promise.all([
     prisma.player.findMany({ where: { sessionId: params.id }, orderBy: { createdAt: 'asc' } }),
     prisma.game.findMany({ where: { sessionId: params.id }, orderBy: { createdAt: 'asc' } }),
     prisma.availability.findMany({ where: { sessionId: params.id } }),
-    prisma.rating.findMany({ where: { sessionId: params.id } })
+    prisma.rating.findMany({ where: { sessionId: params.id } }),
+    prisma.sessionQuestion.findMany({
+      where: { sessionId: params.id },
+      include: {
+        options: { orderBy: { sortOrder: 'asc' } }
+      },
+      orderBy: { sortOrder: 'asc' }
+    }),
+    prisma.sessionQuestionAnswer.findMany({
+      where: {
+        question: {
+          is: {
+            sessionId: params.id
+          }
+        }
+      }
+    })
   ]);
 
   return NextResponse.json({
@@ -49,6 +332,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     games: games.map(serializeGame),
     availability: availability.map(serializeAvailability),
     ratings: ratings.map(serializeRating),
+    questions: questions.map((question) => serializeSessionQuestion(question, question.options)),
+    question_answers: questionAnswers.map(serializeSessionQuestionAnswer),
     viewer_profile: viewerProfile ? serializeUserProfile(viewerProfile) : null,
     viewer_player_id: viewerProfile ? players.find((player) => player.userProfileId === viewerProfile.id)?.id ?? null : null,
     viewer_is_organizer: viewerIsOrganizer(session, viewerProfile?.id ?? null)
@@ -123,6 +408,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     || body.planning_mode !== undefined
     || body.game_selection_mode !== undefined
     || body.meeting_time !== undefined
+    || body.extra_questions !== undefined
   );
 
   if (isSettingsUpdate) {
@@ -135,10 +421,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const normalizedDateOptions = Array.from(new Set(providedDates)).sort();
     const chosenDay = planningMode === 'fixed_day' ? normalizedDateOptions[0] ?? null : null;
     const locked = planningMode === 'fixed_day' && Boolean(chosenDay);
+    const extraQuestions = body.extra_questions === undefined ? null : normalizeExtraQuestions(body.extra_questions);
 
     if (!title) return NextResponse.json({ error: 'Titel is verplicht.' }, { status: 400 });
     if (!meetingTime) return NextResponse.json({ error: 'Kies een geldig afspreekuur.' }, { status: 400 });
     if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
+    if (extraQuestions === null && body.extra_questions !== undefined) {
+      return NextResponse.json({ error: 'Extra vragen moeten een vraagtekst en minstens 2 unieke antwoordopties hebben.' }, { status: 400 });
+    }
 
     const collectionGames = collectionGameIds.length
       ? await prisma.collectionGame.findMany({
@@ -156,38 +446,19 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     );
 
     const updatedSession = await prisma.$transaction(async (tx) => {
-      await tx.session.update({
-        where: { id: params.id },
-        data: {
-          title,
-          meetingTime,
-          planningMode,
-          gameSelectionMode,
-          chosenDay,
-          chosenGameId: null,
-          locked
-        }
+      await resetSessionGamesAndDates(tx, params.id, {
+        title,
+        meetingTime,
+        planningMode,
+        gameSelectionMode,
+        chosenDay,
+        locked,
+        normalizedDateOptions,
+        gamesToCreate
       });
 
-      await tx.availability.deleteMany({ where: { sessionId: params.id } });
-      await tx.rating.deleteMany({ where: { sessionId: params.id } });
-      await tx.sessionDateOption.deleteMany({ where: { sessionId: params.id } });
-      await tx.game.deleteMany({ where: { sessionId: params.id } });
-
-      await tx.sessionDateOption.createMany({
-        data: normalizedDateOptions.map((date) => ({ sessionId: params.id, date }))
-      });
-
-      const createdGames = [];
-      for (const game of gamesToCreate) {
-        createdGames.push(await tx.game.create({ data: { sessionId: params.id, ...game } }));
-      }
-
-      if (gameSelectionMode === 'host_pick' && createdGames.length === 1) {
-        await tx.session.update({
-          where: { id: params.id },
-          data: { chosenGameId: createdGames[0].id }
-        });
+      if (extraQuestions !== null) {
+        await reconcileSessionQuestions(tx, params.id, extraQuestions);
       }
 
       return tx.session.findUnique({

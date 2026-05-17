@@ -28,6 +28,7 @@ model Session {
   availability   Availability[]
   ratings        Rating[]
   dateOptions    SessionDateOption[]
+  questions      SessionQuestion[]
 
   @@index([organizerUserProfileId])
 }
@@ -58,10 +59,62 @@ model Player {
   availability Availability[]
   ratings      Rating[]
   gamesAdded   Game[]       @relation("GameAddedBy")
+  questionAnswers SessionQuestionAnswer[]
 
   @@index([sessionId])
   @@index([userProfileId])
   @@unique([sessionId, userProfileId])
+}
+
+model SessionQuestion {
+  id             String   @id @default(cuid())
+  sessionId      String
+  prompt         String
+  allowMultiple  Boolean  @default(false)
+  locked         Boolean  @default(false)
+  chosenOptionId String?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  session      Session                 @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  options      SessionQuestionOption[] @relation("SessionQuestionOptions")
+  answers      SessionQuestionAnswer[]
+  chosenOption SessionQuestionOption?  @relation("SessionQuestionChosenOption", fields: [chosenOptionId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+}
+
+model SessionQuestionOption {
+  id        String   @id @default(cuid())
+  questionId String
+  label     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  question            SessionQuestion       @relation("SessionQuestionOptions", fields: [questionId], references: [id], onDelete: Cascade)
+  answers             SessionQuestionAnswer[]
+  chosenForQuestions  SessionQuestion[]     @relation("SessionQuestionChosenOption")
+
+  @@index([questionId])
+}
+
+model SessionQuestionAnswer {
+  id         String   @id @default(cuid())
+  questionId String
+  optionId   String
+  playerId   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question SessionQuestion       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  option   SessionQuestionOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  player   Player                @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, optionId, playerId])
+  @@index([questionId])
+  @@index([playerId])
 }
 
 model Game {
