@@ -1,8 +1,8 @@
 import { XMLParser } from 'fast-xml-parser';
 import { NextResponse } from 'next/server';
 import { fetchBgg } from '@/lib/bgg-api';
-import { isRpgCoreRule } from '@/lib/bgg-filters';
-import { parseThingDetails, parseThingTypes } from '@/lib/bgg-xml';
+import { isRpgGame } from '@/lib/bgg-filters';
+import { parseThingTypes } from '@/lib/bgg-xml';
 import { geekApiBaseUrl, geekTypeLabel, normalizeGeekType } from '@/lib/geek-types';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
@@ -62,19 +62,18 @@ export async function GET(request: Request) {
     .filter((item) => !looksLikeFanExpansion(item.title))
     .slice(0, MAX_SEARCH_CANDIDATES);
 
-  if (geekType === 'rpgitem') {
+  if (geekType === 'rpg') {
     const allowedIds = new Set<number>();
 
     for (const batch of chunk(candidates.map((item) => item.bggId), BGG_THING_BATCH_SIZE)) {
       if (!batch.length) continue;
 
       const thingUrl = `${geekApiBaseUrl(geekType)}/thing?id=${batch.join(',')}&stats=1&type=${geekType}`;
-      const thingResponse = await fetchBgg(thingUrl, { next: { revalidate: 60 * 60 * 24 } }, 'search-rpg-core-filter');
+      const thingResponse = await fetchBgg(thingUrl, { next: { revalidate: 60 * 60 * 24 } }, 'search-rpg-filter');
       if (!thingResponse.ok) continue;
 
-      const details = parseThingDetails(await thingResponse.text());
-      details
-        .filter((item) => item.itemType === 'rpgitem' && isRpgCoreRule(item))
+      parseThingTypes(await thingResponse.text())
+        .filter(isRpgGame)
         .forEach((item) => allowedIds.add(item.bggId));
     }
 

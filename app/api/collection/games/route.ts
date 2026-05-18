@@ -97,7 +97,7 @@ export async function POST(request: Request) {
   const details = await fetchSingleBggGameDetail(rawBggId, 'collection-add', geekType);
   if (!details) {
     return NextResponse.json({
-      error: geekType === 'rpgitem'
+      error: geekType === 'rpg'
         ? 'Volledige RPG niet gevonden op RPGGeek.'
         : 'Spel niet gevonden op BoardGameGeek.'
     }, { status: 404 });

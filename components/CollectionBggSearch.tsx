@@ -155,40 +155,42 @@ export default function CollectionBggSearch({
         </div>
       )}
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 space-y-3">
         {showCatalogSelector && (
-          <label className="flex shrink-0 flex-col gap-1">
+          <label className="flex max-w-xs flex-col gap-1">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Zoek in</span>
             <select
               value={geekType}
-              onChange={(event) => setGeekType(event.target.value === 'rpgitem' ? 'rpgitem' : 'boardgame')}
-              className="neo-input min-w-[12rem] pr-8"
+              onChange={(event) => setGeekType(event.target.value === 'rpg' ? 'rpg' : 'boardgame')}
+              className="neo-input w-full pr-8"
             >
               <option value="boardgame">Boardgames</option>
-              <option value="rpgitem">Roleplaygames</option>
+              <option value="rpg">Roleplaygames</option>
             </select>
           </label>
         )}
-        <div className="relative min-w-0 flex-1">
-          <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={handleInputKeyDown}
-            placeholder={geekType === 'rpgitem' ? 'Zoek bijvoorbeeld Dungeons & Dragons' : 'Zoek bijvoorbeeld Catan'}
-            enterKeyHint="search"
-            className="neo-input w-full py-3 pl-9 pr-10"
-          />
-          {searching && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={handleInputKeyDown}
+              placeholder={geekType === 'rpg' ? 'Zoek bijvoorbeeld Dungeons & Dragons' : 'Zoek bijvoorbeeld Catan'}
+              enterKeyHint="search"
+              className="neo-input w-full py-3 pl-9 pr-10"
+            />
+            {searching && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
+          </div>
+          <button
+            type="button"
+            onClick={() => void searchBgg()}
+            disabled={searching || query.trim().length < 2}
+            className="neo-button neo-button-primary w-full shrink-0 disabled:opacity-60 sm:w-auto"
+          >
+            Zoek
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void searchBgg()}
-          disabled={searching || query.trim().length < 2}
-          className="neo-button neo-button-primary shrink-0 disabled:opacity-60"
-        >
-          Zoek
-        </button>
       </div>
 
       <div className="mt-4 space-y-2">

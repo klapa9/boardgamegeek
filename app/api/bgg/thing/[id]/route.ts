@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
   return NextResponse.json({
     bggId: item.bggId,
-    geekType: geekType === 'rpgitem' ? 'rpgitem' : 'boardgame',
+    geekType: geekType === 'rpg' ? 'rpg' : 'boardgame',
     title: item.title,
     yearPublished: item.yearPublished,
     thumbnailUrl: item.thumbnailUrl,

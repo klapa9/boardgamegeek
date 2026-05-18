@@ -199,7 +199,7 @@ export function serializeCollectionGame(game: CollectionGameWithRelations) {
   return {
     id: game.id,
     bgg_id: game.bggId,
-    geek_type: game.geekType === 'rpgitem' ? 'rpgitem' : 'boardgame',
+    geek_type: game.geekType === 'boardgame' ? 'boardgame' : 'rpg',
     title: game.title,
     year_published: game.yearPublished,
     thumbnail_url: cachedImageUrl(game.thumbnailUrl ?? game.imageUrl, 'thumb', game.bggId),

@@ -1,21 +1,21 @@
-export const GEEK_TYPES = ['boardgame', 'rpgitem'] as const;
+export const GEEK_TYPES = ['boardgame', 'rpg'] as const;
 
 export type GeekType = (typeof GEEK_TYPES)[number];
 
 export function normalizeGeekType(value: unknown): GeekType {
-  return value === 'rpgitem' ? 'rpgitem' : 'boardgame';
+  return value === 'rpg' || value === 'rpgitem' ? 'rpg' : 'boardgame';
 }
 
 export function geekApiBaseUrl(geekType: GeekType) {
-  return geekType === 'rpgitem'
+  return geekType === 'rpg'
     ? 'https://rpggeek.com/xmlapi2'
     : 'https://boardgamegeek.com/xmlapi2';
 }
 
 export function geekTypeLabel(geekType: GeekType) {
-  return geekType === 'rpgitem' ? 'RPGGeek' : 'BoardGameGeek';
+  return geekType === 'rpg' ? 'RPGGeek' : 'BoardGameGeek';
 }
 
 export function geekTypeBadgeLabel(geekType: GeekType) {
-  return geekType === 'rpgitem' ? 'RPG' : 'Boardgame';
+  return geekType === 'rpg' ? 'RPG' : 'Boardgame';
 }
