@@ -215,6 +215,31 @@ function sameSelection(left: string[], right: string[]) {
   return right.every((item) => leftSet.has(item));
 }
 
+function upsertRating(items: RatingDto[], nextRating: RatingDto) {
+  const existing = items.some((rating) => rating.player_id === nextRating.player_id && rating.game_id === nextRating.game_id);
+  if (existing) {
+    return items.map((rating) => (
+      rating.player_id === nextRating.player_id && rating.game_id === nextRating.game_id ? nextRating : rating
+    ));
+  }
+  return [...items, nextRating];
+}
+
+function mergeRatingsWithLocalOverrides(serverRatings: RatingDto[], localOverrides: Map<string, RatingDto>) {
+  const merged = new Map(serverRatings.map((rating) => [playerGameKey(rating.player_id, rating.game_id), rating]));
+
+  for (const [key, rating] of localOverrides.entries()) {
+    const serverRating = merged.get(key);
+    if (serverRating?.score === rating.score) {
+      localOverrides.delete(key);
+      continue;
+    }
+    merged.set(key, rating);
+  }
+
+  return Array.from(merged.values());
+}
+
 export default function SessionApp({ sessionId }: { sessionId: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -252,6 +277,8 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const [meetingTimeInput, setMeetingTimeInput] = useState('20:00');
   const [questionSaving, setQuestionSaving] = useState(false);
   const scoreSaveTimers = useRef<Record<string, number>>({});
+  const optimisticRatingsRef = useRef<Map<string, RatingDto>>(new Map());
+  const refreshRequestIdRef = useRef(0);
   const questionSelectionSignatureRef = useRef<string | null>(null);
   const initialViewResolved = useRef(false);
   const initialShareIntentHandled = useRef(false);
@@ -364,13 +391,17 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const needsQuestionAnswers = Boolean(currentPlayerId) && questions.length > 0 && currentPlayerMissingQuestionIds.length > 0;
 
   async function refresh(showMessage = false) {
+    const requestId = refreshRequestIdRef.current + 1;
+    refreshRequestIdRef.current = requestId;
+
     try {
       const data = await loadSessionBundle(sessionId);
+      if (requestId !== refreshRequestIdRef.current) return null;
       setSession(data.session);
       setPlayers(data.players);
       setGames(data.games);
       setAvailability(data.availability);
-      setRatings(data.ratings);
+      setRatings(mergeRatingsWithLocalOverrides(data.ratings, optimisticRatingsRef.current));
       setQuestions(data.questions);
       setQuestionAnswers(data.question_answers);
       setViewerProfile(data.viewer_profile);
@@ -383,10 +414,13 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       if (showMessage) setMessage('Alles is bijgewerkt.');
       return data;
     } catch (err) {
+      if (requestId !== refreshRequestIdRef.current) return null;
       setError(err instanceof Error ? err.message : 'Sessie laden mislukt.');
       return null;
     } finally {
-      setLoading(false);
+      if (requestId === refreshRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }
 
@@ -857,48 +891,81 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
+  async function addBggGameToSession(bggId: number) {
+    if (!currentPlayerId) return;
+    setAddGamesSaving(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const data = await api<{ game: GameDto }>(`/api/sessions/${sessionId}/games`, {
+        method: 'POST',
+        body: JSON.stringify({ added_by: currentPlayerId, bgg_id: bggId })
+      });
+      setSelectedAddGameIds([]);
+      setAddGamesOpen(false);
+      await refresh(false);
+      setMessage(`"${data.game.title}" is toegevoegd aan de spelavond.`);
+      setSelectedGameId(null);
+      setView('rating');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Spellen toevoegen mislukt.');
+      throw err;
+    } finally {
+      setAddGamesSaving(false);
+    }
+  }
+
   function setScore(gameId: string, score: number) {
     if (!currentPlayerId) return;
     const playerId = currentPlayerId;
     const timerKey = playerGameKey(playerId, gameId);
+    const nextRating: RatingDto = { player_id: playerId, game_id: gameId, score };
 
-    setRatings((items) => {
-      const existing = items.some((rating) => rating.player_id === playerId && rating.game_id === gameId);
-      if (existing) {
-        return items.map((rating) => (
-          rating.player_id === playerId && rating.game_id === gameId ? { ...rating, score } : rating
-        ));
-      }
-      return [...items, { player_id: playerId, game_id: gameId, score }];
-    });
+    optimisticRatingsRef.current.set(timerKey, nextRating);
+
+    setRatings((items) => upsertRating(items, nextRating));
 
     window.clearTimeout(scoreSaveTimers.current[timerKey]);
-    scoreSaveTimers.current[timerKey] = window.setTimeout(async () => {
+    const timeoutId = window.setTimeout(async () => {
       try {
-        await api(`/api/sessions/${sessionId}/ratings`, {
+        const data = await api<{ rating: RatingDto }>(`/api/sessions/${sessionId}/ratings`, {
           method: 'PUT',
           body: JSON.stringify({ player_id: playerId, game_id: gameId, score })
         });
+
+        const latestOptimisticRating = optimisticRatingsRef.current.get(timerKey);
+        if (latestOptimisticRating && latestOptimisticRating.score !== score) return;
+        setRatings((items) => upsertRating(items, data.rating));
       } catch (err) {
+        const latestOptimisticRating = optimisticRatingsRef.current.get(timerKey);
+        if (!latestOptimisticRating || latestOptimisticRating.score !== score) return;
+        optimisticRatingsRef.current.delete(timerKey);
         setError(err instanceof Error ? err.message : 'Score opslaan mislukt.');
         await refresh(false);
       } finally {
-        delete scoreSaveTimers.current[timerKey];
+        if (scoreSaveTimers.current[timerKey] === timeoutId) {
+          delete scoreSaveTimers.current[timerKey];
+        }
       }
     }, SCORE_AUTOSAVE_DELAY_MS);
+    scoreSaveTimers.current[timerKey] = timeoutId;
   }
 
   function rateGame(gameId: string, score: number) {
     const wasAlreadyRated = myScore(gameId) !== null;
     setScore(gameId, score);
+    const remainingUnratedGames = currentPlayerId
+      ? games.filter((game) => game.id !== gameId && !scoreByPlayerGame.has(playerGameKey(currentPlayerId, game.id)))
+      : [];
 
     if (selectedGameId === gameId && wasAlreadyRated) {
       setSelectedGameId(null);
-      setView(currentPlayerHasUnratedGames ? 'rating' : 'results');
+      setView(remainingUnratedGames.length ? 'rating' : 'results');
       return;
     }
 
-    const nextGame = games.find((game) => game.id !== gameId && myScore(game.id) === null);
+    const nextGame = remainingUnratedGames[0] ?? null;
     if (nextGame) {
       setSelectedGameId(nextGame.id);
       setView('rating');
@@ -1964,10 +2031,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
           )}
           <div className="space-y-2">
             {results.map((row, index) => (
-              <div key={row.game.id} className="page-subcard px-4 py-3">
+              <article key={row.game.id} className="page-subcard overflow-hidden">
                 <button
                   onClick={() => { setSelectedGameId(row.game.id); setView('rating'); }}
-                  className="w-full text-left"
+                  className="block w-full px-4 py-3 text-left transition hover:bg-white/70 focus-visible:bg-white/70"
                   type="button"
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -1993,16 +2060,18 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   {!!row.missing.length && <p className="mt-2 text-xs text-slate-500">Nog niet gestemd: {row.missing.map((player) => player.name).join(', ')}</p>}
                 </button>
                 {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => chooseGame(row.game.id)}
-                    disabled={saving}
-                    className="neo-button neo-button-ghost mt-3 text-sm disabled:opacity-50"
-                  >
-                    <Lock size={16} /> Zet dit spel vast
-                  </button>
+                  <div className="px-4 pb-3">
+                    <button
+                      type="button"
+                      onClick={() => chooseGame(row.game.id)}
+                      disabled={saving}
+                      className="neo-button neo-button-ghost text-sm disabled:opacity-50"
+                    >
+                      <Lock size={16} /> Zet dit spel vast
+                    </button>
+                  </div>
                 )}
-              </div>
+              </article>
             ))}
             {!results.length && <p className="neo-muted-panel text-center text-slate-500">Nog geen resultaat.</p>}
           </div>
@@ -2082,6 +2151,13 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 onSelectedIdsChange={setSelectedAddGameIds}
                 disabledTitles={existingGameTitles}
                 disabledBggIds={existingBggIds}
+                allowAddToCollection
+                onBggSelectWithCollection={async ({ result }) => {
+                  await addBggGameToSession(result.bggId);
+                }}
+                onBggSelectWithoutCollection={async (result) => {
+                  await addBggGameToSession(result.bggId);
+                }}
                 title="Zoek en selecteer spellen"
                 subtitle="Vink alle spellen aan die je wil toevoegen."
                 maxHeightClassName="max-h-[26rem]"

@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Dice5, Loader2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { api } from '@/lib/api';
-import { CollectionBundle, CollectionGameDto, CollectionGroupDto, CollectionSyncStateDto } from '@/lib/types';
+import CollectionAddDrawer from '@/components/CollectionAddDrawer';
+import { BggSearchResult, CollectionBundle, CollectionGameDto, CollectionGroupDto, CollectionSyncStateDto } from '@/lib/types';
 import GameFilterControls from '@/components/GameFilterControls';
 import { emptyGameFilters, GameFilterState, hasActiveGameFilters, matchesGameFilters, mechanicOptions, playerCountOptions } from '@/lib/gameFilters';
 
@@ -43,6 +44,9 @@ type GameCollectionPickerProps = {
   emptyText?: string;
   maxHeightClassName?: string;
   searchPlaceholder?: string;
+  allowAddToCollection?: boolean;
+  onBggSelectWithCollection?: (payload: { result: BggSearchResult; collectionGame: CollectionGameDto | null }) => Promise<void> | void;
+  onBggSelectWithoutCollection?: (result: BggSearchResult) => Promise<void> | void;
 };
 
 export default function GameCollectionPicker({
@@ -58,7 +62,10 @@ export default function GameCollectionPicker({
   subtitle = 'Je kan meerdere spellen selecteren.',
   emptyText = 'Geen spellen gevonden.',
   maxHeightClassName = 'max-h-80',
-  searchPlaceholder = 'Zoek in je collectie...'
+  searchPlaceholder = 'Zoek in je collectie...',
+  allowAddToCollection = false,
+  onBggSelectWithCollection,
+  onBggSelectWithoutCollection
 }: GameCollectionPickerProps) {
   const [collection, setCollection] = useState<CollectionGameDto[]>([]);
   const [groups, setGroups] = useState<CollectionGroupDto[]>([]);
@@ -71,9 +78,11 @@ export default function GameCollectionPicker({
   const [searching, setSearching] = useState(false);
   const [loadingCollection, setLoadingCollection] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addDrawerOpen, setAddDrawerOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const searchTimer = useRef<number | null>(null);
   const autoSelectApplied = useRef(false);
+  const selectedIdsRef = useRef(selectedIds);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const disabledIdSet = useMemo(() => new Set(disabledIds), [disabledIds]);
@@ -82,17 +91,36 @@ export default function GameCollectionPicker({
   const mechanics = useMemo(() => mechanicOptions(collection), [collection]);
   const playerCounts = useMemo(() => playerCountOptions(collection), [collection]);
   const activeFilterCount = useMemo(() => Object.values(filters).filter(Boolean).length, [filters]);
+  const collectionBggIds = useMemo(
+    () => collection.map((game) => game.bgg_id).filter((id): id is number => id !== null),
+    [collection]
+  );
+
+  async function loadCollection(showLoadingState = false) {
+    if (showLoadingState) setLoadingCollection(true);
+
+    try {
+      const data = await api<CollectionBundle>('/api/collection/games');
+      setCollection(data.games);
+      setGroups(data.groups);
+      setSyncState(data.sync_state);
+      setError(null);
+      return data.games;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Spellenlijst laden mislukt.');
+      return null;
+    } finally {
+      if (showLoadingState) setLoadingCollection(false);
+    }
+  }
 
   useEffect(() => {
-    api<CollectionBundle>('/api/collection/games')
-      .then((data) => {
-        setCollection(data.games);
-        setGroups(data.groups);
-        setSyncState(data.sync_state);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Spellenlijst laden mislukt.'))
-      .finally(() => setLoadingCollection(false));
+    void loadCollection(true);
   }, []);
+
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
 
   useEffect(() => {
     autoSelectApplied.current = false;
@@ -212,6 +240,25 @@ export default function GameCollectionPicker({
     }
   }
 
+  async function handleCollectionAndContextSelection(addedGame: CollectionGameDto | null, result: BggSearchResult) {
+    const nextGames = await loadCollection();
+    const addedBggId = addedGame?.bgg_id ?? result.bggId;
+    const resolvedCollectionGame = addedGame ?? nextGames?.find((game) => game.bgg_id === addedBggId) ?? null;
+
+    if (onBggSelectWithCollection) {
+      await onBggSelectWithCollection({ result, collectionGame: resolvedCollectionGame });
+      return;
+    }
+
+    const selectedGameId = addedGame?.id
+      ?? nextGames?.find((game) => addedBggId !== null && game.bgg_id === addedBggId)?.id
+      ?? null;
+
+    if (!selectedGameId) return;
+
+    onSelectedIdsChange(Array.from(new Set([...selectedIdsRef.current, selectedGameId])));
+  }
+
   return (
     <div>
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -219,11 +266,19 @@ export default function GameCollectionPicker({
           <label className="block text-sm font-semibold text-slate-700">{title}</label>
           <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
         </div>
-        {!!selectedIds.length && (
-          <button type="button" onClick={clearSelection} className="neo-button neo-button-ghost text-sm text-slate-600">
-            <X size={15} className="mr-1 inline" /> Selectie leegmaken
-          </button>
-        )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {allowAddToCollection && (
+            <button type="button" onClick={() => setAddDrawerOpen(true)} className="neo-button neo-button-lime text-sm">
+              <Plus size={16} />
+              Spel toevoegen aan collectie
+            </button>
+          )}
+          {!!selectedIds.length && (
+            <button type="button" onClick={clearSelection} className="neo-button neo-button-ghost text-sm text-slate-600">
+              <X size={15} className="mr-1 inline" /> Selectie leegmaken
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mb-3 flex items-stretch gap-2">
@@ -383,7 +438,16 @@ export default function GameCollectionPicker({
           </ul>
         </div>
       )}
+
+      {allowAddToCollection && (
+        <CollectionAddDrawer
+          open={addDrawerOpen}
+          existingCollectionGames={collection}
+          onClose={() => setAddDrawerOpen(false)}
+          onAddToCollectionAndContext={handleCollectionAndContextSelection}
+          onAddToContextOnly={onBggSelectWithoutCollection}
+        />
+      )}
     </div>
   );
 }
-

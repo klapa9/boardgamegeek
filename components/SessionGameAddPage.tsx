@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, Plus } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
-import { GameDto, PlayerDto, SessionDto, UserProfileDto } from '@/lib/types';
+import { BggSearchResult, GameDto, PlayerDto, SessionDto, UserProfileDto } from '@/lib/types';
 import GameCollectionPicker from './GameCollectionPicker';
 
 type AddState = 'idle' | 'saving' | 'done';
@@ -79,6 +79,30 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
     }
   }
 
+  async function addBggGameToSession(result: BggSearchResult) {
+    if (!currentPlayerId) return;
+    setState('saving');
+    setError(null);
+    setMessage(null);
+
+    try {
+      const data = await api<{ game: GameDto }>(`/api/sessions/${sessionId}/games`, {
+        method: 'POST',
+        body: JSON.stringify({
+          bgg_id: result.bggId,
+          added_by: currentPlayerId
+        })
+      });
+      setMessage(`"${data.game.title}" is toegevoegd aan deze spelavond.`);
+      setState('done');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Spel toevoegen mislukt.');
+      setState('idle');
+      throw err;
+    }
+  }
+
   if (loading) return <main className="mx-auto max-w-4xl px-4 py-8">Laden...</main>;
   if (!session) return <main className="mx-auto max-w-4xl px-4 py-8">Sessie niet gevonden.</main>;
 
@@ -109,6 +133,11 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
           onSelectedIdsChange={setSelectedIds}
           disabledTitles={existingTitles}
           disabledBggIds={existingBggIds}
+          allowAddToCollection
+          onBggSelectWithCollection={async ({ result }) => {
+            await addBggGameToSession(result);
+          }}
+          onBggSelectWithoutCollection={addBggGameToSession}
           title="Kies extra spellen"
           subtitle="Vink alle spellen aan die je wil toevoegen aan deze spelavond. Spellen die al in de lijst staan kan je niet opnieuw selecteren."
           maxHeightClassName="max-h-[32rem]"

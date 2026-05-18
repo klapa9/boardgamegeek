@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Search, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { BggSearchResult, CollectionBundle, CollectionGameDto } from '@/lib/types';
-
-const BGG_RESULTS_PAGE_SIZE = 10;
+import { CollectionBundle, CollectionGameDto } from '@/lib/types';
+import CollectionBggSearch from '@/components/CollectionBggSearch';
 
 function listImageUrl(game: CollectionGameDto) {
   return game.thumbnail_url ?? game.image_url;
@@ -28,12 +27,7 @@ function formatMeta(game: CollectionGameDto) {
 export default function CollectionManager() {
   const [games, setGames] = useState<CollectionGameDto[]>([]);
   const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<BggSearchResult[]>([]);
-  const [searchPage, setSearchPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [addingId, setAddingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,70 +46,13 @@ export default function CollectionManager() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function searchBgg(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const trimmedQuery = query.trim();
-    setSearchPage(0);
-    setError(null);
-
-    if (trimmedQuery.length < 2) {
-      setSubmittedQuery('');
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
-
-    setSubmittedQuery(trimmedQuery);
-    setSearching(true);
-    try {
-      const data = await api<{ results: BggSearchResult[] }>(`/api/bgg/search?q=${encodeURIComponent(trimmedQuery)}`);
-      setSearchResults(data.results);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Zoeken op BoardGameGeek mislukt.');
-    } finally {
-      setSearching(false);
-    }
-  }
-
   const filteredGames = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return games;
     return games.filter((game) => game.title.toLowerCase().includes(normalizedQuery));
   }, [games, query]);
 
-  const visibleBggResults = useMemo(() => {
-    const start = searchPage * BGG_RESULTS_PAGE_SIZE;
-    return searchResults.slice(start, start + BGG_RESULTS_PAGE_SIZE);
-  }, [searchPage, searchResults]);
-
-  const totalBggResults = searchResults.length;
-  const visibleBggStart = totalBggResults ? searchPage * BGG_RESULTS_PAGE_SIZE + 1 : 0;
-  const visibleBggEnd = totalBggResults
-    ? Math.min((searchPage + 1) * BGG_RESULTS_PAGE_SIZE, totalBggResults)
-    : 0;
-  const canGoToPreviousBggPage = searchPage > 0;
-  const canGoToNextBggPage = visibleBggEnd < totalBggResults;
-
   const gameIdsInCollection = useMemo(() => new Set(games.map((game) => game.bgg_id).filter((id): id is number => id !== null)), [games]);
-
-  async function addGame(result: BggSearchResult) {
-    setAddingId(result.bggId);
-    setError(null);
-
-    try {
-      await api('/api/collection/games', {
-        method: 'POST',
-        body: JSON.stringify({ bgg_id: result.bggId })
-      });
-      setMessage(`"${result.title}" is toegevoegd aan je collectie.`);
-      await loadBundle();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Spel toevoegen mislukt.');
-    } finally {
-      setAddingId(null);
-    }
-  }
 
   async function deleteGame(game: CollectionGameDto) {
     const warning = syncedUsername
@@ -165,86 +102,17 @@ export default function CollectionManager() {
           </div>
         )}
 
-        <form onSubmit={searchBgg} className="mt-4 flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Zoek bijvoorbeeld Catan"
-              enterKeyHint="search"
-              className="neo-input w-full py-3 pl-9 pr-10"
-            />
-            {searching && <Loader2 size={17} className="absolute right-3 top-3.5 animate-spin text-slate-400" />}
-          </div>
-          <button
-            type="submit"
-            disabled={searching || query.trim().length < 2}
-            className="neo-button neo-button-primary shrink-0 disabled:opacity-60"
-          >
-            Zoek
-          </button>
-        </form>
-
         <div className="mt-4 grid gap-4 xl:grid-cols-2">
-          <div className="page-subcard p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="font-black text-slate-900">BGG zoekresultaten</h3>
-              <span className="text-sm text-slate-500">
-                {totalBggResults ? `${visibleBggStart}-${visibleBggEnd} van ${totalBggResults}` : '0 resultaten'}
-              </span>
-            </div>
-            <div className="mt-3 space-y-2">
-              {!submittedQuery ? (
-                <div className="neo-muted-panel text-center text-slate-500">Typ minstens 2 letters en druk op Enter of op Zoek om BoardGameGeek te doorzoeken.</div>
-              ) : visibleBggResults.length ? (
-                visibleBggResults.map((result) => {
-                  const alreadyInCollection = gameIdsInCollection.has(result.bggId);
-                  return (
-                    <article key={result.bggId} className="flex items-center gap-3 rounded-2xl bg-white/80 px-3 py-3">
-                      <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-slate-900">{result.title}</h4>
-                        <p className="text-sm text-slate-500">
-                          BGG #{result.bggId}
-                          {result.yearPublished ? ` - ${result.yearPublished}` : ''}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={alreadyInCollection || addingId === result.bggId}
-                        onClick={() => void addGame(result)}
-                        className="neo-button neo-button-ghost text-sm disabled:opacity-60"
-                      >
-                        {addingId === result.bggId ? 'Toevoegen...' : alreadyInCollection ? 'Al toegevoegd' : 'Voeg toe'}
-                      </button>
-                    </article>
-                  );
-                })
-              ) : (
-                <div className="neo-muted-panel text-center text-slate-500">Geen BGG resultaten gevonden.</div>
-              )}
-            </div>
-            {!!visibleBggResults.length && (
-              <div className="mt-4 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSearchPage((current) => Math.max(0, current - 1))}
-                  disabled={!canGoToPreviousBggPage}
-                  className="neo-button neo-button-ghost text-sm disabled:opacity-60"
-                >
-                  Vorige 10
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSearchPage((current) => current + 1)}
-                  disabled={!canGoToNextBggPage}
-                  className="neo-button neo-button-ghost text-sm disabled:opacity-60"
-                >
-                  Volgende 10
-                </button>
-              </div>
-            )}
-          </div>
+          <CollectionBggSearch
+            existingBggIds={Array.from(gameIdsInCollection)}
+            query={query}
+            onQueryChange={setQuery}
+            onGameAdded={async () => {
+              await loadBundle();
+            }}
+            title="BGG zoekresultaten"
+            subtitle="Zoek in de BoardGameGeek-database en voeg basisspellen toe aan je collectie. Expansions worden automatisch weggefilterd."
+          />
 
           <div className="page-subcard p-4">
             <div className="flex items-center justify-between gap-3">

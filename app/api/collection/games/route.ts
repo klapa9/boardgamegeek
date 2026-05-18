@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { collectionGroupInclude } from '@/lib/collection-groups';
-import { fetchBgg } from '@/lib/bgg-api';
-import { parseThingDetails } from '@/lib/bgg-xml';
+import { fetchSingleBggGameDetail } from '@/lib/bgg-game-details';
 import { prisma } from '@/lib/db';
 import { collectionGameInclude } from '@/lib/collection-games';
 import { deriveCollectionPresentation } from '@/lib/collection-state';
@@ -18,16 +17,6 @@ function normalizeIdList(value: unknown) {
       .map((entry) => String(entry).trim())
       .filter((entry): entry is string => entry.length > 0)
   ));
-}
-
-async function fetchBggGameDetails(bggId: number) {
-  const url = `https://boardgamegeek.com/xmlapi2/thing?id=${bggId}&stats=1`;
-  const response = await fetchBgg(url, { cache: 'no-store' }, 'collection-add');
-  if (!response.ok) {
-    throw new Error('BoardGameGeek details ophalen is mislukt.');
-  }
-
-  return parseThingDetails(await response.text()).find((game) => game.bggId === bggId) ?? null;
 }
 
 export async function GET() {
@@ -102,7 +91,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Kies eerst een spel uit de BGG zoekresultaten.' }, { status: 400 });
   }
 
-  const details = await fetchBggGameDetails(rawBggId);
+  const details = await fetchSingleBggGameDetail(rawBggId, 'collection-add');
   if (!details) {
     return NextResponse.json({ error: 'Spel niet gevonden op BoardGameGeek.' }, { status: 404 });
   }

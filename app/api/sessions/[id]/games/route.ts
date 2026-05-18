@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
+import { bggThingDetailsToSessionGameData, collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
+import { fetchSingleBggGameDetail } from '@/lib/bgg-game-details';
 import { serializeGame } from '@/lib/serializers';
 import { ensureSessionOrganizerAccess } from '@/lib/session-organizer';
 import { getCurrentUserProfile } from '@/lib/user-profile';
@@ -9,6 +10,7 @@ type AddSessionGamesBody = {
   added_by?: unknown;
   collection_game_id?: unknown;
   collection_game_ids?: unknown;
+  bgg_id?: unknown;
 };
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -27,10 +29,36 @@ export async function POST(request: Request, { params }: { params: { id: string 
     : singleCollectionGameId
       ? [singleCollectionGameId]
       : [];
+  const rawBggId = Number(body.bgg_id);
+  const requestedBggId = Number.isFinite(rawBggId) ? rawBggId : null;
+  const existingGames = await prisma.game.findMany({ where: { sessionId: params.id } });
+  const existingTitles = new Set(existingGames.map((game) => game.title.toLowerCase()));
+  const existingBggIds = new Set(existingGames.map((game) => game.bggId).filter((id): id is number => id !== null));
+
+  if (!collectionGameIds.length && requestedBggId !== null) {
+    const details = await fetchSingleBggGameDetail(requestedBggId, 'session-add-bgg');
+    if (!details) return NextResponse.json({ error: 'Spel niet gevonden op BoardGameGeek.' }, { status: 404 });
+
+    const duplicateByTitle = existingTitles.has(details.title.toLowerCase());
+    const duplicateByBggId = existingBggIds.has(details.bggId);
+    if (duplicateByTitle || duplicateByBggId) {
+      return NextResponse.json({ error: 'Dit spel staat al in de lijst.' }, { status: 409 });
+    }
+
+    const added = await prisma.game.create({
+      data: {
+        sessionId: params.id,
+        ...bggThingDetailsToSessionGameData(details),
+        addedBy
+      }
+    });
+
+    return NextResponse.json({ game: serializeGame(added) });
+  }
 
   const uniqueCollectionGameIds = Array.from(new Set(collectionGameIds));
   if (!uniqueCollectionGameIds.length) {
-    return NextResponse.json({ error: 'Kies minstens een spel uit de gesynchroniseerde lijst.' }, { status: 400 });
+    return NextResponse.json({ error: 'Kies minstens 1 spel.' }, { status: 400 });
   }
 
   const viewerProfile = await getCurrentUserProfile();
@@ -47,10 +75,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
   });
   if (!collectionGames.length) return NextResponse.json({ error: 'Geen van deze spellen staat in de gesynchroniseerde lijst.' }, { status: 404 });
-
-  const existingGames = await prisma.game.findMany({ where: { sessionId: params.id } });
-  const existingTitles = new Set(existingGames.map((game) => game.title.toLowerCase()));
-  const existingBggIds = new Set(existingGames.map((game) => game.bggId).filter((id): id is number => id !== null));
 
   const skipped: string[] = [];
   const createData = collectionGames.flatMap((collectionGame) => {

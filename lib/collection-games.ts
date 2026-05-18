@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { bggThingDetailsToSessionGameData } from '@/lib/session-game-data';
 
 export const collectionGameInclude = {
   mechanics: {
@@ -58,4 +59,5 @@ export function collectionGameToSessionGameData(game: CollectionGameWithRelation
 }
 
 export type SessionGameData = ReturnType<typeof collectionGameToSessionGameData>;
+export { bggThingDetailsToSessionGameData };
 

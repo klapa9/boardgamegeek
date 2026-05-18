@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, loadSessionBundle } from '@/lib/api';
+import { BggGameDetails, BggSearchResult, CollectionBundle } from '@/lib/types';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
 import NativeTimeInput from './NativeTimeInput';
+import { Dice5, X } from 'lucide-react';
 
 type CreateSessionFormMode = 'details' | 'planning' | 'games';
 type PlanningMode = 'fixed_day' | 'vote_dates';
@@ -131,6 +133,10 @@ function formatMeetingTime(value: string) {
   return minutes === '00' ? `${Number(hours)}u` : `${Number(hours)}u${minutes}`;
 }
 
+function sessionOnlyImageUrl(game: BggGameDetails) {
+  return game.thumbnailUrl ?? game.imageUrl;
+}
+
 function normalizeExtraQuestionsForPayload(extraQuestions: SessionDraftQuestion[]): (
   | {
     error: string;
@@ -207,6 +213,7 @@ export default function CreateSessionForm({
   const [dateOptions, setDateOptions] = useState<string[]>([]);
   const [extraQuestions, setExtraQuestions] = useState<SessionDraftQuestion[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [sessionOnlyGames, setSessionOnlyGames] = useState<BggGameDetails[]>([]);
   const [initialGameTitles, setInitialGameTitles] = useState<string[]>([]);
   const [initialGameBggIds, setInitialGameBggIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -249,6 +256,7 @@ export default function CreateSessionForm({
             }))
           })));
           setSelectedIds([]);
+          setSessionOnlyGames([]);
           setInitialGameTitles(data.games.map((game) => game.title));
           setInitialGameBggIds(data.games.map((game) => game.bgg_id).filter((id): id is number => id !== null));
         } catch (err) {
@@ -271,6 +279,7 @@ export default function CreateSessionForm({
         setDateOptions(draft?.dateOptions ?? []);
         setExtraQuestions(draft?.extraQuestions ?? []);
         setSelectedIds([]);
+        setSessionOnlyGames([]);
         setInitialGameTitles([]);
         setInitialGameBggIds([]);
         if (!cancelled) setInitializing(false);
@@ -295,6 +304,7 @@ export default function CreateSessionForm({
       setDateOptions(draft.dateOptions);
       setExtraQuestions(draft.extraQuestions);
       setSelectedIds([]);
+      setSessionOnlyGames([]);
 
       if (mode === 'games' && editSessionId) {
         try {
@@ -307,6 +317,38 @@ export default function CreateSessionForm({
           }
           setInitialGameTitles(data.games.map((game) => game.title));
           setInitialGameBggIds(data.games.map((game) => game.bgg_id).filter((id): id is number => id !== null));
+          const collectionData = await api<CollectionBundle>('/api/collection/games');
+          if (cancelled) return;
+          const collectionKeys = new Set(collectionData.games.map((game) => (
+            game.bgg_id !== null ? `bgg:${game.bgg_id}` : `title:${game.title.trim().toLowerCase()}`
+          )));
+          setSessionOnlyGames(data.games
+            .filter((game) => {
+              const key = game.bgg_id !== null ? `bgg:${game.bgg_id}` : `title:${game.title.trim().toLowerCase()}`;
+              return !collectionKeys.has(key);
+            })
+            .map((game) => ({
+              bggId: game.bgg_id ?? Number.NaN,
+              title: game.title,
+              yearPublished: game.year_published,
+              thumbnailUrl: game.thumbnail_url,
+              imageUrl: game.image_url,
+              minPlayers: game.min_players,
+              maxPlayers: game.max_players,
+              playingTime: game.playing_time,
+              minAge: game.min_age,
+              averageRating: game.bgg_rating,
+              bayesAverage: game.bgg_bayes_rating,
+              averageWeight: game.bgg_weight,
+              mechanics: game.mechanics,
+              categories: game.categories,
+              designers: game.designers,
+              playMode: game.play_mode,
+              communityPlayers: game.community_players,
+              playerCountPoll: game.player_count_poll,
+              ranks: game.ranks
+            }))
+            .filter((game) => Number.isFinite(game.bggId)));
         } catch (err) {
           if (cancelled) return;
           setError(err instanceof Error ? err.message : 'Sessie laden mislukt.');
@@ -314,6 +356,7 @@ export default function CreateSessionForm({
       } else {
         setInitialGameTitles([]);
         setInitialGameBggIds([]);
+        setSessionOnlyGames([]);
       }
 
       if (!cancelled) setInitializing(false);
@@ -371,6 +414,7 @@ export default function CreateSessionForm({
             title: draft.title,
             date_options: payloadDateOptions,
             collection_game_ids: selectedGameIds,
+            bgg_game_ids: sessionOnlyGames.map((game) => game.bggId),
             planning_mode: draft.planningMode,
             game_selection_mode: draft.gameSelectionMode,
             meeting_time: draft.meetingTime,
@@ -384,6 +428,7 @@ export default function CreateSessionForm({
             title: draft.title,
             date_options: payloadDateOptions,
             collection_game_ids: selectedGameIds,
+            bgg_game_ids: sessionOnlyGames.map((game) => game.bggId),
             planning_mode: draft.planningMode,
             game_selection_mode: draft.gameSelectionMode,
             meeting_time: draft.meetingTime,
@@ -537,23 +582,29 @@ export default function CreateSessionForm({
   async function confirmGames(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    const totalSelectedGames = selectedIds.length + sessionOnlyGames.length;
 
-    if (gameSelectionMode === 'host_pick' && selectedIds.length < 1) {
+    if (gameSelectionMode === 'host_pick' && totalSelectedGames < 1) {
       setError('Kies 1 spel.');
       return;
     }
 
-    if (gameSelectionMode === 'host_pick' && selectedIds.length > 1) {
+    if (gameSelectionMode === 'host_pick' && totalSelectedGames > 1) {
       setError('Je mag maar 1 spel selecteren.');
       return;
     }
 
-    if (gameSelectionMode === 'players_pick' && selectedIds.length < 1) {
+    if (gameSelectionMode === 'players_pick' && totalSelectedGames < 1) {
       setError('Kies minstens 1 speloptie.');
       return;
     }
 
     await submitSession(selectedIds);
+  }
+
+  async function addSessionOnlyBggGame(result: BggSearchResult) {
+    const details = await api<BggGameDetails>(`/api/bgg/thing/${result.bggId}`);
+    setSessionOnlyGames((current) => current.some((game) => game.bggId === details.bggId) ? current : [...current, details]);
   }
 
   const onSubmit = mode === 'details' ? confirmDetails : mode === 'planning' ? confirmPlanning : confirmGames;
@@ -570,7 +621,8 @@ export default function CreateSessionForm({
   const gamePickerSubtitle = gameSelectionMode === 'host_pick'
     ? 'Dit spel staat vast voor deze spelavond.'
     : 'Deze lijst wordt straks de stemlijst van je spelers.';
-  const hostPickHasTooManySelected = gameSelectionMode === 'host_pick' && selectedIds.length > 1;
+  const totalSelectedGames = selectedIds.length + sessionOnlyGames.length;
+  const hostPickHasTooManySelected = gameSelectionMode === 'host_pick' && totalSelectedGames > 1;
   const extraQuestionsSummary = extraQuestions.length
     ? `${extraQuestions.length} extra vraag${extraQuestions.length === 1 ? '' : 'vragen'}`
     : 'Geen extra vragen';
@@ -822,13 +874,48 @@ export default function CreateSessionForm({
             onSelectedIdsChange={setSelectedIds}
             autoSelectTitles={initialGameTitles}
             autoSelectBggIds={initialGameBggIds}
+            allowAddToCollection
+            disabledBggIds={sessionOnlyGames.map((game) => game.bggId)}
+            onBggSelectWithoutCollection={addSessionOnlyBggGame}
             title={gamePickerTitle}
             subtitle={gamePickerSubtitle}
             searchPlaceholder="Zoek in je collectie"
           />
           <p className="mt-3 text-sm text-slate-500">
-            {gameSelectionMode === 'host_pick' ? `${selectedIds.length}/1 spel gekozen` : `${selectedIds.length} spel${selectedIds.length === 1 ? '' : 'len'} gekozen`}
+            {gameSelectionMode === 'host_pick' ? `${totalSelectedGames}/1 spel gekozen` : `${totalSelectedGames} spel${totalSelectedGames === 1 ? '' : 'len'} gekozen`}
           </p>
+          {!!sessionOnlyGames.length && (
+            <div className="page-subcard-soft mt-3 p-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-700">Enkel voor deze spelavond <span className="text-slate-400">({sessionOnlyGames.length})</span></p>
+              </div>
+              <ul className="grid gap-2 sm:grid-cols-2">
+                {sessionOnlyGames.map((game) => (
+                  <li key={game.bggId} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                    {sessionOnlyImageUrl(game) ? (
+                      <img src={sessionOnlyImageUrl(game)!} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400"><Dice5 size={18} /></div>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <b className="block truncate text-sm">{game.title}</b>
+                      <span className="block truncate text-xs text-slate-500">
+                        BGG #{game.bggId}{game.yearPublished ? ` - ${game.yearPublished}` : ''}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSessionOnlyGames((current) => current.filter((entry) => entry.bggId !== game.bggId))}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-white hover:text-slate-700"
+                      title="Uit selectie verwijderen"
+                    >
+                      <X size={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {hostPickHasTooManySelected && (
             <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
               Je kan maar 1 spel selecteren.
@@ -844,8 +931,8 @@ export default function CreateSessionForm({
           loading
           || initializing
           || (mode === 'planning' && !dateOptions.length)
-          || (mode === 'games' && gameSelectionMode === 'host_pick' && selectedIds.length < 1)
-          || (mode === 'games' && gameSelectionMode === 'players_pick' && selectedIds.length < 1)
+          || (mode === 'games' && gameSelectionMode === 'host_pick' && totalSelectedGames < 1)
+          || (mode === 'games' && gameSelectionMode === 'players_pick' && totalSelectedGames < 1)
         }
         className="neo-button neo-button-primary w-full disabled:opacity-60"
       >
