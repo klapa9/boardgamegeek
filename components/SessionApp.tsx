@@ -47,27 +47,27 @@ type InviteTemplateInput = {
 };
 
 function inviteTemplateGameFixedDateFixed({ title, dateLabel, chosenGameTitle, meetingTimeLabel, url }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt vast: ${dateLabel}${meetingTimeLabel}.\nWe spelen ${chosenGameTitle}.\n\nBevestig je aanwezigheid via:\n${url}`;
+  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.\nWe spelen ${chosenGameTitle}.\n\nBevestig je aanwezigheid via:\n${url}`;
 }
 
-function inviteTemplateGameFixedDateOpen({ title, dateOptions, chosenGameTitle, meetingTimeLabel, url }: InviteTemplateInput) {
-  return `${title}\n\nWe spelen ${chosenGameTitle}, maar de datum ligt nog niet vast${meetingTimeLabel}.\nKies hieronder wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
+function inviteTemplateGameFixedDateOpen({ title, dateOptions, chosenGameTitle, url }: InviteTemplateInput) {
+  return `${title}\n\nWe spelen ${chosenGameTitle}, maar de datum ligt nog niet vast.\nKies hieronder wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
 }
 
 function inviteTemplateGameOpenDateFixedWithList({ title, dateLabel, meetingTimeLabel, url, gameListWithOverflow }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt vast: ${dateLabel}${meetingTimeLabel}.\nOver het spel wordt nog gestemd.\n\nGeef je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
+  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.\nOver het spel wordt nog gestemd.\n\nGeef je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
 }
 
-function inviteTemplateGameOpenDateOpenWithList({ title, dateOptions, meetingTimeLabel, url, gameListWithOverflow }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt nog niet vast${meetingTimeLabel} en over het spel wordt ook nog gestemd.\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid en spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
+function inviteTemplateGameOpenDateOpenWithList({ title, dateOptions, url, gameListWithOverflow }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt nog niet vast en over het spel wordt ook nog gestemd.\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid en spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
 }
 
 function inviteTemplateNoPreselectDateFixed({ title, dateLabel, meetingTimeLabel, url }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt vast: ${dateLabel}${meetingTimeLabel}.\nHet spel kiezen we niet op voorhand.\n\nBevestig je aanwezigheid via:\n${url}`;
+  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.\nHet spel kiezen we niet op voorhand.\n\nBevestig je aanwezigheid via:\n${url}`;
 }
 
-function inviteTemplateNoPreselectDateOpen({ title, dateOptions, meetingTimeLabel, url }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt nog niet vast${meetingTimeLabel}.\nHet spel kiezen we niet op voorhand.\n\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
+function inviteTemplateNoPreselectDateOpen({ title, dateOptions, url }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt nog niet vast.\nHet spel kiezen we niet op voorhand.\n\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
 }
 
 const SCORE_BADGES: Record<number, { label: string; className: string }> = {
