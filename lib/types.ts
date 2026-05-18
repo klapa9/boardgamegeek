@@ -1,3 +1,5 @@
+import type { GeekType } from '@/lib/geek-types';
+
 export type BggRankDto = {
   id: number | null;
   name: string;
@@ -110,6 +112,7 @@ export type GameDto = {
 export type CollectionGameDto = {
   id: string;
   bgg_id: number | null;
+  geek_type: GeekType;
   title: string;
   year_published: number | null;
   thumbnail_url: string | null;
@@ -202,6 +205,7 @@ export type CollectionBundle = {
 
 export type BggSearchResult = {
   bggId: number;
+  geekType: GeekType;
   title: string;
   yearPublished: number | null;
 };

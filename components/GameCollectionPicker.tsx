@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Dice5, Loader2, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import CollectionAddDrawer from '@/components/CollectionAddDrawer';
+import { geekTypeBadgeLabel } from '@/lib/geek-types';
 import { BggSearchResult, CollectionBundle, CollectionGameDto, CollectionGroupDto, CollectionSyncStateDto } from '@/lib/types';
 import GameFilterControls from '@/components/GameFilterControls';
 import { emptyGameFilters, GameFilterState, hasActiveGameFilters, matchesGameFilters, mechanicOptions, playerCountOptions } from '@/lib/gameFilters';
@@ -380,7 +381,12 @@ export default function GameCollectionPicker({
             >
               {imageUrl ? <img src={imageUrl} alt="" className="h-12 w-12 rounded-xl object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400"><Dice5 size={22} /></div>}
               <span className="min-w-0 flex-1">
-                <b className="block truncate">{game.title}</b>
+                <span className="flex flex-wrap items-center gap-2">
+                  <b className="block truncate">{game.title}</b>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                    {geekTypeBadgeLabel(game.geek_type)}
+                  </span>
+                </span>
                 <span className={`block truncate text-sm ${selected ? 'text-slate-300' : 'text-slate-600'}`}>{gameMeta(game) || 'Geen extra info'}</span>
                 {disabled && <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">{disabledReason}</span>}
               </span>
@@ -426,7 +432,12 @@ export default function GameCollectionPicker({
                 <li key={game.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
                   {imageUrl ? <img src={imageUrl} alt="" className="h-10 w-10 rounded-lg object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400"><Dice5 size={18} /></div>}
                   <span className="min-w-0 flex-1">
-                    <b className="block truncate text-sm">{game.title}</b>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <b className="block truncate text-sm">{game.title}</b>
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                        {geekTypeBadgeLabel(game.geek_type)}
+                      </span>
+                    </span>
                     <span className="block truncate text-xs text-slate-500">{gameMeta(game) || 'Geen extra info'}</span>
                   </span>
                   <button type="button" onClick={() => toggleGame(game.id)} className="rounded-lg p-2 text-slate-400 hover:bg-white hover:text-slate-700" title="Uit selectie verwijderen">

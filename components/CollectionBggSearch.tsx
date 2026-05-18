@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { api } from '@/lib/api';
+import { GeekType, geekTypeBadgeLabel, geekTypeLabel } from '@/lib/geek-types';
 import { BggSearchResult, CollectionGameDto } from '@/lib/types';
 
 const BGG_RESULTS_PAGE_SIZE = 10;
@@ -19,6 +20,7 @@ type CollectionBggSearchProps = {
   containerClassName?: string;
   mode?: 'add' | 'select';
   selectedBggId?: number | null;
+  showCatalogSelector?: boolean;
 };
 
 export default function CollectionBggSearch({
@@ -32,9 +34,11 @@ export default function CollectionBggSearch({
   emptyStateText = 'Typ minstens 2 letters en druk op Enter of op Zoek om BoardGameGeek te doorzoeken.',
   containerClassName = 'page-subcard p-4',
   mode = 'add',
-  selectedBggId = null
+  selectedBggId = null,
+  showCatalogSelector = false
 }: CollectionBggSearchProps) {
   const [internalQuery, setInternalQuery] = useState('');
+  const [geekType, setGeekType] = useState<GeekType>('boardgame');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [searchResults, setSearchResults] = useState<BggSearchResult[]>([]);
   const [searchPage, setSearchPage] = useState(0);
@@ -57,6 +61,15 @@ export default function CollectionBggSearch({
     setResultsCollapsed(selectedBggId !== null);
   }, [mode, selectedBggId]);
 
+  useEffect(() => {
+    setSubmittedQuery('');
+    setSearchResults([]);
+    setSearchPage(0);
+    setResultsCollapsed(false);
+    setMessage(null);
+    setError(null);
+  }, [geekType]);
+
   async function searchBgg() {
     const trimmedQuery = query.trim();
     setSearchPage(0);
@@ -74,10 +87,12 @@ export default function CollectionBggSearch({
     setSubmittedQuery(trimmedQuery);
     setSearching(true);
     try {
-      const data = await api<{ results: BggSearchResult[] }>(`/api/bgg/search?q=${encodeURIComponent(trimmedQuery)}`);
+      const data = await api<{ results: BggSearchResult[] }>(
+        `/api/bgg/search?q=${encodeURIComponent(trimmedQuery)}&catalog=${encodeURIComponent(geekType)}`
+      );
       setSearchResults(data.results);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Zoeken op BoardGameGeek mislukt.');
+      setError(err instanceof Error ? err.message : `Zoeken op ${geekTypeLabel(geekType)} mislukt.`);
     } finally {
       setSearching(false);
     }
@@ -110,7 +125,7 @@ export default function CollectionBggSearch({
     try {
       const data = await api<{ game: CollectionGameDto | null }>('/api/collection/games', {
         method: 'POST',
-        body: JSON.stringify({ bgg_id: result.bggId })
+        body: JSON.stringify({ bgg_id: result.bggId, geek_type: result.geekType })
       });
       await onGameAdded?.(data.game, result);
       setMessage(`"${result.title}" is toegevoegd aan je collectie.`);
@@ -141,13 +156,26 @@ export default function CollectionBggSearch({
       )}
 
       <div className="mt-4 flex items-center gap-2">
+        {showCatalogSelector && (
+          <label className="flex shrink-0 flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Zoek in</span>
+            <select
+              value={geekType}
+              onChange={(event) => setGeekType(event.target.value === 'rpgitem' ? 'rpgitem' : 'boardgame')}
+              className="neo-input min-w-[12rem] pr-8"
+            >
+              <option value="boardgame">Boardgames</option>
+              <option value="rpgitem">Roleplaygames</option>
+            </select>
+          </label>
+        )}
         <div className="relative min-w-0 flex-1">
           <Search size={17} className="absolute left-3 top-3.5 text-slate-400" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleInputKeyDown}
-            placeholder="Zoek bijvoorbeeld Catan"
+            placeholder={geekType === 'rpgitem' ? 'Zoek bijvoorbeeld Dungeons & Dragons' : 'Zoek bijvoorbeeld Catan'}
             enterKeyHint="search"
             className="neo-input w-full py-3 pl-9 pr-10"
           />
@@ -168,10 +196,15 @@ export default function CollectionBggSearch({
           <div className="rounded-2xl border-2 border-slate-950/10 bg-white/80 px-4 py-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                    {geekTypeBadgeLabel(selectedResult.geekType)}
+                  </span>
+                </div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Gekozen zoekresultaat</p>
                 <h3 className="mt-1 font-bold text-slate-900">{selectedResult.title}</h3>
                 <p className="text-sm text-slate-500">
-                  BGG #{selectedResult.bggId}
+                  {geekTypeLabel(selectedResult.geekType)} #{selectedResult.bggId}
                   {selectedResult.yearPublished ? ` - ${selectedResult.yearPublished}` : ''}
                 </p>
               </div>
@@ -195,9 +228,14 @@ export default function CollectionBggSearch({
             return (
               <article key={result.bggId} className="flex items-center gap-3 rounded-2xl bg-white/80 px-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-bold text-slate-900">{result.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-bold text-slate-900">{result.title}</h3>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                      {geekTypeBadgeLabel(result.geekType)}
+                    </span>
+                  </div>
                   <p className="text-sm text-slate-500">
-                    BGG #{result.bggId}
+                    {geekTypeLabel(result.geekType)} #{result.bggId}
                     {result.yearPublished ? ` - ${result.yearPublished}` : ''}
                   </p>
                 </div>

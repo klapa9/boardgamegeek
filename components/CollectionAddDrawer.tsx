@@ -73,7 +73,7 @@ export default function CollectionAddDrawer({
 
       const data = await api<{ game: CollectionGameDto | null }>('/api/collection/games', {
         method: 'POST',
-        body: JSON.stringify({ bgg_id: selectedResult.bggId })
+        body: JSON.stringify({ bgg_id: selectedResult.bggId, geek_type: selectedResult.geekType })
       });
       await onAddToCollectionAndContext(data.game, selectedResult);
       onClose();

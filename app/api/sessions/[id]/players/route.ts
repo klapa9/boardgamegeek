@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/db';
 import { serializePlayer } from '@/lib/serializers';
+import { syncStoredUserGameRatingsForPlayer } from '@/lib/user-game-ratings';
 import { getOrCreateUserProfile } from '@/lib/user-profile';
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -17,12 +18,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
     });
 
     if (existingPlayer) {
-      const syncedPlayer = existingPlayer.name === profile.displayName
-        ? existingPlayer
-        : await prisma.player.update({
-          where: { id: existingPlayer.id },
-          data: { name: profile.displayName }
-        });
+      const syncedPlayer = await prisma.$transaction(async (tx) => {
+        const nextPlayer = existingPlayer.name === profile.displayName
+          ? existingPlayer
+          : await tx.player.update({
+            where: { id: existingPlayer.id },
+            data: { name: profile.displayName }
+          });
+
+        await syncStoredUserGameRatingsForPlayer(tx, nextPlayer.id, profile.id);
+        return nextPlayer;
+      });
 
       return NextResponse.json({ player: serializePlayer(syncedPlayer) });
     }
@@ -37,12 +43,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
     });
 
     if (claimablePlayers.length === 1) {
-      const claimedPlayer = await prisma.player.update({
-        where: { id: claimablePlayers[0].id },
-        data: {
-          userProfileId: profile.id,
-          name: profile.displayName
-        }
+      const claimedPlayer = await prisma.$transaction(async (tx) => {
+        const nextPlayer = await tx.player.update({
+          where: { id: claimablePlayers[0].id },
+          data: {
+            userProfileId: profile.id,
+            name: profile.displayName
+          }
+        });
+
+        await syncStoredUserGameRatingsForPlayer(tx, nextPlayer.id, profile.id);
+        return nextPlayer;
       });
 
       return NextResponse.json({ player: serializePlayer(claimedPlayer) });

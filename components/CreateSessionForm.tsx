@@ -329,6 +329,7 @@ export default function CreateSessionForm({
             })
             .map((game) => ({
               bggId: game.bgg_id ?? Number.NaN,
+              geekType: 'boardgame' as const,
               title: game.title,
               yearPublished: game.year_published,
               thumbnailUrl: game.thumbnail_url,
@@ -603,7 +604,7 @@ export default function CreateSessionForm({
   }
 
   async function addSessionOnlyBggGame(result: BggSearchResult) {
-    const details = await api<BggGameDetails>(`/api/bgg/thing/${result.bggId}`);
+    const details = await api<BggGameDetails>(`/api/bgg/thing/${result.bggId}?geek_type=${encodeURIComponent(result.geekType)}`);
     setSessionOnlyGames((current) => current.some((game) => game.bggId === details.bggId) ? current : [...current, details]);
   }
 

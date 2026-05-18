@@ -1,7 +1,9 @@
 import { XMLParser } from 'fast-xml-parser';
 import { NextResponse } from 'next/server';
 import { fetchBgg } from '@/lib/bgg-api';
-import { parseThingTypes } from '@/lib/bgg-xml';
+import { isRpgCoreRule } from '@/lib/bgg-filters';
+import { parseThingDetails, parseThingTypes } from '@/lib/bgg-xml';
+import { geekApiBaseUrl, geekTypeLabel, normalizeGeekType } from '@/lib/geek-types';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 const BGG_THING_BATCH_SIZE = 20;
@@ -35,11 +37,13 @@ function matchPriority(title: string, query: string) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q')?.trim();
+  const geekType = normalizeGeekType(searchParams.get('catalog'));
   if (!query || query.length < 2) return NextResponse.json({ results: [] });
 
-  const url = `https://boardgamegeek.com/xmlapi2/search?type=boardgame&query=${encodeURIComponent(query)}`;
+  const geekLabel = geekTypeLabel(geekType);
+  const url = `${geekApiBaseUrl(geekType)}/search?type=${geekType}&query=${encodeURIComponent(query)}`;
   const response = await fetchBgg(url, { next: { revalidate: 60 * 60 * 24 } }, 'search');
-  if (!response.ok) return NextResponse.json({ error: 'BoardGameGeek zoeken is mislukt.' }, { status: 502 });
+  if (!response.ok) return NextResponse.json({ error: `${geekLabel} zoeken is mislukt.` }, { status: 502 });
 
   const xml = await response.text();
   const parsed = parser.parse(xml);
@@ -49,6 +53,7 @@ export async function GET(request: Request) {
   const candidates = items
     .map((item: any) => ({
       bggId: Number(item.id),
+      geekType,
       itemType: typeof item.type === 'string' ? item.type : null,
       title: item.name?.value ?? 'Onbekend spel',
       yearPublished: item.yearpublished?.value ? Number(item.yearpublished.value) : null
@@ -56,6 +61,35 @@ export async function GET(request: Request) {
     .filter((item) => Number.isFinite(item.bggId) && item.title !== 'Onbekend spel')
     .filter((item) => !looksLikeFanExpansion(item.title))
     .slice(0, MAX_SEARCH_CANDIDATES);
+
+  if (geekType === 'rpgitem') {
+    const allowedIds = new Set<number>();
+
+    for (const batch of chunk(candidates.map((item) => item.bggId), BGG_THING_BATCH_SIZE)) {
+      if (!batch.length) continue;
+
+      const thingUrl = `${geekApiBaseUrl(geekType)}/thing?id=${batch.join(',')}&stats=1&type=${geekType}`;
+      const thingResponse = await fetchBgg(thingUrl, { next: { revalidate: 60 * 60 * 24 } }, 'search-rpg-core-filter');
+      if (!thingResponse.ok) continue;
+
+      const details = parseThingDetails(await thingResponse.text());
+      details
+        .filter((item) => item.itemType === 'rpgitem' && isRpgCoreRule(item))
+        .forEach((item) => allowedIds.add(item.bggId));
+    }
+
+    const results = candidates
+      .filter((item) => allowedIds.has(item.bggId))
+      .sort((left, right) => (
+        matchPriority(left.title, query) - matchPriority(right.title, query)
+        || left.title.length - right.title.length
+        || left.title.localeCompare(right.title)
+        || (left.yearPublished ?? Number.MAX_SAFE_INTEGER) - (right.yearPublished ?? Number.MAX_SAFE_INTEGER)
+      ))
+      .map(({ itemType: _itemType, ...result }) => result);
+
+    return NextResponse.json({ results });
+  }
 
   let allowedIds = new Set(
     candidates

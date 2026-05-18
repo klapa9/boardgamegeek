@@ -79,10 +79,11 @@ function normalizeNameList(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 }
 
-function extractLinkValues(links: unknown, type: string) {
+function extractLinkValues(links: unknown, types: string | string[]) {
+  const allowedTypes = new Set(Array.isArray(types) ? types : [types]);
   return normalizeNameList(
     asArray<Record<string, unknown>>(links as Record<string, unknown>[] | Record<string, unknown> | undefined)
-      .filter((link) => link.type === type && typeof link.value === 'string')
+      .filter((link) => allowedTypes.has(String(link.type ?? '')) && typeof link.value === 'string')
       .map((link) => String(link.value))
   );
 }
@@ -181,9 +182,9 @@ export function parseThingDetails(xml: string): BggThingDetails[] {
       const bggId = Number(item.id);
       if (!Number.isFinite(bggId)) return null;
 
-      const mechanics = extractLinkValues(item.link, 'boardgamemechanic');
-      const categories = extractLinkValues(item.link, 'boardgamecategory');
-      const designers = extractLinkValues(item.link, 'boardgamedesigner');
+      const mechanics = extractLinkValues(item.link, ['boardgamemechanic', 'rpgmechanic']);
+      const categories = extractLinkValues(item.link, ['boardgamecategory', 'rpgcategory', 'rpggenre']);
+      const designers = extractLinkValues(item.link, ['boardgamedesigner', 'rpgdesigner']);
       const ratings = item.statistics && typeof item.statistics === 'object'
         ? (item.statistics as Record<string, unknown>).ratings as Record<string, unknown> | undefined
         : undefined;

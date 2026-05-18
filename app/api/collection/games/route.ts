@@ -6,6 +6,7 @@ import { collectionGameInclude } from '@/lib/collection-games';
 import { deriveCollectionPresentation } from '@/lib/collection-state';
 import { ensureCollectionTaxonomyMaps, replaceCollectionGameTaxonomy } from '@/lib/collection-taxonomy';
 import { preloadBggThumbnail } from '@/lib/image-cache';
+import { normalizeGeekType } from '@/lib/geek-types';
 import { asFilteredBggExpansionDtos, serializeCollectionGame, serializeCollectionGroup, serializeCollectionSyncState } from '@/lib/serializers';
 import { getCurrentUserProfile } from '@/lib/user-profile';
 import { calculateWebsiteRating } from '@/lib/website-rating';
@@ -88,13 +89,18 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const rawBggId = Number(body.bgg_id);
+  const geekType = normalizeGeekType(body.geek_type);
   if (!Number.isFinite(rawBggId)) {
     return NextResponse.json({ error: 'Kies eerst een spel uit de BGG zoekresultaten.' }, { status: 400 });
   }
 
-  const details = await fetchSingleBggGameDetail(rawBggId, 'collection-add');
+  const details = await fetchSingleBggGameDetail(rawBggId, 'collection-add', geekType);
   if (!details) {
-    return NextResponse.json({ error: 'Spel niet gevonden op BoardGameGeek.' }, { status: 404 });
+    return NextResponse.json({
+      error: geekType === 'rpgitem'
+        ? 'Volledige RPG niet gevonden op RPGGeek.'
+        : 'Spel niet gevonden op BoardGameGeek.'
+    }, { status: 404 });
   }
 
   const websiteRating = await calculateWebsiteRating(prisma, {
@@ -140,6 +146,7 @@ export async function POST(request: Request) {
       ? await tx.collectionGame.update({
         where: { id: existing.id },
         data: {
+          geekType,
           title: details.title,
           yearPublished: details.yearPublished,
           thumbnailUrl: details.thumbnailUrl,
@@ -169,6 +176,7 @@ export async function POST(request: Request) {
         data: {
           userProfileId: viewerProfile.id,
           bggId: details.bggId,
+          geekType,
           title: details.title,
           yearPublished: details.yearPublished,
           thumbnailUrl: details.thumbnailUrl,

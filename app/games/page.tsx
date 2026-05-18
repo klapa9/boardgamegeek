@@ -11,7 +11,7 @@ export default function GamesPage() {
           <p className="page-chip mt-4 w-fit">Collectiebeheer</p>
           <h1 className="mt-4 font-poster text-4xl uppercase leading-none text-slate-950 sm:text-5xl">Mijn spellen</h1>
           <p className="mt-3 max-w-2xl text-slate-700">
-            Je kan hier spellen toevoegen of verwijderen. Als je een boardgamegeek.com account hebt kan je ook je collectie synchronizeren.
+            Je kan hier boardgames en roleplaygames toevoegen of verwijderen. Als je een boardgamegeek.com account hebt kan je ook je collectie synchronizeren.
           </p>
           <Link
             href="/bgg"

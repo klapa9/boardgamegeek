@@ -185,6 +185,7 @@ model CollectionGame {
   id               String   @id @default(cuid())
   userProfileId    String?
   bggId            Int?
+  geekType         String   @default("boardgame")
   title            String
   yearPublished    Int?
   thumbnailUrl     String?
@@ -249,10 +250,32 @@ model UserProfile {
   updatedAt   DateTime @updatedAt
 
   players              Player[]
+  gameRatings          UserGameRating[]
   organizedSessions    Session[]            @relation("OrganizerSessions")
   collectionGames      CollectionGame[]
   collectionGroups     CollectionGroup[]
   collectionSyncState  CollectionSyncState?
+}
+
+model UserGameRating {
+  id            String   @id @default(cuid())
+  userProfileId String
+  gameKey       String
+  bggId         Int?
+  title         String
+  yearPublished Int?
+  thumbnailUrl  String?
+  imageUrl      String?
+  score         Float
+  ratingCount   Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userProfile UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([userProfileId, gameKey])
+  @@index([userProfileId, score])
+  @@index([bggId])
 }
 
 model CollectionGroup {

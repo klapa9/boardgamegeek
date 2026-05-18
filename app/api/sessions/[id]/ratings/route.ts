@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { serializeRating } from '@/lib/serializers';
+import { syncStoredUserGameRating } from '@/lib/user-game-ratings';
 import { syncStoredWebsiteRating } from '@/lib/website-rating';
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
@@ -20,7 +21,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         sessionId: params.id
       },
       select: {
-        id: true
+        id: true,
+        userProfileId: true
       }
     }),
     prisma.game.findFirst({
@@ -31,7 +33,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       select: {
         id: true,
         bggId: true,
-        title: true
+        title: true,
+        yearPublished: true,
+        thumbnailUrl: true,
+        imageUrl: true
       }
     })
   ]);
@@ -55,6 +60,17 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       bggId: game.bggId,
       title: game.title
     });
+
+    if (player.userProfileId) {
+      await syncStoredUserGameRating(tx, {
+        userProfileId: player.userProfileId,
+        bggId: game.bggId,
+        title: game.title,
+        yearPublished: game.yearPublished,
+        thumbnailUrl: game.thumbnailUrl,
+        imageUrl: game.imageUrl
+      });
+    }
 
     return savedRating;
   });

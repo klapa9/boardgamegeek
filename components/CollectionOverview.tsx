@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import GameCollectionPicker from '@/components/GameCollectionPicker';
 import { api } from '@/lib/api';
+import { geekTypeBadgeLabel } from '@/lib/geek-types';
 import { CollectionBundle, CollectionGameDto, CollectionGroupDto } from '@/lib/types';
 
 const ALL_GAMES_GROUP_ID = '__all-games__';
@@ -626,7 +627,12 @@ export default function CollectionOverview() {
                       )}
 
                       <div className="min-w-0 flex-1">
-                        <h3 className="break-words font-black [overflow-wrap:anywhere]">{game.title}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="break-words font-black [overflow-wrap:anywhere]">{game.title}</h3>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                            {geekTypeBadgeLabel(game.geek_type)}
+                          </span>
+                        </div>
                         <p className="mt-1 break-words text-sm leading-5 text-slate-500 [overflow-wrap:anywhere]">
                           {formatMeta(game) || (game.source === 'manual' ? 'Manueel toegevoegd' : 'Geen extra info')}
                         </p>
