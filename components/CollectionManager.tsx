@@ -112,7 +112,7 @@ export default function CollectionManager() {
               await loadBundle();
             }}
             title="Zoekresultaten"
-            subtitle="Kies bovenaan of je in BoardGameGeek of RPGGeek zoekt. Boardgame-expansions en niet-volledige RPG-items worden weggefilterd."
+            subtitle="Zoek naar boardgames of role playing games."
             showCatalogSelector
           />
 
