@@ -1,6 +1,15 @@
-const CACHE_NAME = 'boardgamegeek-be-v1';
+const CACHE_NAME = 'boardgamegeek-be-v2';
 const OFFLINE_URL = '/offline.html';
-const STATIC_ASSET_PATHS = [OFFLINE_URL, '/manifest.webmanifest', '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
+const STATIC_ASSET_PATHS = [
+  OFFLINE_URL,
+  '/manifest.webmanifest',
+  '/icons/favicon-32x32.png',
+  '/icons/apple-touch-icon.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-192x192-maskable.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-512x512-maskable.png'
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

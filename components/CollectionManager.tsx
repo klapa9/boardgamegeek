@@ -85,7 +85,7 @@ export default function CollectionManager() {
           <div>
             <h2 className="font-poster text-3xl uppercase leading-none text-slate-950">Spellen toevoegen</h2>
             <p className="mt-3 max-w-2xl text-sm text-slate-700">
-              Voeg boardgames of roleplaygames toe aan je collectie. Boardgames komen uit BoardGameGeek, roleplaygames uit RPGGeek.
+              Voeg boardgames of roleplaygames toe aan je collectie.
             </p>
           </div>
         </div>
