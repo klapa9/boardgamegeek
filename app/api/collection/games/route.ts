@@ -8,6 +8,7 @@ import { ensureCollectionTaxonomyMaps, replaceCollectionGameTaxonomy } from '@/l
 import { preloadBggThumbnail } from '@/lib/image-cache';
 import { asFilteredBggExpansionDtos, serializeCollectionGame, serializeCollectionGroup, serializeCollectionSyncState } from '@/lib/serializers';
 import { getCurrentUserProfile } from '@/lib/user-profile';
+import { calculateWebsiteRating } from '@/lib/website-rating';
 
 function normalizeIdList(value: unknown) {
   if (!Array.isArray(value)) return null;
@@ -96,6 +97,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Spel niet gevonden op BoardGameGeek.' }, { status: 404 });
   }
 
+  const websiteRating = await calculateWebsiteRating(prisma, {
+    bggId: details.bggId,
+    title: details.title
+  });
+
   const duplicate = await prisma.collectionGame.findFirst({
     where: {
       userProfileId: viewerProfile.id,
@@ -155,6 +161,7 @@ export async function POST(request: Request) {
           manuallyRemoved: nextState.manuallyRemoved,
           hidden: presentation.hidden,
           source: presentation.source,
+          websiteRating,
           lastSyncedAt: now
         }
       })
@@ -183,6 +190,7 @@ export async function POST(request: Request) {
           manuallyRemoved: nextState.manuallyRemoved,
           hidden: presentation.hidden,
           source: presentation.source,
+          websiteRating,
           lastSyncedAt: now
         }
       });

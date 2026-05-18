@@ -6,6 +6,7 @@ import { isBggExpansion } from '@/lib/bgg-filters';
 import { deriveCollectionPresentation } from '@/lib/collection-state';
 import { ensureCollectionTaxonomyMaps, replaceCollectionGameTaxonomy } from '@/lib/collection-taxonomy';
 import { preloadBggThumbnail } from '@/lib/image-cache';
+import { calculateWebsiteRating } from '@/lib/website-rating';
 
 const BGG_REQUEST_TIMEOUT_MS = 30000;
 const BGG_THING_BATCH_SIZE = 20;
@@ -159,6 +160,10 @@ async function persistCollectionGames(userProfileId: string, username: string, g
     const taxonomyMaps = await ensureCollectionTaxonomyMaps(tx, games);
 
     for (const game of games) {
+      const websiteRating = await calculateWebsiteRating(tx, {
+        bggId: game.bggId,
+        title: game.title
+      });
       const existing = await tx.collectionGame.findUnique({
         where: {
           userProfileId_bggId: {
@@ -209,6 +214,7 @@ async function persistCollectionGames(userProfileId: string, username: string, g
           manuallyRemoved: nextState.manuallyRemoved,
           hidden: presentation.hidden,
           source: presentation.source,
+          websiteRating,
           lastSyncedAt: now
         },
         update: {
@@ -233,6 +239,7 @@ async function persistCollectionGames(userProfileId: string, username: string, g
           manuallyRemoved: nextState.manuallyRemoved,
           hidden: presentation.hidden,
           source: presentation.source,
+          websiteRating,
           lastSyncedAt: now
         }
       });
