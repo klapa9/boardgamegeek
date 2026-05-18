@@ -6,12 +6,11 @@ import {
   CalendarDays,
   CircleAlert,
   ExternalLink,
+  Gift,
   LibraryBig,
   LogIn,
   MessageSquareText,
-  RefreshCcw,
   Star,
-  Users,
   UtensilsCrossed,
   type LucideIcon
 } from 'lucide-react';
@@ -20,27 +19,17 @@ type MarketingFeature = {
   eyebrow: string;
   title: string;
   description: string;
-  imageSrc: string;
-  imageAlt: string;
+  imageSrc?: string;
+  imageAlt?: string;
   imageClassName?: string;
   accentClassName: string;
   chipClassName: string;
+  visualTitle?: string;
+  visualDetail?: string;
   Icon: LucideIcon;
 };
 
 const marketingFeatures: MarketingFeature[] = [
-  {
-    eyebrow: 'Sync',
-    title: 'Synchroniseer met BoardGameGeek',
-    description:
-      'Koppel je collectie en haal je boardgames sneller binnen zonder alles handmatig opnieuw toe te voegen.',
-    imageSrc: '/marketing/game-sync.png',
-    imageAlt: 'Knop om de collectie met BoardGameGeek te synchroniseren.',
-    imageClassName: 'object-left-top',
-    accentClassName: 'from-[#d6efff] via-[#fff7df] to-white',
-    chipClassName: 'bg-[#dff2ff] text-[#134e71]',
-    Icon: RefreshCcw
-  },
   {
     eyebrow: 'Collectie',
     title: 'Orden je collectie in slimme groepen',
@@ -97,13 +86,23 @@ const marketingFeatures: MarketingFeature[] = [
     accentClassName: 'from-[#cdeeff] via-[#fff7df] to-white',
     chipClassName: 'bg-[#ddf4ff] text-[#0f4f6c]',
     Icon: MessageSquareText
+  },
+  {
+    eyebrow: 'Gratis',
+    title: 'Alles gratis, zonder reclame',
+    description:
+      'Geen advertenties, geen betaalmuur en geen verborgen upsells. Gewoon een handige tool voor je spelavonden.',
+    accentClassName: 'from-[#d8ff63] via-[#fff7df] to-white',
+    chipClassName: 'bg-[#efffb8] text-[#466400]',
+    visualTitle: '100% gratis',
+    visualDetail: 'zonder reclame of betaalmuur',
+    Icon: Gift
   }
 ];
 
 export default async function HomePage() {
   const { userId } = await auth();
   const signInHref = '/sign-in';
-  const primaryHref = userId ? '/spelavonden' : signInHref;
   const marqueeItems = userId
     ? Array.from({ length: 8 }, () => 'boardgamegeek.be')
     : [
@@ -223,13 +222,27 @@ export default async function HomePage() {
                             <FeatureIcon size={16} className="shrink-0" />
                             <span>{feature.eyebrow}</span>
                           </div>
-                          <Image
-                            src={feature.imageSrc}
-                            alt={feature.imageAlt}
-                            fill
-                            sizes="(min-width: 1280px) 30vw, (min-width: 1024px) 46vw, 100vw"
-                            className={`object-cover transition duration-300 group-hover:scale-[1.02] ${feature.imageClassName ?? 'object-top'}`}
-                          />
+                          {feature.imageSrc && feature.imageAlt ? (
+                            <Image
+                              src={feature.imageSrc}
+                              alt={feature.imageAlt}
+                              fill
+                              sizes="(min-width: 1280px) 30vw, (min-width: 1024px) 46vw, 100vw"
+                              className={`object-cover transition duration-300 group-hover:scale-[1.02] ${feature.imageClassName ?? 'object-top'}`}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-end p-5 sm:p-6">
+                              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.8),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(23,32,54,0.08),transparent_38%)]" />
+                              <div className="relative w-full rounded-[1.5rem] border-2 border-slate-950/10 bg-white/80 p-4 shadow-[0_8px_0_rgba(23,32,54,0.08)] backdrop-blur-sm">
+                                <p className="font-poster text-3xl uppercase leading-none text-slate-950 sm:text-4xl">
+                                  {feature.visualTitle}
+                                </p>
+                                <p className="mt-2 text-xs font-black uppercase tracking-[0.16em] text-slate-700 sm:text-sm">
+                                  {feature.visualDetail}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-1 flex-col px-5 py-5">
