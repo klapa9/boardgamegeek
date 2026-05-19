@@ -149,8 +149,8 @@ export default async function HomePage() {
 
       <div className="relative mx-auto flex min-h-[calc(100vh-3.75rem)] w-full max-w-6xl min-w-0 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
         <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[#5c428a] px-4 py-6 text-[#fff7df] shadow-[0_18px_50px_rgba(23,32,54,0.18)] sm:px-6 sm:py-7">
-          <div className="flex flex-col items-center justify-center gap-4 text-center">
-            <div className="rounded-[1.8rem] border-4 border-slate-950 bg-white/10 p-3 shadow-[0_12px_0_0_rgba(23,32,54,0.2)]">
+          <div className="mx-auto flex max-w-4xl flex-col items-center justify-center gap-4 text-center sm:flex-row sm:text-left">
+            <div className="shrink-0 rounded-[1.8rem] border-4 border-slate-950 bg-white/10 p-3 shadow-[0_12px_0_0_rgba(23,32,54,0.2)]">
               <Image
                 src="/branding/boardgamecrew-mark.png"
                 alt="BoardgameCrew logo"
@@ -161,7 +161,10 @@ export default async function HomePage() {
               />
             </div>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d8ff63]">BoardgameCrew</p>
+              <p className="font-poster text-[clamp(2rem,8vw,4rem)] leading-[0.9] text-white">boardgamecrew</p>
+              <p className="mt-3 text-sm font-semibold leading-6 text-[#fff7df]/88 sm:text-base">
+                de beste tool om je spelavonden te organiseren.
+              </p>
             </div>
           </div>
         </section>

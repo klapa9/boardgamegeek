@@ -24,15 +24,21 @@ export default function SignInPage() {
               Terug naar start
             </Link>
 
-            <div className="mt-5 flex justify-center">
+            <div className="mt-5 flex flex-col items-center justify-center gap-4 text-center sm:flex-row sm:text-left">
               <Image
-                src="/branding/boardgamecrew-full.png"
-                alt="boardgamecrew planning app"
-                width={663}
-                height={530}
+                src="/branding/boardgamecrew-mark.png"
+                alt="BoardgameCrew logo"
+                width={308}
+                height={335}
                 priority
-                className="h-auto w-full max-w-[300px]"
+                className="h-auto w-[90px] shrink-0 sm:w-[104px]"
               />
+              <div>
+                <p className="font-poster text-[clamp(1.8rem,7vw,3.1rem)] leading-[0.92] text-slate-950">boardgamecrew</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+                  de beste tool om je spelavonden te organiseren.
+                </p>
+              </div>
             </div>
 
             <div className="mt-5 w-full min-w-0 overflow-hidden rounded-[1.6rem] border-2 border-slate-950 bg-white/85 p-3 md:p-4">
