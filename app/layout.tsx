@@ -19,7 +19,8 @@ export const metadata: Metadata = {
     'bordspelavond plannen',
     'bordspelavonden organiseren',
     'spelavond plannen',
-    'boardgamegeek collectie',
+    'bordspellenverzameling',
+    'gezelschapsspellen organiseren',
     'beschikbaarheid prikken',
     'samen spellen kiezen'
   ],

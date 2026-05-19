@@ -1,10 +1,10 @@
-# boardgamegeek.be - BGG sync patch
+# boardgamecrew - BGG sync patch
 
 Deze patch past de MVP aan naar de nieuwste flow:
 
 - BGG wordt niet meer live gebruikt tijdens het aanmaken of invullen van een spelavond.
 - Er is een apart scherm **Mijn spellen** op `/games`.
-- Daar synchroniseer je vooraf je BGG collectie. Standaard gebruikt de app `boardgamegeek.be`.
+- Daar synchroniseer je vooraf je BGG collectie.
 - Bij het maken van een spelavond kies je spellen uit je lokale Postgres-lijst.
 - De sessie zelf doet alleen nog: spelers joinen, beschikbaarheid kiezen, scores geven en resultaat delen.
 

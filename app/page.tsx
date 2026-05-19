@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { auth } from '@clerk/nextjs/server';
 import {
   ArrowRight,
+  BookOpenText,
   CalendarDays,
   CircleAlert,
   Gift,
@@ -13,12 +14,13 @@ import {
   UtensilsCrossed,
   type LucideIcon
 } from 'lucide-react';
+import { landingPageCards } from '@/lib/landing-pages';
 import { createMetadata, getHomeStructuredData } from '@/lib/seo';
 
 export const metadata = createMetadata({
-  title: 'Bordspelavond plannen en BoardGameGeek-collectie beheren',
+  title: 'Bordspelavond plannen en je spellenverzameling beheren',
   description:
-    'Plan bordspelavonden, verzamel beschikbaarheid, laat vrienden stemmen op spellen en beheer je BoardGameGeek-collectie samen met je groep.',
+    'Plan bordspelavonden, verzamel beschikbaarheid, laat vrienden stemmen op spellen en houd je bordspellenverzameling overzichtelijk.',
   path: '/'
 });
 
@@ -38,12 +40,12 @@ type MarketingFeature = {
 
 const marketingFeatures: MarketingFeature[] = [
   {
-    eyebrow: 'Collectie',
-    title: 'Orden je collectie in slimme groepen',
+    eyebrow: 'Verzameling',
+    title: 'Orden je bordspellen in handige groepen',
     description:
-      'Maak eigen lijsten zoals eurogames, favorieten of 2 spelers zodat je sneller een spel vindt voor de avond.',
+      'Maak eigen lijsten zoals favorieten, korte spellen of 2 spelers zodat je sneller iets vindt voor de avond.',
     imageSrc: '/marketing/collectie.png',
-    imageAlt: 'Collectie-overzicht met verschillende spelgroepen.',
+    imageAlt: 'Overzicht van een bordspellenverzameling met verschillende spelgroepen.',
     accentClassName: 'from-[#ffd8cb] via-[#fff7df] to-white',
     chipClassName: 'bg-[#ffe6de] text-[#8e341c]',
     Icon: LibraryBig
@@ -160,10 +162,6 @@ export default async function HomePage() {
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d8ff63]">BoardgameCrew</p>
-              <p className="mt-2 text-[clamp(1.25rem,4vw,2rem)] font-black leading-tight tracking-[0.08em] text-[#fff7df]">
-                boardgamecrew planning app
-              </p>
-              <p className="mt-2 text-sm font-semibold text-[#fff7df]/80">boardgamecrew.nl</p>
             </div>
           </div>
         </section>
@@ -213,12 +211,12 @@ export default async function HomePage() {
               <div className="page-band px-4 py-4 sm:px-6 sm:py-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div className="max-w-3xl">
-                    <p className="page-chip w-fit">Voor bordspelgroepen</p>
+                    <p className="page-chip w-fit">Voor bordspellen</p>
                     <h1 className="mt-4 font-poster text-[clamp(2rem,8vw,3.7rem)] uppercase leading-[0.94] text-slate-950">
-                      Plan bordspelavonden en beheer je BoardGameGeek-collectie samen.
+                      Plan gemakkelijk bordspelavonden.
                     </h1>
                     <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
-                      boardgamecrew.nl helpt je om data te prikken, spellen te laten scoren en je collectie overzichtelijk te houden op een plek.
+                      boardgamecrew helpt je om data te prikken, vooraf te stemmen op spellen en je verzameling overzichtelijk te houden op een plek.
                     </p>
                   </div>
 
@@ -299,7 +297,7 @@ export default async function HomePage() {
                     Log in en start je volgende spelavond.
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-[#fff7df]/85 sm:text-base">
-                    Organiseer je spelavonden, beheer je collectie en plan samen met vrienden.
+                    Organiseer je spelavonden, beheer je spellen en plan samen met vrienden.
                   </p>
                 </div>
 
@@ -318,33 +316,33 @@ export default async function HomePage() {
                 <div className="max-w-3xl">
                   <p className="page-chip w-fit">Zo werkt het</p>
                   <h2 className="mt-4 font-poster text-[clamp(1.9rem,7vw,3.2rem)] uppercase leading-[0.95] text-slate-950">
-                    Minder heen en weer, sneller spelen.
+                    Alles bij elkaar voor je volgende spelavond.
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
-                    Gebruik boardgamecrew.nl als centrale plek voor je spelgroep: plan datumopties, laat deelnemers reageren, verzamel scores voor kandidaatspellen en deel een duidelijke uitnodiging.
+                    Prik een datum, laat vrienden reageren en zet een paar spellen klaar om op te stemmen. Daarna deel je gewoon een duidelijke uitnodiging.
                   </p>
                   <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
-                    Koppel daarnaast je BoardGameGeek-collectie zodat je sneller spellen terugvindt en makkelijker een goede keuze maakt voor de volgende bordspelavond.
+                    Gebruik je eigen spellenverzameling als startpunt, zodat je niet telkens titels hoeft over te typen of in je kast moet zoeken.
                   </p>
                 </div>
 
                 <div className="grid gap-3 self-start">
                   <article className="rounded-[1.5rem] border-2 border-slate-950 bg-white px-4 py-4">
-                    <h3 className="text-lg font-black text-slate-950">Voor wie</h3>
+                    <h3 className="text-lg font-black text-slate-950">Voor vriendengroepen en spelclubs</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-700">
-                      Handig voor vriendengroepen, vaste spelclubs en organisatoren die bordspelavonden zonder losse spreadsheets of chatpolls willen regelen.
+                      Voor iedereen die regelmatig bordspelavonden organiseert en liever speelt dan planning bijhoudt in chats, lijstjes en losse polls.
                     </p>
                   </article>
                   <article className="rounded-[1.5rem] border-2 border-slate-950 bg-white px-4 py-4">
-                    <h3 className="text-lg font-black text-slate-950">Wat je oplost</h3>
+                    <h3 className="text-lg font-black text-slate-950">Minder losse berichten</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-700">
-                      Je vermijdt verspreide info over data, deelnemers en spelvoorkeuren en houdt planning en spelkeuze netjes samen in een gedeelde flow.
+                      Data, spelers, spelvoorkeuren en extra afspraken staan bij dezelfde spelavond. Dat maakt terugvinden en beslissen een stuk rustiger.
                     </p>
                   </article>
                   <article className="rounded-[1.5rem] border-2 border-slate-950 bg-white px-4 py-4">
-                    <h3 className="text-lg font-black text-slate-950">Waarom BGG koppelen</h3>
+                    <h3 className="text-lg font-black text-slate-950">Je spellen staan meteen klaar</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-700">
-                      Door je BoardGameGeek-collectie te synchroniseren werk je met je eigen spellenlijst in plaats van telkens opnieuw losse titels te zoeken.
+                      Laad je bordspellenverzameling snel in. Daarna kies je uit je eigen spellen in plaats van alles opnieuw te zoeken.
                     </p>
                   </article>
                 </div>
@@ -352,6 +350,67 @@ export default async function HomePage() {
             </section>
           </>
         )}
+
+        <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-white shadow-[0_18px_50px_rgba(23,32,54,0.12)]">
+          <div className="page-band px-4 py-4 sm:px-6 sm:py-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-3xl">
+                <p className="page-chip w-fit">Verder lezen</p>
+                <h2 className="mt-4 font-poster text-[clamp(1.9rem,7vw,3.3rem)] uppercase leading-[0.95] text-slate-950">
+                  Praktische hulp voor afspreken, organiseren en spellen kiezen.
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
+                  Deze gidsen gaan dieper in op vragen die veel spelgroepen herkennen: een datum vinden, je bordspellen bijhouden en samen een spel kiezen.
+                </p>
+                <div className="mt-4 flex flex-col gap-2 text-sm font-black text-slate-950">
+                  {landingPageCards.map((card) => (
+                    <Link
+                      key={`${card.path}-text-link`}
+                      href={card.path}
+                      className="w-fit underline decoration-2 underline-offset-4 transition hover:text-[#ff5a36]"
+                    >
+                      {card.linkText}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#fff7df] px-4 py-2 text-sm font-black uppercase tracking-[0.14em] text-slate-950">
+                <BookOpenText size={18} />
+                <span>Voor spelgroepen</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 px-4 py-5 sm:px-6 sm:py-6 lg:grid-cols-3">
+            {landingPageCards.map((card) => (
+              <Link
+                key={card.path}
+                href={card.path}
+                className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.8rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_12px_0_0_rgba(23,32,54,0.1)] transition hover:translate-y-[-4px]"
+              >
+                <div className="relative aspect-[16/10] overflow-hidden border-b-4 border-slate-950 bg-[#fff2bd]">
+                  <Image
+                    src={card.imageSrc}
+                    alt={card.imageAlt}
+                    fill
+                    sizes="(min-width: 1024px) 30vw, 100vw"
+                    className="object-cover object-top transition duration-300 group-hover:scale-[1.02]"
+                  />
+                </div>
+                <div className="flex flex-1 flex-col px-5 py-5">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{card.eyebrow}</p>
+                  <h3 className="mt-3 text-2xl font-black leading-tight text-slate-950">{card.title}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-6 text-slate-700">{card.description}</p>
+                  <div className="mt-4 inline-flex items-center gap-2 text-sm font-black text-slate-950">
+                    <span>{card.linkText}</span>
+                    <ArrowRight size={16} className="shrink-0 transition group-hover:translate-x-1" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
 
       </div>
     </main>

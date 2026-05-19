@@ -4,9 +4,9 @@ export const siteConfig = {
   name: 'boardgamecrew.nl',
   url: 'https://boardgamecrew.nl',
   locale: 'nl_NL',
-  defaultTitle: 'Bordspelavond plannen en BoardGameGeek-collectie beheren',
+  defaultTitle: 'Bordspelavond plannen en je spellenverzameling beheren',
   description:
-    'Plan bordspelavonden, verzamel beschikbaarheid, laat vrienden stemmen op spellen en beheer je BoardGameGeek-collectie samen op een plek.',
+    'Plan bordspelavonden, verzamel beschikbaarheid, laat vrienden stemmen op spellen en houd je bordspellenverzameling overzichtelijk.',
   ogImage: '/branding/boardgamecrew-full.png'
 } as const;
 
@@ -97,7 +97,7 @@ export function getHomeStructuredData() {
         'Bordspelavonden plannen met datumopties',
         'Beschikbaarheid verzamelen van deelnemers',
         'Samen stemmen op spellen',
-        'BoardGameGeek-collectie beheren en synchroniseren'
+        'Bordspellenverzameling beheren en organiseren'
       ],
       isAccessibleForFree: true,
       image: `${siteConfig.url}${siteConfig.ogImage}`
