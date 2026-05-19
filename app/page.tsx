@@ -5,7 +5,6 @@ import {
   ArrowRight,
   CalendarDays,
   CircleAlert,
-  ExternalLink,
   Gift,
   LibraryBig,
   LogIn,
@@ -104,14 +103,14 @@ export default async function HomePage() {
   const { userId } = await auth();
   const signInHref = '/sign-in';
   const marqueeItems = userId
-    ? Array.from({ length: 8 }, () => 'boardgamegeek.be')
+    ? Array.from({ length: 8 }, () => 'boardgamecrew.nl')
     : [
-        'boardgamegeek.be',
+        'boardgamecrew.nl',
         'plan samen',
         'stem op spellen',
         'kies je datum',
         'speel sneller',
-        'boardgamegeek.be',
+        'boardgamecrew.nl',
         'plan samen',
         'stem op spellen'
       ];
@@ -284,30 +283,6 @@ export default async function HomePage() {
           </>
         )}
 
-        <footer className="w-full min-w-0 rounded-[2rem] border-4 border-slate-950 bg-[#172036] px-4 py-5 text-[#fff7df] shadow-soft sm:px-6">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#84d7ff]">Officiele verwijzing, geen identiteitsfraude</p>
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="max-w-2xl text-sm leading-6 text-[#fff7df]/88">
-              Deze site is bedoeld als handige compagnon voor je BoardGameGeek-collectie en spelplanning, maar is niet
-              dezelfde website als BoardGameGeek.com.
-            </div>
-
-            <a
-              href="https://boardgamegeek.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex max-w-full flex-wrap items-center justify-center gap-3 rounded-[1.5rem] border-2 border-[#fff7df] bg-white px-4 py-3 text-center text-slate-950 transition hover:bg-[#fff7df] sm:flex-nowrap sm:text-left"
-            >
-              <img
-                src="https://cf.geekdo-static.com/images/logos/navbar-logo-bgg-b2.svg"
-                alt="Official BoardGameGeek.com logo"
-                className="h-8 w-auto"
-              />
-              <span className="text-sm font-black uppercase tracking-[0.16em] [overflow-wrap:anywhere]">Bezoek boardgamegeek.com</span>
-              <ExternalLink size={16} className="shrink-0" />
-            </a>
-          </div>
-        </footer>
       </div>
     </main>
   );

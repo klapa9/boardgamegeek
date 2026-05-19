@@ -5,15 +5,15 @@ import ProfileLauncher from '@/components/ProfileLauncher';
 import PwaRegistration from '@/components/PwaRegistration';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://boardgamegeek.be'),
-  applicationName: 'BoardgameGeek.be',
-  title: 'BoardgameGeek.be',
+  metadataBase: new URL('https://boardgamecrew.nl'),
+  applicationName: 'boardgamecrew.nl',
+  title: 'boardgamecrew.nl',
   description: 'Regel eenvoudig bordspelavonden en beheer je BoardGameGeek-collectie met vrienden.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'BoardgameGeek.be'
+    title: 'boardgamecrew.nl'
   },
   formatDetection: {
     telephone: false

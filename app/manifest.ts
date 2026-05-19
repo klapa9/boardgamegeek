@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'BoardgameGeek.be',
-    short_name: 'BGG.be',
+    name: 'boardgamecrew.nl',
+    short_name: 'BoardgameCrew',
     description: 'Regel eenvoudig bordspelavonden en beheer je BoardGameGeek-collectie met vrienden.',
     start_url: '/',
     scope: '/',
