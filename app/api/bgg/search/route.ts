@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { fetchBgg } from '@/lib/bgg-api';
 import { isRpgGame } from '@/lib/bgg-filters';
 import { parseThingTypes } from '@/lib/bgg-xml';
-import { geekApiBaseUrl, geekTypeLabel, normalizeGeekType } from '@/lib/geek-types';
+import { geekApiBaseUrl, geekApiItemType, geekTypeLabel, normalizeGeekType } from '@/lib/geek-types';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 const BGG_THING_BATCH_SIZE = 20;
@@ -41,7 +41,8 @@ export async function GET(request: Request) {
   if (!query || query.length < 2) return NextResponse.json({ results: [] });
 
   const geekLabel = geekTypeLabel(geekType);
-  const url = `${geekApiBaseUrl(geekType)}/search?type=${geekType}&query=${encodeURIComponent(query)}`;
+  const geekApiType = geekApiItemType(geekType);
+  const url = `${geekApiBaseUrl(geekType)}/search?type=${geekApiType}&query=${encodeURIComponent(query)}`;
   const response = await fetchBgg(url, { next: { revalidate: 60 * 60 * 24 } }, 'search');
   if (!response.ok) return NextResponse.json({ error: `${geekLabel} zoeken is mislukt.` }, { status: 502 });
 
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
     for (const batch of chunk(candidates.map((item) => item.bggId), BGG_THING_BATCH_SIZE)) {
       if (!batch.length) continue;
 
-      const thingUrl = `${geekApiBaseUrl(geekType)}/thing?id=${batch.join(',')}&stats=1&type=${geekType}`;
+      const thingUrl = `${geekApiBaseUrl(geekType)}/thing?id=${batch.join(',')}&stats=1&type=${geekApiType}`;
       const thingResponse = await fetchBgg(thingUrl, { next: { revalidate: 60 * 60 * 24 } }, 'search-rpg-filter');
       if (!thingResponse.ok) continue;
 

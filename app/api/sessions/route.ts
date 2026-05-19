@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { bggThingDetailsToSessionGameData, collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
-import { fetchBggGameDetails, normalizeBggGameIds, sessionGameKey } from '@/lib/bgg-game-details';
+import { fetchBggGamesForRequests, normalizeBggGameRequests, sessionGameKey } from '@/lib/bgg-game-details';
 import { requireSignedInUser } from '@/lib/clerk-auth';
 import { serializeSession } from '@/lib/serializers';
 import { getCurrentUserProfile } from '@/lib/user-profile';
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
   const planningMode = normalizePlanningMode(body.planning_mode);
   const gameSelectionMode = normalizeGameSelectionMode(body.game_selection_mode);
   const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
-  const bggGameIds = normalizeBggGameIds(body.bgg_game_ids);
+  const bggGameRequests = normalizeBggGameRequests(body.bgg_games, body.bgg_game_ids);
   const providedDates = Array.isArray(body.date_options) ? body.date_options.map(normalizeDate).filter(Boolean) as string[] : [];
   const extraQuestions = normalizeExtraQuestions(body.extra_questions);
   const dateOptions = Array.from(new Set(providedDates.length ? providedDates : defaultDateOptions())).sort();
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
       }
     })
     : [];
-  const bggGames = bggGameIds.length ? await fetchBggGameDetails(bggGameIds, 'session-create') : [];
+  const bggGames = bggGameRequests.length ? await fetchBggGamesForRequests(bggGameRequests, 'session-create') : [];
 
   const gamesToCreate = Array.from(new Map([
     ...collectionGames.map((game) => [sessionGameKey(game), collectionGameToSessionGameData(game)] as const),

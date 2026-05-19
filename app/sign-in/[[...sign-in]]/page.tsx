@@ -1,6 +1,14 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { SignIn } from '@clerk/nextjs';
 import { ArrowLeft } from 'lucide-react';
+import { createMetadata } from '@/lib/seo';
+
+export const metadata = createMetadata({
+  title: 'Inloggen',
+  description: 'Log in op boardgamecrew.nl om je spelavonden en collectie te beheren.',
+  index: false
+});
 
 export default function SignInPage() {
   return (
@@ -15,6 +23,17 @@ export default function SignInPage() {
               <ArrowLeft size={16} className="shrink-0" />
               Terug naar start
             </Link>
+
+            <div className="mt-5 flex justify-center">
+              <Image
+                src="/branding/boardgamecrew-full.png"
+                alt="boardgamecrew planning app"
+                width={663}
+                height={530}
+                priority
+                className="h-auto w-full max-w-[300px]"
+              />
+            </div>
 
             <div className="mt-5 w-full min-w-0 overflow-hidden rounded-[1.6rem] border-2 border-slate-950 bg-white/85 p-3 md:p-4">
               <SignIn

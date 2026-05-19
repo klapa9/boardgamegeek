@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { bggThingDetailsToSessionGameData, collectionGameInclude, collectionGameToSessionGameData } from '@/lib/collection-games';
 import { fetchSingleBggGameDetail } from '@/lib/bgg-game-details';
+import { normalizeGeekType } from '@/lib/geek-types';
 import { serializeGame } from '@/lib/serializers';
 import { ensureSessionOrganizerAccess } from '@/lib/session-organizer';
 import { getCurrentUserProfile } from '@/lib/user-profile';
@@ -11,6 +12,7 @@ type AddSessionGamesBody = {
   collection_game_id?: unknown;
   collection_game_ids?: unknown;
   bgg_id?: unknown;
+  geek_type?: unknown;
 };
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -30,14 +32,21 @@ export async function POST(request: Request, { params }: { params: { id: string 
       ? [singleCollectionGameId]
       : [];
   const rawBggId = Number(body.bgg_id);
+  const geekType = normalizeGeekType(body.geek_type);
   const requestedBggId = Number.isFinite(rawBggId) ? rawBggId : null;
   const existingGames = await prisma.game.findMany({ where: { sessionId: params.id } });
   const existingTitles = new Set(existingGames.map((game) => game.title.toLowerCase()));
   const existingBggIds = new Set(existingGames.map((game) => game.bggId).filter((id): id is number => id !== null));
 
   if (!collectionGameIds.length && requestedBggId !== null) {
-    const details = await fetchSingleBggGameDetail(requestedBggId, 'session-add-bgg');
-    if (!details) return NextResponse.json({ error: 'Spel niet gevonden op BoardGameGeek.' }, { status: 404 });
+    const details = await fetchSingleBggGameDetail(requestedBggId, 'session-add-bgg', geekType);
+    if (!details) {
+      return NextResponse.json({
+        error: geekType === 'rpg'
+          ? 'Volledige RPG niet gevonden op RPGGeek.'
+          : 'Spel niet gevonden op BoardGameGeek.'
+      }, { status: 404 });
+    }
 
     const duplicateByTitle = existingTitles.has(details.title.toLowerCase());
     const duplicateByBggId = existingBggIds.has(details.bggId);

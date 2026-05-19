@@ -1,5 +1,12 @@
 import { Suspense } from 'react';
 import SessionApp from '@/components/SessionApp';
+import { createMetadata } from '@/lib/seo';
+
+export const metadata = createMetadata({
+  title: 'Spelavond uitnodiging',
+  description: 'Vul je beschikbaarheid in en stem op spellen voor een gedeelde spelavond.',
+  index: false
+});
 
 export default function SessionSlugPage({ params }: { params: { id: string; slug: string } }) {
   return (

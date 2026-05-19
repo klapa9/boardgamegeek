@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { bggThingDetailsToSessionGameData, collectionGameInclude, collectionGameToSessionGameData, SessionGameData } from '@/lib/collection-games';
-import { fetchBggGameDetails, normalizeBggGameIds, sessionGameKey } from '@/lib/bgg-game-details';
+import { fetchBggGamesForRequests, normalizeBggGameRequests, sessionGameKey } from '@/lib/bgg-game-details';
 import { serializeAvailability, serializeGame, serializePlayer, serializeRating, serializeSession, serializeSessionQuestion, serializeSessionQuestionAnswer, serializeUserProfile } from '@/lib/serializers';
 import { getCurrentUserProfile, getOrCreateUserProfile } from '@/lib/user-profile';
 import { ensureSessionOrganizerAccess, viewerIsOrganizer } from '@/lib/session-organizer';
@@ -406,6 +406,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     body.title !== undefined
     || body.date_options !== undefined
     || body.collection_game_ids !== undefined
+    || body.bgg_games !== undefined
+    || body.bgg_game_ids !== undefined
     || body.planning_mode !== undefined
     || body.game_selection_mode !== undefined
     || body.meeting_time !== undefined
@@ -418,7 +420,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const planningMode = normalizePlanningMode(body.planning_mode);
     const gameSelectionMode = normalizeGameSelectionMode(body.game_selection_mode);
     const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
-    const bggGameIds = normalizeBggGameIds(body.bgg_game_ids);
+    const bggGameRequests = normalizeBggGameRequests(body.bgg_games, body.bgg_game_ids);
     const providedDates = Array.isArray(body.date_options) ? body.date_options.map(normalizeDate).filter(Boolean) as string[] : [];
     const normalizedDateOptions = Array.from(new Set(providedDates)).sort();
     const chosenDay = planningMode === 'fixed_day' ? normalizedDateOptions[0] ?? null : null;
@@ -442,7 +444,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         }
       })
       : [];
-    const bggGames = bggGameIds.length ? await fetchBggGameDetails(bggGameIds, 'session-update') : [];
+    const bggGames = bggGameRequests.length ? await fetchBggGamesForRequests(bggGameRequests, 'session-update') : [];
 
     const gamesToCreate = Array.from(new Map([
       ...collectionGames.map((game) => [sessionGameKey(game), collectionGameToSessionGameData(game)] as const),

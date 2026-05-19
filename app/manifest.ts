@@ -1,17 +1,18 @@
 import type { MetadataRoute } from 'next';
+import { siteConfig } from '@/lib/seo';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'boardgamecrew.nl',
+    name: siteConfig.name,
     short_name: 'BoardgameCrew',
-    description: 'Regel eenvoudig bordspelavonden en beheer je BoardGameGeek-collectie met vrienden.',
+    description: siteConfig.description,
     start_url: '/',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
     background_color: '#172036',
     theme_color: '#172036',
-    lang: 'nl-BE',
+    lang: 'nl',
     icons: [
       {
         src: '/icons/icon-192x192.png',

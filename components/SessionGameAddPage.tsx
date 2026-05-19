@@ -90,6 +90,7 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
         method: 'POST',
         body: JSON.stringify({
           bgg_id: result.bggId,
+          geek_type: result.geekType,
           added_by: currentPlayerId
         })
       });

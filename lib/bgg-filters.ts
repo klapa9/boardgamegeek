@@ -20,5 +20,6 @@ export function isBggExpansion(candidate: BggExpansionCandidate) {
 }
 
 export function isRpgGame(candidate: { itemType?: string | null }) {
-  return candidate.itemType === 'rpg';
+  const normalizedItemType = candidate.itemType?.trim().toLowerCase();
+  return normalizedItemType === 'rpg' || normalizedItemType === 'rpgitem';
 }

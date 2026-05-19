@@ -137,6 +137,10 @@ function sessionOnlyImageUrl(game: BggGameDetails) {
   return game.thumbnailUrl ?? game.imageUrl;
 }
 
+function normalizeSessionGameTitle(title: string) {
+  return title.trim().toLowerCase();
+}
+
 function normalizeExtraQuestionsForPayload(extraQuestions: SessionDraftQuestion[]): (
   | {
     error: string;
@@ -322,14 +326,28 @@ export default function CreateSessionForm({
           const collectionKeys = new Set(collectionData.games.map((game) => (
             game.bgg_id !== null ? `bgg:${game.bgg_id}` : `title:${game.title.trim().toLowerCase()}`
           )));
-          setSessionOnlyGames(data.games
+          const sessionOnlyGames = data.games
             .filter((game) => {
               const key = game.bgg_id !== null ? `bgg:${game.bgg_id}` : `title:${game.title.trim().toLowerCase()}`;
               return !collectionKeys.has(key);
             })
-            .map((game) => ({
+          const resolvedSessionOnlyGames = await Promise.all(sessionOnlyGames.map(async (game) => {
+            let geekType: BggGameDetails['geekType'] = 'boardgame';
+
+            if (game.bgg_id !== null) {
+              try {
+                const rpgDetails = await api<BggGameDetails>(`/api/bgg/thing/${game.bgg_id}?geek_type=rpg`);
+                if (normalizeSessionGameTitle(rpgDetails.title) === normalizeSessionGameTitle(game.title)) {
+                  geekType = 'rpg';
+                }
+              } catch {
+                geekType = 'boardgame';
+              }
+            }
+
+            return {
               bggId: game.bgg_id ?? Number.NaN,
-              geekType: 'boardgame' as const,
+              geekType,
               title: game.title,
               yearPublished: game.year_published,
               thumbnailUrl: game.thumbnail_url,
@@ -348,7 +366,10 @@ export default function CreateSessionForm({
               communityPlayers: game.community_players,
               playerCountPoll: game.player_count_poll,
               ranks: game.ranks
-            }))
+            };
+          }));
+          if (cancelled) return;
+          setSessionOnlyGames(resolvedSessionOnlyGames
             .filter((game) => Number.isFinite(game.bggId)));
         } catch (err) {
           if (cancelled) return;
@@ -415,7 +436,7 @@ export default function CreateSessionForm({
             title: draft.title,
             date_options: payloadDateOptions,
             collection_game_ids: selectedGameIds,
-            bgg_game_ids: sessionOnlyGames.map((game) => game.bggId),
+            bgg_games: sessionOnlyGames.map((game) => ({ bgg_id: game.bggId, geek_type: game.geekType })),
             planning_mode: draft.planningMode,
             game_selection_mode: draft.gameSelectionMode,
             meeting_time: draft.meetingTime,
@@ -429,7 +450,7 @@ export default function CreateSessionForm({
             title: draft.title,
             date_options: payloadDateOptions,
             collection_game_ids: selectedGameIds,
-            bgg_game_ids: sessionOnlyGames.map((game) => game.bggId),
+            bgg_games: sessionOnlyGames.map((game) => ({ bgg_id: game.bggId, geek_type: game.geekType })),
             planning_mode: draft.planningMode,
             game_selection_mode: draft.gameSelectionMode,
             meeting_time: draft.meetingTime,
@@ -605,7 +626,7 @@ export default function CreateSessionForm({
 
   async function addSessionOnlyBggGame(result: BggSearchResult) {
     const details = await api<BggGameDetails>(`/api/bgg/thing/${result.bggId}?geek_type=${encodeURIComponent(result.geekType)}`);
-    setSessionOnlyGames((current) => current.some((game) => game.bggId === details.bggId) ? current : [...current, details]);
+    setSessionOnlyGames((current) => current.some((game) => game.bggId === details.bggId && game.geekType === details.geekType) ? current : [...current, details]);
   }
 
   const onSubmit = mode === 'details' ? confirmDetails : mode === 'planning' ? confirmPlanning : confirmGames;

@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { SignIn, useUser } from '@clerk/nextjs';
 import { ArrowLeft, CalendarDays, Check, Dice5, Lock, Plus, Share2, Trash2, Trophy, Unlock, UserRound, X } from 'lucide-react';
 import { api, loadSessionBundle } from '@/lib/api';
-import { AvailabilityDto, GameDto, PlayerDto, RatingDto, SessionDto, SessionQuestionAnswerDto, SessionQuestionDto, UserProfileDto } from '@/lib/types';
+import { AvailabilityDto, BggSearchResult, GameDto, PlayerDto, RatingDto, SessionDto, SessionQuestionAnswerDto, SessionQuestionDto, UserProfileDto } from '@/lib/types';
 import { sessionUrl } from '@/lib/session-link';
 import DateOptionCalendar from './DateOptionCalendar';
 import GameCollectionPicker from './GameCollectionPicker';
@@ -891,7 +891,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
-  async function addBggGameToSession(bggId: number) {
+  async function addBggGameToSession(result: Pick<BggSearchResult, 'bggId' | 'geekType'>) {
     if (!currentPlayerId) return;
     setAddGamesSaving(true);
     setError(null);
@@ -900,7 +900,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     try {
       const data = await api<{ game: GameDto }>(`/api/sessions/${sessionId}/games`, {
         method: 'POST',
-        body: JSON.stringify({ added_by: currentPlayerId, bgg_id: bggId })
+        body: JSON.stringify({ added_by: currentPlayerId, bgg_id: result.bggId, geek_type: result.geekType })
       });
       setSelectedAddGameIds([]);
       setAddGamesOpen(false);
@@ -2153,10 +2153,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 disabledBggIds={existingBggIds}
                 allowAddToCollection
                 onBggSelectWithCollection={async ({ result }) => {
-                  await addBggGameToSession(result.bggId);
+                  await addBggGameToSession(result);
                 }}
                 onBggSelectWithoutCollection={async (result) => {
-                  await addBggGameToSession(result.bggId);
+                  await addBggGameToSession(result);
                 }}
                 title="Zoek en selecteer spellen"
                 subtitle="Vink alle spellen aan die je wil toevoegen."

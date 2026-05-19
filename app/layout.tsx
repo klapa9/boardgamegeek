@@ -3,17 +3,31 @@ import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import ProfileLauncher from '@/components/ProfileLauncher';
 import PwaRegistration from '@/components/PwaRegistration';
+import { createMetadata, siteConfig } from '@/lib/seo';
+
+const defaultMetadata = createMetadata();
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://boardgamecrew.nl'),
-  applicationName: 'boardgamecrew.nl',
-  title: 'boardgamecrew.nl',
-  description: 'Regel eenvoudig bordspelavonden en beheer je BoardGameGeek-collectie met vrienden.',
+  ...defaultMetadata,
+  metadataBase: new URL(siteConfig.url),
+  applicationName: siteConfig.name,
+  title: {
+    default: `${siteConfig.defaultTitle} | ${siteConfig.name}`,
+    template: `%s | ${siteConfig.name}`
+  },
+  keywords: [
+    'bordspelavond plannen',
+    'bordspelavonden organiseren',
+    'spelavond plannen',
+    'boardgamegeek collectie',
+    'beschikbaarheid prikken',
+    'samen spellen kiezen'
+  ],
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'boardgamecrew.nl'
+    title: siteConfig.name
   },
   formatDetection: {
     telephone: false

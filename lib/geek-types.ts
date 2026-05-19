@@ -12,6 +12,10 @@ export function geekApiBaseUrl(geekType: GeekType) {
     : 'https://boardgamegeek.com/xmlapi2';
 }
 
+export function geekApiItemType(geekType: GeekType) {
+  return geekType === 'rpg' ? 'rpgitem' : 'boardgame';
+}
+
 export function geekTypeLabel(geekType: GeekType) {
   return geekType === 'rpg' ? 'RPGGeek' : 'BoardGameGeek';
 }

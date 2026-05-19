@@ -13,6 +13,14 @@ import {
   UtensilsCrossed,
   type LucideIcon
 } from 'lucide-react';
+import { createMetadata, getHomeStructuredData } from '@/lib/seo';
+
+export const metadata = createMetadata({
+  title: 'Bordspelavond plannen en BoardGameGeek-collectie beheren',
+  description:
+    'Plan bordspelavonden, verzamel beschikbaarheid, laat vrienden stemmen op spellen en beheer je BoardGameGeek-collectie samen met je groep.',
+  path: '/'
+});
 
 type MarketingFeature = {
   eyebrow: string;
@@ -102,6 +110,7 @@ const marketingFeatures: MarketingFeature[] = [
 export default async function HomePage() {
   const { userId } = await auth();
   const signInHref = '/sign-in';
+  const structuredData = JSON.stringify(getHomeStructuredData());
   const marqueeItems = userId
     ? Array.from({ length: 8 }, () => 'boardgamecrew.nl')
     : [
@@ -117,6 +126,7 @@ export default async function HomePage() {
 
   return (
     <main className="home-noise min-h-screen overflow-hidden">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: structuredData }} />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-[-4rem] top-24 h-40 w-40 rounded-full bg-[#ff5a36]/20 blur-3xl" />
         <div className="absolute right-[-3rem] top-56 h-48 w-48 rounded-full bg-[#84d7ff]/30 blur-3xl" />
@@ -136,6 +146,28 @@ export default async function HomePage() {
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100vh-3.75rem)] w-full max-w-6xl min-w-0 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+        <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[#5c428a] px-4 py-6 text-[#fff7df] shadow-[0_18px_50px_rgba(23,32,54,0.18)] sm:px-6 sm:py-7">
+          <div className="flex flex-col items-center justify-center gap-4 text-center">
+            <div className="rounded-[1.8rem] border-4 border-slate-950 bg-white/10 p-3 shadow-[0_12px_0_0_rgba(23,32,54,0.2)]">
+              <Image
+                src="/branding/boardgamecrew-mark.png"
+                alt="BoardgameCrew logo"
+                width={308}
+                height={335}
+                priority
+                className="h-auto w-[110px] sm:w-[128px]"
+              />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-[#d8ff63]">BoardgameCrew</p>
+              <p className="mt-2 text-[clamp(1.25rem,4vw,2rem)] font-black leading-tight tracking-[0.08em] text-[#fff7df]">
+                boardgamecrew planning app
+              </p>
+              <p className="mt-2 text-sm font-semibold text-[#fff7df]/80">boardgamecrew.nl</p>
+            </div>
+          </div>
+        </section>
+
         {userId ? (
           <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
             <div className="border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
@@ -181,12 +213,12 @@ export default async function HomePage() {
               <div className="page-band px-4 py-4 sm:px-6 sm:py-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div className="max-w-3xl">
-                    <p className="page-chip w-fit">Waarom aanmelden</p>
-                    <h2 className="mt-4 font-poster text-[clamp(2rem,8vw,3.7rem)] uppercase leading-[0.94] text-slate-950">
-                      Alles voor een vlotte spelavond.
-                    </h2>
+                    <p className="page-chip w-fit">Voor bordspelgroepen</p>
+                    <h1 className="mt-4 font-poster text-[clamp(2rem,8vw,3.7rem)] uppercase leading-[0.94] text-slate-950">
+                      Plan bordspelavonden en beheer je BoardGameGeek-collectie samen.
+                    </h1>
                     <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
-                      Een praktische site die je helpt bij het organiseren van je spelavonden en het beheren van je boardgame collectie.
+                      boardgamecrew.nl helpt je om data te prikken, spellen te laten scoren en je collectie overzichtelijk te houden op een plek.
                     </p>
                   </div>
 
@@ -278,6 +310,44 @@ export default async function HomePage() {
                   <LogIn size={22} className="shrink-0" />
                   <span>Naar login</span>
                 </Link>
+              </div>
+            </section>
+
+            <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] px-5 py-6 shadow-[0_18px_50px_rgba(23,32,54,0.12)] sm:px-6 sm:py-7">
+              <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+                <div className="max-w-3xl">
+                  <p className="page-chip w-fit">Zo werkt het</p>
+                  <h2 className="mt-4 font-poster text-[clamp(1.9rem,7vw,3.2rem)] uppercase leading-[0.95] text-slate-950">
+                    Minder heen en weer, sneller spelen.
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
+                    Gebruik boardgamecrew.nl als centrale plek voor je spelgroep: plan datumopties, laat deelnemers reageren, verzamel scores voor kandidaatspellen en deel een duidelijke uitnodiging.
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
+                    Koppel daarnaast je BoardGameGeek-collectie zodat je sneller spellen terugvindt en makkelijker een goede keuze maakt voor de volgende bordspelavond.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 self-start">
+                  <article className="rounded-[1.5rem] border-2 border-slate-950 bg-white px-4 py-4">
+                    <h3 className="text-lg font-black text-slate-950">Voor wie</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      Handig voor vriendengroepen, vaste spelclubs en organisatoren die bordspelavonden zonder losse spreadsheets of chatpolls willen regelen.
+                    </p>
+                  </article>
+                  <article className="rounded-[1.5rem] border-2 border-slate-950 bg-white px-4 py-4">
+                    <h3 className="text-lg font-black text-slate-950">Wat je oplost</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      Je vermijdt verspreide info over data, deelnemers en spelvoorkeuren en houdt planning en spelkeuze netjes samen in een gedeelde flow.
+                    </p>
+                  </article>
+                  <article className="rounded-[1.5rem] border-2 border-slate-950 bg-white px-4 py-4">
+                    <h3 className="text-lg font-black text-slate-950">Waarom BGG koppelen</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      Door je BoardGameGeek-collectie te synchroniseren werk je met je eigen spellenlijst in plaats van telkens opnieuw losse titels te zoeken.
+                    </p>
+                  </article>
+                </div>
               </div>
             </section>
           </>
