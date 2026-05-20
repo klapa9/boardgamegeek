@@ -164,9 +164,9 @@ export default async function HomePage() {
               />
             </div>
             <div>
-              <p className="font-poster text-[clamp(2rem,8vw,4rem)] leading-[0.9] text-white">boardgamecrew</p>
+              <p className="font-poster text-[clamp(2rem,8vw,4rem)] leading-[0.9] text-white">BoardgameCrew</p>
               <p className="mt-3 text-sm font-semibold leading-6 text-[#fff7df]/88 sm:text-base">
-                de beste tool om je spelavonden te organiseren.
+                De gemakkelijkste tool om je spelavonden te organiseren.
               </p>
             </div>
           </div>
