@@ -98,6 +98,7 @@ export function serializeSession(session: Session, dateOptions: SessionDateOptio
     id: session.id,
     title: session.title,
     meeting_time: session.meetingTime,
+    meeting_location: session.meetingLocation,
     organizer_user_profile_id: session.organizerUserProfileId,
     planning_mode: session.planningMode === 'fixed_day' ? 'fixed_day' : 'vote_dates',
     game_selection_mode: session.gameSelectionMode === 'host_pick'

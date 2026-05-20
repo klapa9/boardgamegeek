@@ -11,6 +11,7 @@ model Session {
   id           String   @id @default(cuid())
   title        String
   meetingTime  String   @default("20:00")
+  meetingLocation String?
   adminToken   String   @unique @default(cuid())
   organizerUserProfileId String?
   planningMode String   @default("vote_dates")

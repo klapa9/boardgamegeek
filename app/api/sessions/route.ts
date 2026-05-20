@@ -16,9 +16,16 @@ type NormalizedExtraQuestion = {
   }[];
 };
 
+const MAX_MEETING_LOCATION_LENGTH = 160;
+
 function normalizeMeetingTime(value: unknown) {
   const time = String(value ?? '').trim();
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : null;
+}
+
+function normalizeMeetingLocation(value: unknown) {
+  const location = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return location || null;
 }
 
 function normalizeDate(value: unknown) {
@@ -92,6 +99,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const title = String(body.title ?? '').trim();
   const meetingTime = normalizeMeetingTime(body.meeting_time);
+  const meetingLocation = normalizeMeetingLocation(body.meeting_location);
   const planningMode = normalizePlanningMode(body.planning_mode);
   const gameSelectionMode = normalizeGameSelectionMode(body.game_selection_mode);
   const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
@@ -105,6 +113,9 @@ export async function POST(request: Request) {
 
   if (!title) return NextResponse.json({ error: 'Titel is verplicht.' }, { status: 400 });
   if (!meetingTime) return NextResponse.json({ error: 'Kies een geldig afspreekuur.' }, { status: 400 });
+  if (meetingLocation && meetingLocation.length > MAX_MEETING_LOCATION_LENGTH) {
+    return NextResponse.json({ error: `Locatie mag maximaal ${MAX_MEETING_LOCATION_LENGTH} tekens bevatten.` }, { status: 400 });
+  }
   if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
   if (extraQuestions === null) {
     return NextResponse.json({ error: 'Extra vragen moeten een vraagtekst en minstens 2 unieke antwoordopties hebben.' }, { status: 400 });
@@ -131,6 +142,7 @@ export async function POST(request: Request) {
     data: {
       title,
       meetingTime,
+      meetingLocation,
       organizerUserProfileId: viewerProfile.id,
       planningMode,
       gameSelectionMode,

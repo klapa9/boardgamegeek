@@ -44,30 +44,31 @@ type InviteTemplateInput = {
   url: string;
   gameListWithOverflow: string;
   meetingTimeLabel: string;
+  locationLine: string;
 };
 
-function inviteTemplateGameFixedDateFixed({ title, dateLabel, chosenGameTitle, meetingTimeLabel, url }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.\nWe spelen ${chosenGameTitle}.\n\nBevestig je aanwezigheid via:\n${url}`;
+function inviteTemplateGameFixedDateFixed({ title, dateLabel, chosenGameTitle, meetingTimeLabel, locationLine, url }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.${locationLine}\nWe spelen ${chosenGameTitle}.\n\nBevestig je aanwezigheid via:\n${url}`;
 }
 
-function inviteTemplateGameFixedDateOpen({ title, dateOptions, chosenGameTitle, url }: InviteTemplateInput) {
-  return `${title}\n\nWe spelen ${chosenGameTitle}, maar de datum ligt nog niet vast.\nKies hieronder wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
+function inviteTemplateGameFixedDateOpen({ title, dateOptions, chosenGameTitle, locationLine, url }: InviteTemplateInput) {
+  return `${title}\n\nWe spelen ${chosenGameTitle}, maar de datum ligt nog niet vast.${locationLine}\nKies hieronder wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
 }
 
-function inviteTemplateGameOpenDateFixedWithList({ title, dateLabel, meetingTimeLabel, url, gameListWithOverflow }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.\nOver het spel wordt nog gestemd.\n\nGeef je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
+function inviteTemplateGameOpenDateFixedWithList({ title, dateLabel, meetingTimeLabel, locationLine, url, gameListWithOverflow }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.${locationLine}\nOver het spel wordt nog gestemd.\n\nGeef je spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
 }
 
-function inviteTemplateGameOpenDateOpenWithList({ title, dateOptions, url, gameListWithOverflow }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt nog niet vast en over het spel wordt ook nog gestemd.\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid en spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
+function inviteTemplateGameOpenDateOpenWithList({ title, dateOptions, locationLine, url, gameListWithOverflow }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt nog niet vast en over het spel wordt ook nog gestemd.${locationLine}\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid en spelvoorkeur door via:\n${url}\n\nSpellen op de lijst:\n${gameListWithOverflow}`;
 }
 
-function inviteTemplateNoPreselectDateFixed({ title, dateLabel, meetingTimeLabel, url }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.\nHet spel kiezen we niet op voorhand.\n\nBevestig je aanwezigheid via:\n${url}`;
+function inviteTemplateNoPreselectDateFixed({ title, dateLabel, meetingTimeLabel, locationLine, url }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt vast, we spreken af op ${dateLabel}${meetingTimeLabel}.${locationLine}\nHet spel kiezen we niet op voorhand.\n\nBevestig je aanwezigheid via:\n${url}`;
 }
 
-function inviteTemplateNoPreselectDateOpen({ title, dateOptions, url }: InviteTemplateInput) {
-  return `${title}\n\nDe datum ligt nog niet vast.\nHet spel kiezen we niet op voorhand.\n\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
+function inviteTemplateNoPreselectDateOpen({ title, dateOptions, locationLine, url }: InviteTemplateInput) {
+  return `${title}\n\nDe datum ligt nog niet vast.${locationLine}\nHet spel kiezen we niet op voorhand.\n\nKies wanneer je kan:\n${dateOptions}\n\nGeef je beschikbaarheid door via:\n${url}`;
 }
 
 const SCORE_BADGES: Record<number, { label: string; className: string }> = {
@@ -169,7 +170,8 @@ function buildInviteTextFromSession(session: SessionDto, games: GameDto[], url: 
     chosenGameTitle: chosenGame?.title ?? 'het gekozen spel',
     url,
     gameListWithOverflow: formatGameListWithOverflow(games),
-    meetingTimeLabel: session.meeting_time ? ` om ${formatMeetingTime(session.meeting_time)}` : ''
+    meetingTimeLabel: session.meeting_time ? ` om ${formatMeetingTime(session.meeting_time)}` : '',
+    locationLine: session.meeting_location ? `\nLocatie: ${session.meeting_location}.` : ''
   };
 
   const dateIsFixed = Boolean(session.locked && session.chosen_day);
@@ -275,6 +277,9 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const [shareTextValue, setShareTextValue] = useState('');
   const [sharing, setSharing] = useState(false);
   const [meetingTimeInput, setMeetingTimeInput] = useState('20:00');
+  const [meetingLocationInput, setMeetingLocationInput] = useState('');
+  const [recentMeetingLocations, setRecentMeetingLocations] = useState<string[]>([]);
+  const [locationSuggestionsOpen, setLocationSuggestionsOpen] = useState(false);
   const [questionSaving, setQuestionSaving] = useState(false);
   const scoreSaveTimers = useRef<Record<string, number>>({});
   const optimisticRatingsRef = useRef<Map<string, RatingDto>>(new Map());
@@ -591,6 +596,30 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     if (!session?.meeting_time) return;
     setMeetingTimeInput(session.meeting_time);
   }, [session?.meeting_time]);
+
+  useEffect(() => {
+    setMeetingLocationInput(session?.meeting_location ?? '');
+  }, [session?.meeting_location]);
+
+  useEffect(() => {
+    if (!viewerIsOrganizer) return;
+    let cancelled = false;
+
+    async function loadRecentMeetingLocations() {
+      try {
+        const data = await api<{ locations: string[] }>('/api/session-locations');
+        if (!cancelled) setRecentMeetingLocations(data.locations);
+      } catch {
+        if (!cancelled) setRecentMeetingLocations([]);
+      }
+    }
+
+    void loadRecentMeetingLocations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewerIsOrganizer]);
 
   useEffect(() => {
     const signature = `${currentPlayerId ?? 'guest'}:${questions.map((question) => question.id).join('|')}`;
@@ -1058,7 +1087,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
-  async function saveMeetingTime() {
+  async function saveMeetingDetails() {
     if (!isAdmin) return;
     if (!isValidTime(meetingTimeInput)) {
       setError('Kies een geldig afspreekuur.');
@@ -1070,12 +1099,16 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     try {
       const data = await api<{ session: SessionDto }>(`/api/sessions/${sessionId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ meeting_time: meetingTimeInput })
+        body: JSON.stringify({
+          meeting_time: meetingTimeInput,
+          meeting_location: meetingLocationInput.trim() || null
+        })
       });
       setSession(data.session);
-      setMessage(`Afspreekuur aangepast naar ${formatMeetingTime(data.session.meeting_time)}.`);
+      const locationLabel = data.session.meeting_location ? `, locatie: ${data.session.meeting_location}` : ', locatie onbepaald';
+      setMessage(`Afspraakdetails aangepast naar ${formatMeetingTime(data.session.meeting_time)}${locationLabel}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Afspreekuur opslaan mislukt.');
+      setError(err instanceof Error ? err.message : 'Afspraakdetails opslaan mislukt.');
     } finally {
       setSaving(false);
     }
@@ -1249,6 +1282,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   if (chosenGame) summaryParts.push(chosenGame.title);
   if (session.chosen_day) summaryParts.push(formatDate(session.chosen_day));
   if (session.meeting_time) summaryParts.push(formatMeetingTime(session.meeting_time));
+  if (session.meeting_location) summaryParts.push(session.meeting_location);
   const pageChip = view === 'summary' ? 'Klaar!' : view === 'availability' ? 'Planning' : view === 'questions' ? 'Vragen' : 'Spelkeuze';
   const isPlanningView = view === 'availability';
   const isQuestionView = view === 'questions';
@@ -1272,26 +1306,75 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             <p className="mt-3 text-sm text-slate-600">{summaryParts.join(' - ')}</p>
             {isPlanningView && (
               <div className="mt-4 rounded-2xl bg-white/80 px-4 py-3">
-                <p className="text-sm font-bold text-slate-700">Afspreekuur</p>
+                <p className="text-sm font-bold text-slate-700">Afspraakdetails</p>
                 {isAdmin ? (
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <NativeTimeInput
-                      value={meetingTimeInput}
-                      onChange={setMeetingTimeInput}
-                      disabled={saving}
-                      id="session-meeting-time"
-                    />
+                  <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(9rem,12rem)_minmax(12rem,1fr)_auto] lg:items-start">
+                    <div>
+                      <NativeTimeInput
+                        value={meetingTimeInput}
+                        onChange={setMeetingTimeInput}
+                        disabled={saving}
+                        id="session-meeting-time"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        value={meetingLocationInput}
+                        onChange={(event) => setMeetingLocationInput(event.target.value)}
+                        onFocus={() => setLocationSuggestionsOpen(true)}
+                        onBlur={() => window.setTimeout(() => setLocationSuggestionsOpen(false), 120)}
+                        disabled={saving}
+                        className="neo-input"
+                        id="session-meeting-location"
+                        list="session-meeting-location-options"
+                        maxLength={160}
+                        placeholder="Locatie onbepaald"
+                      />
+                      <datalist id="session-meeting-location-options">
+                        {recentMeetingLocations.map((location) => (
+                          <option key={location} value={location} />
+                        ))}
+                      </datalist>
+                      {locationSuggestionsOpen && recentMeetingLocations.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {recentMeetingLocations.map((location) => (
+                            <button
+                              key={location}
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                setMeetingLocationInput(location);
+                                setLocationSuggestionsOpen(false);
+                              }}
+                              className="rounded-full bg-white/85 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-950/10 hover:bg-white"
+                            >
+                              {location}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <button
                       type="button"
-                      onClick={saveMeetingTime}
-                      disabled={saving || !isValidTime(meetingTimeInput) || meetingTimeInput === session.meeting_time}
-                      className="neo-button neo-button-ghost w-full text-sm disabled:opacity-50 sm:w-auto"
+                      onClick={saveMeetingDetails}
+                      disabled={
+                        saving
+                        || !isValidTime(meetingTimeInput)
+                        || (
+                          meetingTimeInput === session.meeting_time
+                          && meetingLocationInput.trim() === (session.meeting_location ?? '')
+                        )
+                      }
+                      className="neo-button neo-button-ghost w-full text-sm disabled:opacity-50 lg:w-auto"
                     >
-                      Afspreekuur opslaan
+                      Opslaan
                     </button>
                   </div>
                 ) : (
-                  <p className="mt-1 text-base font-black text-slate-950">{formatMeetingTime(session.meeting_time)}</p>
+                  <div>
+                    <p className="mt-1 text-base font-black text-slate-950">{formatMeetingTime(session.meeting_time)}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">Locatie: {session.meeting_location ?? 'onbepaald'}</p>
+                  </div>
                 )}
               </div>
             )}
@@ -1362,6 +1445,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 <p className="mt-1 text-2xl font-black capitalize">{chosenDateRow.display.weekday} {chosenDateRow.display.day} {chosenDateRow.display.month}</p>
                 <p className="mt-1 text-sm">{chosenDateRow.display.full}</p>
                 {session.meeting_time && <p className="mt-1 text-sm font-semibold">Afspreekuur: {formatMeetingTime(session.meeting_time)}</p>}
+                <p className="mt-1 text-sm font-semibold">Locatie: {session.meeting_location ?? 'onbepaald'}</p>
                 {isAdmin && (
                   <button
                     type="button"
@@ -1387,6 +1471,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                           <h3 className="text-lg font-black capitalize">{row.display.weekday} {row.display.day} {row.display.month}</h3>
                           <p className="mt-1 text-sm text-slate-600">{row.display.full}</p>
                           {session.meeting_time && <p className="mt-1 text-sm font-semibold text-slate-700">Afspreekuur: {formatMeetingTime(session.meeting_time)}</p>}
+                          <p className="mt-1 text-sm font-semibold text-slate-700">Locatie: {session.meeting_location ?? 'onbepaald'}</p>
                         </div>
                         {isChosenDate && <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Vast</span>}
                       </div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bug, Lightbulb, ShieldCheck } from 'lucide-react';
+import { Bug, Lightbulb } from 'lucide-react';
 import { api } from '@/lib/api';
 
 const MAX_MESSAGE_LENGTH = 1000;
@@ -63,22 +63,15 @@ export default function FeedbackRequestForm({ isAdmin = false }: FeedbackRequest
   return (
     <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-white shadow-[0_18px_50px_rgba(23,32,54,0.14)]">
       <div className="page-band px-4 py-4 sm:px-6 sm:py-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="page-chip w-fit">Idee of bug doorgeven</p>
-            <h2 className="mt-4 font-poster text-[clamp(1.9rem,7vw,3.2rem)] uppercase leading-[0.95] text-slate-950">
-              We horen graag wat beter kan.
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
-              Goede ideeen, kleine frustraties en bugmeldingen zijn hier heel welkom. We bekijken alle inzendingen
-              graag en pakken goede verbeteringen of problemen zo snel mogelijk op.
-            </p>
-          </div>
-
-          <div className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#efffb8] px-4 py-2 text-sm font-black uppercase tracking-[0.14em] text-slate-950">
-            <ShieldCheck size={18} />
-            <span>Spamcheck actief</span>
-          </div>
+        <div className="max-w-3xl">
+          <p className="page-chip w-fit">Idee of bug doorgeven</p>
+          <h2 className="mt-4 font-poster text-[clamp(1.9rem,7vw,3.2rem)] uppercase leading-[0.95] text-slate-950">
+            We horen graag wat beter kan.
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
+            Goede ideeen, kleine frustraties en bugmeldingen zijn hier heel welkom. We bekijken alle inzendingen
+            graag en pakken goede verbeteringen of problemen zo snel mogelijk op.
+          </p>
         </div>
       </div>
 

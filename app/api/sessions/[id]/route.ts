@@ -20,6 +20,8 @@ type NormalizedExtraQuestion = {
   options: NormalizedExtraQuestionOption[];
 };
 
+const MAX_MEETING_LOCATION_LENGTH = 160;
+
 function normalizeDate(value: unknown) {
   const date = String(value ?? '').trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
@@ -28,6 +30,11 @@ function normalizeDate(value: unknown) {
 function normalizeMeetingTime(value: unknown) {
   const time = String(value ?? '').trim();
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : null;
+}
+
+function normalizeMeetingLocation(value: unknown) {
+  const location = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return location || null;
 }
 
 function normalizePlanningMode(value: unknown) {
@@ -242,6 +249,7 @@ async function resetSessionGamesAndDates(
   {
     title,
     meetingTime,
+    meetingLocation,
     planningMode,
     gameSelectionMode,
     chosenDay,
@@ -251,6 +259,7 @@ async function resetSessionGamesAndDates(
   }: {
     title: string;
     meetingTime: string;
+    meetingLocation: string | null;
     planningMode: 'fixed_day' | 'vote_dates';
     gameSelectionMode: GameSelectionMode;
     chosenDay: string | null;
@@ -264,6 +273,7 @@ async function resetSessionGamesAndDates(
     data: {
       title,
       meetingTime,
+      meetingLocation,
       planningMode,
       gameSelectionMode,
       chosenDay,
@@ -410,13 +420,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     || body.bgg_game_ids !== undefined
     || body.planning_mode !== undefined
     || body.game_selection_mode !== undefined
-    || body.meeting_time !== undefined
     || body.extra_questions !== undefined
   );
 
   if (isSettingsUpdate) {
     const title = String(body.title ?? '').trim();
     const meetingTime = normalizeMeetingTime(body.meeting_time);
+    const meetingLocation = normalizeMeetingLocation(body.meeting_location);
     const planningMode = normalizePlanningMode(body.planning_mode);
     const gameSelectionMode = normalizeGameSelectionMode(body.game_selection_mode);
     const collectionGameIds = Array.isArray(body.collection_game_ids) ? body.collection_game_ids.map(String) : [];
@@ -429,6 +439,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     if (!title) return NextResponse.json({ error: 'Titel is verplicht.' }, { status: 400 });
     if (!meetingTime) return NextResponse.json({ error: 'Kies een geldig afspreekuur.' }, { status: 400 });
+    if (meetingLocation && meetingLocation.length > MAX_MEETING_LOCATION_LENGTH) {
+      return NextResponse.json({ error: `Locatie mag maximaal ${MAX_MEETING_LOCATION_LENGTH} tekens bevatten.` }, { status: 400 });
+    }
     if (!normalizedDateOptions.length) return NextResponse.json({ error: 'Voeg minstens een datum toe.' }, { status: 400 });
     if (extraQuestions === null && body.extra_questions !== undefined) {
       return NextResponse.json({ error: 'Extra vragen moeten een vraagtekst en minstens 2 unieke antwoordopties hebben.' }, { status: 400 });
@@ -455,6 +468,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       await resetSessionGamesAndDates(tx, params.id, {
         title,
         meetingTime,
+        meetingLocation,
         planningMode,
         gameSelectionMode,
         chosenDay,
@@ -514,6 +528,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     meetingTimeUpdate = normalizedMeetingTime;
   }
 
+  let meetingLocationUpdate: string | null | undefined;
+  if (body.meeting_location !== undefined) {
+    const normalizedMeetingLocation = normalizeMeetingLocation(body.meeting_location);
+    if (normalizedMeetingLocation && normalizedMeetingLocation.length > MAX_MEETING_LOCATION_LENGTH) {
+      return NextResponse.json({ error: `Locatie mag maximaal ${MAX_MEETING_LOCATION_LENGTH} tekens bevatten.` }, { status: 400 });
+    }
+    meetingLocationUpdate = normalizedMeetingLocation;
+  }
+
   if (body.remove_date_option !== undefined) {
     const dateToRemove = normalizeDate(body.remove_date_option);
     if (!dateToRemove) return NextResponse.json({ error: 'Kies een geldige datum.' }, { status: 400 });
@@ -553,7 +576,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json({ session: serializeSession(updated, updated.dateOptions) });
   }
 
-  const updateData: { chosenDay?: string | null; locked?: boolean; chosenGameId?: string | null; meetingTime?: string } = {};
+  const updateData: { chosenDay?: string | null; locked?: boolean; chosenGameId?: string | null; meetingTime?: string; meetingLocation?: string | null } = {};
   if (chosenDayUpdate !== undefined) {
     updateData.chosenDay = chosenDayUpdate;
     if (chosenDayUpdate === null) {
@@ -565,6 +588,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (typeof body.locked === 'boolean') updateData.locked = body.locked;
   if (chosenGameIdUpdate !== undefined) updateData.chosenGameId = chosenGameIdUpdate;
   if (meetingTimeUpdate !== undefined) updateData.meetingTime = meetingTimeUpdate;
+  if (meetingLocationUpdate !== undefined) updateData.meetingLocation = meetingLocationUpdate;
 
   const updated = await prisma.session.update({
     where: { id: params.id },

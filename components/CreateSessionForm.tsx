@@ -30,6 +30,7 @@ type SessionDraft = {
   planningMode: PlanningMode;
   gameSelectionMode: GameSelectionMode;
   meetingTime: string;
+  meetingLocation: string;
   dateOptions: string[];
   extraQuestions: SessionDraftQuestion[];
 };
@@ -115,6 +116,7 @@ function readSessionDraft(draftKey: string): SessionDraft | null {
       planningMode: parsed.planningMode,
       gameSelectionMode: parsed.gameSelectionMode,
       meetingTime: parsed.meetingTime,
+      meetingLocation: typeof parsed.meetingLocation === 'string' ? parsed.meetingLocation : '',
       dateOptions: parsed.dateOptions.filter((date): date is string => typeof date === 'string'),
       extraQuestions
     };
@@ -214,6 +216,9 @@ export default function CreateSessionForm({
   const [planningMode, setPlanningMode] = useState<PlanningMode>('vote_dates');
   const [gameSelectionMode, setGameSelectionMode] = useState<GameSelectionMode>('players_pick');
   const [meetingTime, setMeetingTime] = useState(DEFAULT_MEETING_TIME);
+  const [meetingLocation, setMeetingLocation] = useState('');
+  const [recentMeetingLocations, setRecentMeetingLocations] = useState<string[]>([]);
+  const [locationSuggestionsOpen, setLocationSuggestionsOpen] = useState(false);
   const [dateOptions, setDateOptions] = useState<string[]>([]);
   const [extraQuestions, setExtraQuestions] = useState<SessionDraftQuestion[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -249,6 +254,7 @@ export default function CreateSessionForm({
           setPlanningMode(data.session.planning_mode);
           setGameSelectionMode(data.session.game_selection_mode);
           setMeetingTime(data.session.meeting_time || defaultMeetingTime);
+          setMeetingLocation(data.session.meeting_location ?? '');
           setDateOptions(nextDateOptions);
           setExtraQuestions(data.questions.map((question) => createDraftQuestion({
             id: question.id,
@@ -280,6 +286,7 @@ export default function CreateSessionForm({
         setPlanningMode(draft?.planningMode ?? 'vote_dates');
         setGameSelectionMode(draft?.gameSelectionMode ?? 'players_pick');
         setMeetingTime(draft?.meetingTime ?? defaultMeetingTime);
+        setMeetingLocation(draft?.meetingLocation ?? '');
         setDateOptions(draft?.dateOptions ?? []);
         setExtraQuestions(draft?.extraQuestions ?? []);
         setSelectedIds([]);
@@ -305,6 +312,7 @@ export default function CreateSessionForm({
       setPlanningMode(draft.planningMode);
       setGameSelectionMode(draft.gameSelectionMode);
       setMeetingTime(draft.meetingTime);
+      setMeetingLocation(draft.meetingLocation);
       setDateOptions(draft.dateOptions);
       setExtraQuestions(draft.extraQuestions);
       setSelectedIds([]);
@@ -391,6 +399,26 @@ export default function CreateSessionForm({
     };
   }, [backToPlanningHref, draftKey, editSessionId, mode, resetDraftOnLoad, router]);
 
+  useEffect(() => {
+    if (mode !== 'details') return;
+    let cancelled = false;
+
+    async function loadRecentMeetingLocations() {
+      try {
+        const data = await api<{ locations: string[] }>('/api/session-locations');
+        if (!cancelled) setRecentMeetingLocations(data.locations);
+      } catch {
+        if (!cancelled) setRecentMeetingLocations([]);
+      }
+    }
+
+    void loadRecentMeetingLocations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
   function toggleDate(date: string) {
     setDateOptions((current) => {
       if (planningMode === 'fixed_day') {
@@ -411,6 +439,7 @@ export default function CreateSessionForm({
       planningMode,
       gameSelectionMode,
       meetingTime,
+      meetingLocation,
       dateOptions,
       extraQuestions
     };
@@ -440,6 +469,7 @@ export default function CreateSessionForm({
             planning_mode: draft.planningMode,
             game_selection_mode: draft.gameSelectionMode,
             meeting_time: draft.meetingTime,
+            meeting_location: draft.meetingLocation.trim() || null,
             extra_questions: normalizedExtraQuestions.payload
           })
         });
@@ -454,6 +484,7 @@ export default function CreateSessionForm({
             planning_mode: draft.planningMode,
             game_selection_mode: draft.gameSelectionMode,
             meeting_time: draft.meetingTime,
+            meeting_location: draft.meetingLocation.trim() || null,
             extra_questions: normalizedExtraQuestions.payload
           })
         });
@@ -499,6 +530,7 @@ export default function CreateSessionForm({
       planningMode,
       gameSelectionMode,
       meetingTime,
+      meetingLocation,
       dateOptions: normalizedDateOptions,
       extraQuestions
     };
@@ -587,6 +619,7 @@ export default function CreateSessionForm({
       planningMode,
       gameSelectionMode,
       meetingTime,
+      meetingLocation,
       dateOptions: normalizedDateOptions,
       extraQuestions
     };
@@ -746,14 +779,56 @@ export default function CreateSessionForm({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Afspreekuur</label>
-            <NativeTimeInput
-              value={meetingTime}
-              onChange={setMeetingTime}
-              required
-              id="create-meeting-time"
-            />
-            <p className="mt-2 text-sm text-slate-500">Onthoudt je laatste keuze. Eerste keer: standaard 20:00.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Afspreekuur</label>
+                <NativeTimeInput
+                  value={meetingTime}
+                  onChange={setMeetingTime}
+                  required
+                  id="create-meeting-time"
+                />
+                <p className="mt-2 text-sm text-slate-500">Onthoudt je laatste keuze. Eerste keer: standaard 20:00.</p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Locatie</label>
+                <input
+                  value={meetingLocation}
+                  onChange={(event) => setMeetingLocation(event.target.value)}
+                  onFocus={() => setLocationSuggestionsOpen(true)}
+                  onBlur={() => window.setTimeout(() => setLocationSuggestionsOpen(false), 120)}
+                  className="neo-input"
+                  id="create-meeting-location"
+                  list="create-meeting-location-options"
+                  maxLength={160}
+                  placeholder="Onbepaald"
+                />
+                <datalist id="create-meeting-location-options">
+                  {recentMeetingLocations.map((location) => (
+                    <option key={location} value={location} />
+                  ))}
+                </datalist>
+                {locationSuggestionsOpen && recentMeetingLocations.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {recentMeetingLocations.map((location) => (
+                      <button
+                        key={location}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          setMeetingLocation(location);
+                          setLocationSuggestionsOpen(false);
+                        }}
+                        className="rounded-full bg-white/85 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-950/10 hover:bg-white"
+                      >
+                        {location}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-2 text-sm text-slate-500">Laat leeg als de locatie nog onbepaald is.</p>
+              </div>
+            </div>
           </div>
 
           <div className="page-subcard p-4">
@@ -870,6 +945,7 @@ export default function CreateSessionForm({
           <span className="block">Planning: {planningSummary}</span>
           <span className="block">Spelkeuze: {gameSummary}</span>
           <span className="block">Afspreekuur: {formatMeetingTime(meetingTime)}</span>
+          <span className="block">Locatie: {meetingLocation.trim() || 'onbepaald'}</span>
           <span className="block">Extra vragen: {extraQuestionsSummary}</span>
         </div>
       )}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, Clock3, Dice5, Users } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, Dice5, MapPin, Users } from 'lucide-react';
 import { loadSessionBundle } from '@/lib/api';
 import { sessionPath } from '@/lib/session-link';
 import { SessionBundle } from '@/lib/types';
@@ -168,7 +168,7 @@ export default function SessionCreatedOverview({
           </div>
         </div>
 
-        <div className={`mt-5 grid gap-3 ${extraQuestionPrompts.length ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3'}`}>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <article className="page-subcard-soft p-4">
             <div className="flex items-center gap-2 text-slate-700">
               <Users size={18} />
@@ -213,6 +213,14 @@ export default function SessionCreatedOverview({
               <p className="text-sm font-bold">Afspreekuur</p>
             </div>
             <p className="mt-2 text-sm text-slate-700">{formatMeetingTime(session.meeting_time)}</p>
+          </article>
+
+          <article className="page-subcard-soft p-4">
+            <div className="flex items-center gap-2 text-slate-700">
+              <MapPin size={18} />
+              <p className="text-sm font-bold">Locatie</p>
+            </div>
+            <p className="mt-2 text-sm text-slate-700">{session.meeting_location ?? 'Onbepaald'}</p>
           </article>
 
           {!!extraQuestionPrompts.length && (
