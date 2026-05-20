@@ -7,6 +7,7 @@ type LandingScreenshot = {
   src: string;
   alt: string;
   caption: string;
+  imageClassName?: string;
 };
 
 type LandingSection = {
@@ -221,7 +222,8 @@ export const landingPages = {
       {
         src: '/marketing/game-sync.png',
         alt: 'Synchronisatieoverzicht voor een spellenverzameling.',
-        caption: 'Een bestaande spellenlijst is handig als startpunt, maar je eigen indeling bepaalt hoe bruikbaar ze echt wordt.'
+        caption: 'Een bestaande spellenlijst is handig als startpunt, maar je eigen indeling bepaalt hoe bruikbaar ze echt wordt.',
+        imageClassName: 'object-left-top'
       },
       {
         src: '/marketing/scoretabel.png',
@@ -364,7 +366,8 @@ export const landingPages = {
       {
         src: '/marketing/frieten.png',
         alt: 'Extra vraag over eten tijdens een spelavond.',
-        caption: 'Praktische details zoals eten of wie iets meebrengt kun je beter mee organiseren dan apart in een chat lossen.'
+        caption: 'Praktische details zoals eten of wie iets meebrengt kun je beter mee organiseren dan apart in een chat lossen.',
+        imageClassName: 'object-left-top'
       }
     ],
     sections: [

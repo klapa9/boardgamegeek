@@ -354,66 +354,68 @@ export default async function HomePage() {
           </>
         )}
 
-        <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-white shadow-[0_18px_50px_rgba(23,32,54,0.12)]">
-          <div className="page-band px-4 py-4 sm:px-6 sm:py-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-3xl">
-                <p className="page-chip w-fit">Verder lezen</p>
-                <h2 className="mt-4 font-poster text-[clamp(1.9rem,7vw,3.3rem)] uppercase leading-[0.95] text-slate-950">
-                  Praktische hulp voor afspreken, organiseren en spellen kiezen.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
-                  Deze gidsen gaan dieper in op vragen die veel spelgroepen herkennen: een datum vinden, je bordspellen bijhouden en samen een spel kiezen.
-                </p>
-                <div className="mt-4 flex flex-col gap-2 text-sm font-black text-slate-950">
-                  {landingPageCards.map((card) => (
-                    <Link
-                      key={`${card.path}-text-link`}
-                      href={card.path}
-                      className="w-fit underline decoration-2 underline-offset-4 transition hover:text-[#ff5a36]"
-                    >
-                      {card.linkText}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-
-              <div className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#fff7df] px-4 py-2 text-sm font-black uppercase tracking-[0.14em] text-slate-950">
-                <BookOpenText size={18} />
-                <span>Voor spelgroepen</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-5 px-4 py-5 sm:px-6 sm:py-6 lg:grid-cols-3">
-            {landingPageCards.map((card) => (
-              <Link
-                key={card.path}
-                href={card.path}
-                className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.8rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_12px_0_0_rgba(23,32,54,0.1)] transition hover:translate-y-[-4px]"
-              >
-                <div className="relative aspect-[16/10] overflow-hidden border-b-4 border-slate-950 bg-[#fff2bd]">
-                  <Image
-                    src={card.imageSrc}
-                    alt={card.imageAlt}
-                    fill
-                    sizes="(min-width: 1024px) 30vw, 100vw"
-                    className="object-cover object-top transition duration-300 group-hover:scale-[1.02]"
-                  />
-                </div>
-                <div className="flex flex-1 flex-col px-5 py-5">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{card.eyebrow}</p>
-                  <h3 className="mt-3 text-2xl font-black leading-tight text-slate-950">{card.title}</h3>
-                  <p className="mt-3 flex-1 text-sm leading-6 text-slate-700">{card.description}</p>
-                  <div className="mt-4 inline-flex items-center gap-2 text-sm font-black text-slate-950">
-                    <span>{card.linkText}</span>
-                    <ArrowRight size={16} className="shrink-0 transition group-hover:translate-x-1" />
+        {!userId && (
+          <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-white shadow-[0_18px_50px_rgba(23,32,54,0.12)]">
+            <div className="page-band px-4 py-4 sm:px-6 sm:py-5">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-3xl">
+                  <p className="page-chip w-fit">Verder lezen</p>
+                  <h2 className="mt-4 font-poster text-[clamp(1.9rem,7vw,3.3rem)] uppercase leading-[0.95] text-slate-950">
+                    Praktische hulp voor afspreken, organiseren en spellen kiezen.
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-700 sm:text-base">
+                    Deze gidsen gaan dieper in op vragen die veel spelgroepen herkennen: een datum vinden, je bordspellen bijhouden en samen een spel kiezen.
+                  </p>
+                  <div className="mt-4 flex flex-col gap-2 text-sm font-black text-slate-950">
+                    {landingPageCards.map((card) => (
+                      <Link
+                        key={`${card.path}-text-link`}
+                        href={card.path}
+                        className="w-fit underline decoration-2 underline-offset-4 transition hover:text-[#ff5a36]"
+                      >
+                        {card.linkText}
+                      </Link>
+                    ))}
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+
+                <div className="inline-flex items-center gap-2 rounded-full border-2 border-slate-950 bg-[#fff7df] px-4 py-2 text-sm font-black uppercase tracking-[0.14em] text-slate-950">
+                  <BookOpenText size={18} />
+                  <span>Voor spelgroepen</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-5 px-4 py-5 sm:px-6 sm:py-6 lg:grid-cols-3">
+              {landingPageCards.map((card) => (
+                <Link
+                  key={card.path}
+                  href={card.path}
+                  className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.8rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_12px_0_0_rgba(23,32,54,0.1)] transition hover:translate-y-[-4px]"
+                >
+                  <div className="relative aspect-[16/10] overflow-hidden border-b-4 border-slate-950 bg-[#fff2bd]">
+                    <Image
+                      src={card.imageSrc}
+                      alt={card.imageAlt}
+                      fill
+                      sizes="(min-width: 1024px) 30vw, 100vw"
+                      className="object-cover object-top transition duration-300 group-hover:scale-[1.02]"
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col px-5 py-5">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">{card.eyebrow}</p>
+                    <h3 className="mt-3 text-2xl font-black leading-tight text-slate-950">{card.title}</h3>
+                    <p className="mt-3 flex-1 text-sm leading-6 text-slate-700">{card.description}</p>
+                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-black text-slate-950">
+                      <span>{card.linkText}</span>
+                      <ArrowRight size={16} className="shrink-0 transition group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
       </div>
     </main>

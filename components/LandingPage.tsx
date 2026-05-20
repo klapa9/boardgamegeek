@@ -66,7 +66,7 @@ export default function LandingPage({ page }: LandingPageProps) {
                   alt={heroScreenshot.alt}
                   fill
                   sizes="(min-width: 1024px) 42vw, 100vw"
-                  className="object-cover object-top"
+                  className={`object-cover ${heroScreenshot.imageClassName ?? 'object-top'}`}
                 />
               </div>
               <div className="border-t-2 border-slate-950/10 px-4 py-3">
@@ -100,7 +100,7 @@ export default function LandingPage({ page }: LandingPageProps) {
                     alt={screenshot.alt}
                     fill
                     sizes="(min-width: 1024px) 30vw, 100vw"
-                    className="object-cover object-top"
+                    className={`object-cover ${screenshot.imageClassName ?? 'object-top'}`}
                   />
                 </div>
                 <div className="px-4 py-3">
