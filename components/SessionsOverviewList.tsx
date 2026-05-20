@@ -18,7 +18,7 @@ type SessionRatingSummary = {
 type SessionAvailabilitySummary = {
   playerId: string;
   day: string;
-  available: boolean;
+  available: boolean | null;
 };
 
 export type SessionOverviewListItem = {

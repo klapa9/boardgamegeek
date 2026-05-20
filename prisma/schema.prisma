@@ -158,7 +158,7 @@ model Availability {
   sessionId String
   playerId  String
   day       String
-  available Boolean @default(false)
+  available Boolean?
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   player  Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)

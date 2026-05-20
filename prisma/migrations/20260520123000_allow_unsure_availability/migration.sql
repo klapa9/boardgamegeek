@@ -1,0 +1,3 @@
+ALTER TABLE "Availability"
+ALTER COLUMN "available" DROP NOT NULL,
+ALTER COLUMN "available" DROP DEFAULT;

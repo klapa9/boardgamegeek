@@ -173,7 +173,7 @@ export type FilteredBggExpansionDto = {
 export type AvailabilityDto = {
   player_id: string;
   day: string;
-  available: boolean;
+  available: boolean | null;
 };
 
 export type RatingDto = {

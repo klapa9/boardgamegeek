@@ -719,7 +719,7 @@ export default function CreateSessionForm({
                   className="sr-only"
                 />
                 <p className="font-bold text-slate-900">Ik kies zelf 1 dag</p>
-                <p className="text-sm text-slate-600">Je kiest straks 1 vaste datum waarop jullie afspreken.</p>
+                <p className="text-sm text-slate-600">Je kiest straks 1 datum waarop de spelavond plaatsvindt.</p>
               </label>
               <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'vote_dates' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
@@ -731,7 +731,7 @@ export default function CreateSessionForm({
                   className="sr-only"
                 />
                 <p className="font-bold text-slate-900">Deelnemers stemmen op datumopties.</p>
-                <p className="text-sm text-slate-600">Je kiest straks meerdere opties waarop iedereen kan aanduiden welke dag ze kunnen.</p>
+                <p className="text-sm text-slate-600">Je kiest straks meerdere opties waarop deelnemers kunnen aanduiden welke dag ze beschikbaar zijn.</p>
               </label>
             </div>
           </div>
@@ -748,8 +748,8 @@ export default function CreateSessionForm({
                   onChange={() => setGameSelectionMode('no_preselect')}
                   className="sr-only"
                 />
-                <p className="font-bold text-slate-900">Geen spel op voorhand kiezen</p>
-                <p className="text-sm text-slate-600">Er wordt niet op voorhand beslist welk spel jullie gaan spelen.</p>
+                <p className="font-bold text-slate-900">Geen spel op voorhand kiezen.</p>
+                <p className="text-sm text-slate-600">Er worden geen spellen weergegeven bij deze spelavond.</p>
               </label>
               <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'host_pick' ? 'border-slate-950 bg-[#fff2bd]' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
@@ -760,8 +760,8 @@ export default function CreateSessionForm({
                   onChange={() => setGameSelectionMode('host_pick')}
                   className="sr-only"
                 />
-                <p className="font-bold text-slate-900">Ik kies zelf 1 spel</p>
-                <p className="text-sm text-slate-600">Je selecteert straks het spel dat jullie gaan spelen.</p>
+                <p className="font-bold text-slate-900">Ik kies zelf de spellen.</p>
+                <p className="text-sm text-slate-600">Je selecteert straks zelf de spellen die gespeeld zullen worden.</p>
               </label>
               <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'players_pick' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
@@ -773,7 +773,7 @@ export default function CreateSessionForm({
                   className="sr-only"
                 />
                 <p className="font-bold text-slate-900">Spelers laten meebeslissen</p>
-                <p className="text-sm text-slate-600">Je kiest straks meerdere spelopties, iedereen kan stemmen welk spel ze liever of minder graag willen spelen.</p>
+                <p className="text-sm text-slate-600">Je kiest straks meerdere spelopties, iedereen kan stemmen welk spel ze liever of minder graag willen spelen. Deelnemers kunnen ook zelf spellen toevoegen.</p>
               </label>
             </div>
           </div>
@@ -788,7 +788,6 @@ export default function CreateSessionForm({
                   required
                   id="create-meeting-time"
                 />
-                <p className="mt-2 text-sm text-slate-500">Onthoudt je laatste keuze. Eerste keer: standaard 20:00.</p>
               </div>
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">Locatie</label>

@@ -7,13 +7,18 @@ function normalizeDate(value: unknown) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
 }
 
+function normalizeAvailability(value: unknown) {
+  if (value === true || value === false || value === null) return value;
+  return undefined;
+}
+
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const body = await request.json().catch(() => ({}));
   const playerId = String(body.player_id ?? '').trim();
   const day = normalizeDate(body.day);
-  const available = Boolean(body.available);
+  const available = normalizeAvailability(body.available);
 
-  if (!playerId || !day) return NextResponse.json({ error: 'Ongeldige beschikbaarheid.' }, { status: 400 });
+  if (!playerId || !day || available === undefined) return NextResponse.json({ error: 'Ongeldige beschikbaarheid.' }, { status: 400 });
 
   const [player, dateOption] = await Promise.all([
     prisma.player.findFirst({ where: { id: playerId, sessionId: params.id } }),

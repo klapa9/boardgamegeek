@@ -26,6 +26,7 @@ type DateRow = SessionDto['date_options'][number] & {
   label: string;
   availablePlayers: PlayerDto[];
   unavailablePlayers: PlayerDto[];
+  unsurePlayers: PlayerDto[];
   pendingPlayers: PlayerDto[];
 };
 type FlowView = 'availability' | 'questions' | 'rating' | 'results' | 'chosen_game' | 'summary';
@@ -302,7 +303,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   const availablePlayerIdsByDay = useMemo(() => {
     const map = new Map<string, Set<string>>();
     availability.forEach((item) => {
-      if (!item.available) return;
+      if (item.available !== true) return;
       const existing = map.get(item.day);
       if (existing) {
         existing.add(item.player_id);
@@ -546,7 +547,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     const availablePlayers = players.filter((player) => availablePlayerIdsByDay.get(option.date)?.has(player.id));
     const unavailablePlayers = players.filter((player) => {
       const entry = availabilityByPlayerDay.get(playerDateKey(player.id, option.date));
-      return entry ? !entry.available : false;
+      return entry ? entry.available === false : false;
+    });
+    const unsurePlayers = players.filter((player) => {
+      const entry = availabilityByPlayerDay.get(playerDateKey(player.id, option.date));
+      return entry ? entry.available === null : false;
     });
     const pendingPlayers = players.filter((player) => !availabilityByPlayerDay.has(playerDateKey(player.id, option.date)));
 
@@ -556,10 +561,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       label: formatDate(option.date),
       availablePlayers,
       unavailablePlayers,
+      unsurePlayers,
       pendingPlayers
     };
   }), [availabilityByPlayerDay, availablePlayerIdsByDay, dateOptions, players]);
   const chosenDateRow = session?.chosen_day ? dateRows.find((row) => row.date === session.chosen_day) : null;
+  const visibleDateRows = session?.locked && chosenDateRow ? [chosenDateRow] : dateRows;
 
   const results = useMemo<ResultRow[]>(() => games.map((game) => {
     const relevantRatings = ratings.filter((rating) => rating.game_id === game.id && eligiblePlayerIds.has(rating.player_id));
@@ -636,7 +643,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }, [currentPlayerId, currentPlayerSelectionsByQuestion, questionSelectionsDirty, questions]);
 
   useEffect(() => {
-    const modalOpen = addDatesOpen || addGamesOpen || Boolean(shareModal) || authModalOpen;
+    const modalOpen = (addDatesOpen && !session?.locked) || addGamesOpen || Boolean(shareModal) || authModalOpen;
     if (!modalOpen) return;
 
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -649,11 +656,11 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;
     };
-  }, [addDatesOpen, addGamesOpen, authModalOpen, shareModal]);
+  }, [addDatesOpen, addGamesOpen, authModalOpen, session?.locked, shareModal]);
 
   function isAvailable(date: string) {
     if (!currentPlayerId) return false;
-    return Boolean(availabilityByPlayerDay.get(playerDateKey(currentPlayerId, date))?.available);
+    return availabilityByPlayerDay.get(playerDateKey(currentPlayerId, date))?.available === true;
   }
 
   function myScore(gameId: string) {
@@ -737,7 +744,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
     }
   }
 
-  async function setAvailabilityForDay(date: string, available: boolean) {
+  async function setAvailabilityForDay(date: string, available: boolean | null) {
     if (!currentPlayerId) return;
     const playerId = currentPlayerId;
     const previousAvailability = availability;
@@ -1013,6 +1020,10 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
   }
 
   function openAddDatesModal() {
+    if (session?.locked) {
+      setError('De planning ligt vast. Heropen de planning om datumopties toe te voegen.');
+      return;
+    }
     if (!currentPlayerId) {
       setError(viewerProfile ? `Doe eerst mee als ${viewerProfile.display_name} om datumopties toe te voegen.` : 'Vul eerst je naam in om datumopties toe te voegen.');
       return;
@@ -1460,7 +1471,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
             )}
             <div className="summary-scroll-area max-h-[32rem] overflow-y-auto pr-1 sm:max-h-none sm:overflow-visible sm:pr-0">
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                {dateRows.map((row) => {
+                {visibleDateRows.map((row) => {
                   const isChosenDate = session.chosen_day === row.date;
                   const myAvailability = currentPlayerId ? availabilityByPlayerDay.get(playerDateKey(currentPlayerId, row.date)) ?? null : null;
 
@@ -1480,7 +1491,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                           Jouw status:{' '}
                           <b>
                             {myAvailability
-                              ? (myAvailability.available ? 'aanwezig' : 'afwezig')
+                              ? (myAvailability.available === true ? 'aanwezig' : myAvailability.available === false ? 'afwezig' : 'ik weet het nog niet')
                               : 'nog niet bevestigd'}
                           </b>
                         </p>
@@ -1494,6 +1505,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                           <div>
                             <p className="font-bold text-slate-900">Niet beschikbaar</p>
                             <p className="mt-1 text-slate-600">{row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
+                          </div>
+                        )}
+                        {!!row.unsurePlayers.length && (
+                          <div>
+                            <p className="font-bold text-slate-900">Nog niet zeker</p>
+                            <p className="mt-1 text-slate-600">{row.unsurePlayers.map((player) => player.name).join(', ')}</p>
                           </div>
                         )}
                       </div>
@@ -1677,10 +1694,12 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       {view === 'availability' && (
         <section className="page-card page-card-lime p-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2"><CalendarDays size={20} /><h2 className="text-xl font-black">Wanneer kan je?</h2></div>
-            <button type="button" onClick={openAddDatesModal} className="neo-button neo-button-danger text-sm">
-              <Plus size={18} /> Extra data toevoegen
-            </button>
+            <div className="flex items-center gap-2"><CalendarDays size={20} /><h2 className="text-xl font-black">{session.locked ? 'Bevestig je aanwezigheid' : 'Wanneer kan je?'}</h2></div>
+            {!session.locked && (
+              <button type="button" onClick={openAddDatesModal} className="neo-button neo-button-danger text-sm">
+                <Plus size={18} /> Extra data toevoegen
+              </button>
+            )}
           </div>
           {session.locked && chosenDateRow && (
             <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-5 text-emerald-950">
@@ -1701,7 +1720,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   </button>
                 )}
               </div>
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <button
                   type="button"
                   disabled={!currentPlayer || saving}
@@ -1709,9 +1728,9 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                     if (!session.chosen_day) return;
                     setAvailabilityForDay(session.chosen_day, true);
                   }}
-                  className={`rounded-2xl border px-4 py-3 text-left font-bold ${currentPlayerChosenDayAvailability?.available ? 'border-emerald-700 bg-emerald-200 text-emerald-950' : 'border-emerald-200 bg-white text-emerald-900'}`}
+                  className={`rounded-2xl border px-4 py-3 text-left font-bold ${currentPlayerChosenDayAvailability?.available === true ? 'border-emerald-700 bg-emerald-200 text-emerald-950' : 'border-emerald-200 bg-white text-emerald-900'}`}
                 >
-                  {currentPlayerChosenDayAvailability?.available ? 'Aanwezig bevestigd' : 'Ik ben aanwezig'}
+                  {currentPlayerChosenDayAvailability?.available === true ? 'Aanwezig bevestigd' : 'Ik ben aanwezig'}
                 </button>
                 <button
                   type="button"
@@ -1720,18 +1739,30 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                     if (!session.chosen_day) return;
                     setAvailabilityForDay(session.chosen_day, false);
                   }}
-                  className={`rounded-2xl border px-4 py-3 text-left font-bold ${currentPlayerChosenDayAvailability && !currentPlayerChosenDayAvailability.available ? 'border-slate-700 bg-slate-200 text-slate-950' : 'border-slate-200 bg-white text-slate-700'}`}
+                  className={`rounded-2xl border px-4 py-3 text-left font-bold ${currentPlayerChosenDayAvailability?.available === false ? 'border-slate-700 bg-slate-200 text-slate-950' : 'border-slate-200 bg-white text-slate-700'}`}
                 >
-                  {currentPlayerChosenDayAvailability && !currentPlayerChosenDayAvailability.available ? 'Afwezig bevestigd' : 'Ik kan niet'}
+                  {currentPlayerChosenDayAvailability?.available === false ? 'Afwezig bevestigd' : 'Ik kan niet'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!currentPlayer || saving}
+                  onClick={() => {
+                    if (!session.chosen_day) return;
+                    setAvailabilityForDay(session.chosen_day, null);
+                  }}
+                  className={`rounded-2xl border px-4 py-3 text-left font-bold ${currentPlayerChosenDayAvailability?.available === null ? 'border-amber-700 bg-amber-100 text-amber-950' : 'border-amber-200 bg-white text-amber-900'}`}
+                >
+                  {currentPlayerChosenDayAvailability?.available === null ? 'Nog niet zeker' : 'Ik weet het nog niet'}
                 </button>
               </div>
             </div>
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {dateRows.map((row) => {
+            {visibleDateRows.map((row) => {
               const myAvailability = currentPlayerId ? currentPlayerAvailabilityByDay.get(row.date) ?? null : null;
-              const selected = Boolean(myAvailability?.available);
-              const explicitlyUnavailable = Boolean(myAvailability && !myAvailability.available);
+              const selected = myAvailability?.available === true;
+              const explicitlyUnavailable = myAvailability?.available === false;
+              const unsure = myAvailability?.available === null;
               const isToday = row.date === localDateKey();
               const isChosenDate = session.chosen_day === row.date;
               const needsLoginHint = !currentPlayer;
@@ -1745,7 +1776,9 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                     ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950'
                     : explicitlyUnavailable
                       ? 'border-slate-300 bg-slate-100 text-slate-700'
-                      : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
+                      : unsure
+                        ? 'border-amber-300 bg-amber-50 text-amber-950'
+                        : 'border-slate-950/10 bg-white/70 text-slate-800 hover:border-slate-950/25',
                 isToday ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-white' : '',
                 saving ? 'opacity-60' : ''
               ].join(' ');
@@ -1773,12 +1806,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                             ? 'Jij bent beschikbaar'
                             : explicitlyUnavailable
                               ? 'Jij bent niet beschikbaar'
-                              : 'Nog niet ingevuld'}
+                              : unsure
+                                ? 'Jij weet het nog niet'
+                                : 'Nog niet ingevuld'}
                       </p>
                     </div>
                     <div className="pointer-events-auto flex items-center gap-2">
                       {isChosenDate && <span className="rounded-full bg-emerald-700 px-3 py-1 text-xs font-black uppercase tracking-wide text-white">Vast</span>}
-                      {isAdmin && (
+                      {isAdmin && !session.locked && (
                         <button
                           type="button"
                           onClick={() => removeDateOption(row.date)}
@@ -1799,6 +1834,9 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                   </div>
                   {!!row.unavailablePlayers.length && (
                     <p className="pointer-events-none relative z-10 mt-2 text-xs text-slate-500">Niet beschikbaar: {row.unavailablePlayers.map((player) => player.name).join(', ')}</p>
+                  )}
+                  {!!row.unsurePlayers.length && (
+                    <p className="pointer-events-none relative z-10 mt-1 text-xs text-slate-500">Nog niet zeker: {row.unsurePlayers.map((player) => player.name).join(', ')}</p>
                   )}
                   {!!row.pendingPlayers.length && (
                     <p className="pointer-events-none relative z-10 mt-1 text-xs text-slate-500">Nog geen antwoord: {row.pendingPlayers.map((player) => player.name).join(', ')}</p>
@@ -2175,7 +2213,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
         </section>
       )}
 
-      {addDatesOpen && (
+      {addDatesOpen && !session.locked && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="add-dates-title">
           <div className="page-card page-card-lime flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[2rem] sm:rounded-[2rem]">
             <div className="page-band shrink-0 flex items-start justify-between gap-4 px-5 py-4">

@@ -360,6 +360,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (!session) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
 
   if (Array.isArray(body.add_date_options)) {
+    if (session.locked) {
+      return NextResponse.json({ error: 'De planning ligt vast. Heropen de planning om datumopties toe te voegen.' }, { status: 400 });
+    }
+
     const viewerProfile = await getCurrentUserProfile();
     if (!viewerProfile) {
       return NextResponse.json({ error: 'Log eerst in om datumopties toe te voegen.' }, { status: 401 });
