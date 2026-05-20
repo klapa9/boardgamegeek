@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: boardgamecrew-be-app
+    container_name: boardgamecrew-app
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -12,7 +12,7 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: boardgamecrew-be-postgres
+    container_name: boardgamecrew-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: gamenight
