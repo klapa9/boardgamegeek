@@ -14,6 +14,8 @@ import {
   UtensilsCrossed,
   type LucideIcon
 } from 'lucide-react';
+import FeedbackRequestForm from '@/components/FeedbackRequestForm';
+import { isCurrentUserAdmin } from '@/lib/admin';
 import { landingPageCards } from '@/lib/landing-pages';
 import { createMetadata, getHomeStructuredData } from '@/lib/seo';
 
@@ -111,6 +113,7 @@ const marketingFeatures: MarketingFeature[] = [
 
 export default async function HomePage() {
   const { userId } = await auth();
+  const isAdmin = userId ? await isCurrentUserAdmin(userId) : false;
   const signInHref = '/sign-in';
   const structuredData = JSON.stringify(getHomeStructuredData());
   const marqueeItems = userId
@@ -170,44 +173,56 @@ export default async function HomePage() {
         </section>
 
         {userId ? (
-          <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
-            <div className="border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
-              <div className="inline-flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-700 sm:text-xs sm:tracking-[0.18em]">
-                <CircleAlert size={16} />
-                <span>ingelogd</span>
-              </div>
-            </div>
-
-            <div className="px-4 py-5 sm:px-6 sm:py-8">
-              <div className="max-w-3xl">
-                <h1 className="mt-4 font-poster text-[clamp(2.2rem,10vw,4.4rem)] uppercase leading-[0.92] text-slate-950">
-                  Kies je
-                  <br />
-                  volgende zet.
-                </h1>
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <Link
-                    href="/spelavond?nieuw=1"
-                    className="inline-flex items-center justify-center rounded-[1.4rem] border-4 border-slate-950 bg-[#ff5a36] px-5 py-3 text-center font-poster text-xl uppercase text-white transition hover:translate-y-[-2px] hover:bg-[#ff6d4d]"
-                  >
-                    Maak een nieuwe spelavond
-                  </Link>
-                  <Link
-                    href="/collectie"
-                    className="inline-flex items-center justify-center rounded-[1.4rem] border-4 border-slate-950 bg-[#84d7ff] px-5 py-3 text-center font-poster text-xl uppercase text-slate-950 transition hover:translate-y-[-2px]"
-                  >
-                    Mijn collectie
-                  </Link>
-                  <Link
-                    href="/spelavonden"
-                    className="inline-flex items-center justify-center rounded-[1.4rem] border-4 border-slate-950 bg-[#d8ff63] px-5 py-3 text-center font-poster text-xl uppercase text-slate-950 transition hover:translate-y-[-2px]"
-                  >
-                    Mijn spelavonden
-                  </Link>
+          <>
+            <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.18)]">
+              <div className="border-b-4 border-dashed border-slate-950 bg-[#fff2bd] px-4 py-3 sm:px-6">
+                <div className="inline-flex shrink-0 items-center gap-2 rounded-full border-2 border-slate-950 bg-white px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-[0.14em] text-slate-700 sm:text-xs sm:tracking-[0.18em]">
+                  <CircleAlert size={16} />
+                  <span>ingelogd</span>
                 </div>
               </div>
-            </div>
-          </section>
+
+              <div className="px-4 py-5 sm:px-6 sm:py-8">
+                <div className="max-w-3xl">
+                  <h1 className="mt-4 font-poster text-[clamp(2.2rem,10vw,4.4rem)] uppercase leading-[0.92] text-slate-950">
+                    Kies je
+                    <br />
+                    volgende zet.
+                  </h1>
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <Link
+                      href="/spelavond?nieuw=1"
+                      className="inline-flex items-center justify-center rounded-[1.4rem] border-4 border-slate-950 bg-[#ff5a36] px-5 py-3 text-center font-poster text-xl uppercase text-white transition hover:translate-y-[-2px] hover:bg-[#ff6d4d]"
+                    >
+                      Maak een nieuwe spelavond
+                    </Link>
+                    <Link
+                      href="/collectie"
+                      className="inline-flex items-center justify-center rounded-[1.4rem] border-4 border-slate-950 bg-[#84d7ff] px-5 py-3 text-center font-poster text-xl uppercase text-slate-950 transition hover:translate-y-[-2px]"
+                    >
+                      Mijn collectie
+                    </Link>
+                    <Link
+                      href="/spelavonden"
+                      className="inline-flex items-center justify-center rounded-[1.4rem] border-4 border-slate-950 bg-[#d8ff63] px-5 py-3 text-center font-poster text-xl uppercase text-slate-950 transition hover:translate-y-[-2px]"
+                    >
+                      Mijn spelavonden
+                    </Link>
+                    {isAdmin ? (
+                      <Link
+                        href="/admin/feedback"
+                        className="inline-flex items-center justify-center rounded-[1.4rem] border-4 border-slate-950 bg-white px-5 py-3 text-center font-poster text-xl uppercase text-slate-950 transition hover:translate-y-[-2px]"
+                      >
+                        Admin feedback
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <FeedbackRequestForm isAdmin={isAdmin} />
+          </>
         ) : (
           <>
             <section className="w-full min-w-0 overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[rgba(255,247,223,0.92)] shadow-[0_24px_80px_rgba(23,32,54,0.16)]">

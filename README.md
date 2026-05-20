@@ -54,6 +54,19 @@ npm run db:sync-default-collection
 Normaal hoeft dit niet tijdens deploy. De admin kan via `/games` handmatig synchroniseren; daarna staan de spellen in de database.
 Als BGG server-to-server weigert, kan je de XML uit de publieke BGG-link kopieren en op `/games` in **BGG XML plakken** importeren.
 
+## Admin voor feedback
+
+Feature-aanvragen en bugmeldingen van ingelogde gebruikers worden opgeslagen in de database en zijn zichtbaar op `/admin/feedback`.
+
+Zet minstens een van deze env-variabelen om een adminaccount toegang te geven:
+
+```bash
+ADMIN_CLERK_USER_IDS="user_123,user_456"
+ADMIN_EMAILS="jij@example.com"
+```
+
+Je mag ook beide gebruiken. De route is alleen toegankelijk voor ingelogde users die in een van deze lijsten voorkomen.
+
 ## BGG gedrag
 
 De collectie-import gebruikt de publieke BoardGameGeek XML endpoint:
