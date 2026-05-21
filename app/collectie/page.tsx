@@ -1,4 +1,7 @@
 import CollectionOverview from '@/components/CollectionOverview';
+import { privatePageMetadata } from '@/lib/seo';
+
+export const metadata = privatePageMetadata;
 
 export default function CollectionPage() {
   return (

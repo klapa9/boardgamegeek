@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import SessionCreatedOverview from '@/components/SessionCreatedOverview';
+import { privatePageMetadata } from '@/lib/seo';
+
+export const metadata = privatePageMetadata;
 
 export default function SessionCreatedPage({ searchParams }: { searchParams?: { id?: string; bewerkt?: string } }) {
   const sessionId = searchParams?.id?.trim() || null;

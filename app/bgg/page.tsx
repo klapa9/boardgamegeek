@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import BggManager from '@/components/BggManager';
+import { privatePageMetadata } from '@/lib/seo';
+
+export const metadata = privatePageMetadata;
 
 export default function BggPage() {
   return (

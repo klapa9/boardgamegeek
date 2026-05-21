@@ -3,8 +3,10 @@ import { Inbox, MessageSquareMore, UserRound } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { isCurrentUserAdmin } from '@/lib/admin';
 import { prisma } from '@/lib/db';
+import { privatePageMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = privatePageMetadata;
 
 function formatDate(value: Date) {
   return new Intl.DateTimeFormat('nl-BE', {

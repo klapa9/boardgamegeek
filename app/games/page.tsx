@@ -1,6 +1,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import CollectionManager from '@/components/CollectionManager';
+import { privatePageMetadata } from '@/lib/seo';
+
+export const metadata = privatePageMetadata;
 
 export default function GamesPage() {
   return (

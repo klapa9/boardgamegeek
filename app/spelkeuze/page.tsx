@@ -1,6 +1,9 @@
 import CreateSessionForm from '@/components/CreateSessionForm';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { privatePageMetadata } from '@/lib/seo';
+
+export const metadata = privatePageMetadata;
 
 export default function GameSelectionPage({ searchParams }: { searchParams?: { bewerk?: string } }) {
   const editSessionId = searchParams?.bewerk?.trim() || null;

@@ -69,6 +69,8 @@ export function createMetadata({ title, description = siteConfig.description, pa
   };
 }
 
+export const privatePageMetadata = createMetadata({ index: false });
+
 export function getHomeStructuredData() {
   return [
     {

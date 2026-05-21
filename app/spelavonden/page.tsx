@@ -4,8 +4,10 @@ import { prisma } from '@/lib/db';
 import { sessionPath } from '@/lib/session-link';
 import SessionsOverviewList, { SessionOverviewListItem } from '@/components/SessionsOverviewList';
 import { getCurrentUserProfile } from '@/lib/user-profile';
+import { privatePageMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+export const metadata = privatePageMetadata;
 
 export default async function SessionsOverviewPage() {
   const viewerProfile = await getCurrentUserProfile();

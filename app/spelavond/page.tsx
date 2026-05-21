@@ -1,5 +1,8 @@
 import CreateSessionForm from '@/components/CreateSessionForm';
 import BackToHomeButton from '@/components/BackToHomeButton';
+import { privatePageMetadata } from '@/lib/seo';
+
+export const metadata = privatePageMetadata;
 
 export default function GameNightPage({ searchParams }: { searchParams?: { nieuw?: string; bewerk?: string } }) {
   const resetDraftOnLoad = searchParams?.nieuw === '1';
