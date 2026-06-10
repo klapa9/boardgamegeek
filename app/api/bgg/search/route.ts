@@ -2,8 +2,9 @@ import { XMLParser } from 'fast-xml-parser';
 import { NextResponse } from 'next/server';
 import { fetchBgg } from '@/lib/bgg-api';
 import { isRpgGame } from '@/lib/bgg-filters';
-import { parseThingTypes } from '@/lib/bgg-xml';
+import { BggThingSummary, parseThingTypes } from '@/lib/bgg-xml';
 import { geekApiBaseUrl, geekApiItemType, geekTypeLabel, normalizeGeekType } from '@/lib/geek-types';
+import { cachedImageUrl } from '@/lib/image-cache';
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
 const BGG_THING_BATCH_SIZE = 20;
@@ -32,6 +33,15 @@ function matchPriority(title: string, query: string) {
   if (normalizedTitle.startsWith(normalizedQuery)) return 1;
   if (normalizedTitle.includes(normalizedQuery)) return 2;
   return 3;
+}
+
+function mediaResult(item: { bggId: number }, mediaById: Map<number, BggThingSummary>) {
+  const media = mediaById.get(item.bggId);
+
+  return {
+    thumbnailUrl: cachedImageUrl(media?.thumbnailUrl ?? media?.imageUrl, 'thumb', item.bggId),
+    imageUrl: cachedImageUrl(media?.imageUrl ?? media?.thumbnailUrl, 'full', item.bggId)
+  };
 }
 
 export async function GET(request: Request) {
@@ -65,6 +75,7 @@ export async function GET(request: Request) {
 
   if (geekType === 'rpg') {
     const allowedIds = new Set<number>();
+    const mediaById = new Map<number, BggThingSummary>();
 
     for (const batch of chunk(candidates.map((item) => item.bggId), BGG_THING_BATCH_SIZE)) {
       if (!batch.length) continue;
@@ -73,9 +84,9 @@ export async function GET(request: Request) {
       const thingResponse = await fetchBgg(thingUrl, { next: { revalidate: 60 * 60 * 24 } }, 'search-rpg-filter');
       if (!thingResponse.ok) continue;
 
-      parseThingTypes(await thingResponse.text())
-        .filter(isRpgGame)
-        .forEach((item) => allowedIds.add(item.bggId));
+      const thingSummaries = parseThingTypes(await thingResponse.text());
+      thingSummaries.forEach((item) => mediaById.set(item.bggId, item));
+      thingSummaries.filter(isRpgGame).forEach((item) => allowedIds.add(item.bggId));
     }
 
     const results = candidates
@@ -86,7 +97,10 @@ export async function GET(request: Request) {
         || left.title.localeCompare(right.title)
         || (left.yearPublished ?? Number.MAX_SAFE_INTEGER) - (right.yearPublished ?? Number.MAX_SAFE_INTEGER)
       ))
-      .map(({ itemType: _itemType, ...result }) => result);
+      .map(({ itemType: _itemType, ...result }) => ({
+        ...result,
+        ...mediaResult(result, mediaById)
+      }));
 
     return NextResponse.json({ results });
   }
@@ -96,6 +110,7 @@ export async function GET(request: Request) {
       .filter((item) => item.itemType !== 'boardgameexpansion')
       .map((item) => item.bggId)
   );
+  const mediaById = new Map<number, BggThingSummary>();
 
   for (const batch of chunk(candidates.map((item) => item.bggId), BGG_THING_BATCH_SIZE)) {
     if (!batch.length) continue;
@@ -105,6 +120,7 @@ export async function GET(request: Request) {
     if (!thingResponse.ok) continue;
 
     const thingTypes = parseThingTypes(await thingResponse.text());
+    thingTypes.forEach((item) => mediaById.set(item.bggId, item));
     const batchAllowedIds = new Set(
       thingTypes
         .filter((item) => item.itemType === 'boardgame')
@@ -122,7 +138,10 @@ export async function GET(request: Request) {
       || left.title.localeCompare(right.title)
       || (left.yearPublished ?? Number.MAX_SAFE_INTEGER) - (right.yearPublished ?? Number.MAX_SAFE_INTEGER)
     ))
-    .map(({ itemType: _itemType, ...result }) => result);
+    .map(({ itemType: _itemType, ...result }) => ({
+      ...result,
+      ...mediaResult(result, mediaById)
+    }));
 
   return NextResponse.json({ results });
 }

@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Search } from 'lucide-react';
+import { Dice5, Loader2, Search } from 'lucide-react';
 import { api } from '@/lib/api';
 import { GeekType, geekTypeBadgeLabel, geekTypeLabel } from '@/lib/geek-types';
 import { BggSearchResult, CollectionGameDto } from '@/lib/types';
 
 const BGG_RESULTS_PAGE_SIZE = 10;
+
+function searchResultImageUrl(result: BggSearchResult) {
+  return result.thumbnailUrl ?? result.imageUrl;
+}
 
 type CollectionBggSearchProps = {
   existingBggIds?: number[];
@@ -197,6 +201,13 @@ export default function CollectionBggSearch({
         {mode === 'select' && resultsCollapsed && selectedResult ? (
           <div className="rounded-2xl border-2 border-slate-950/10 bg-white/80 px-4 py-4">
             <div className="flex items-start justify-between gap-3">
+              {searchResultImageUrl(selectedResult) ? (
+                <img src={searchResultImageUrl(selectedResult)!} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+              ) : (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                  <Dice5 size={22} />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
@@ -227,8 +238,16 @@ export default function CollectionBggSearch({
           visibleBggResults.map((result) => {
             const alreadyInCollection = gameIdsInCollection.has(result.bggId);
             const selected = selectedBggId === result.bggId;
+            const imageUrl = searchResultImageUrl(result);
             return (
               <article key={result.bggId} className="flex items-center gap-3 rounded-2xl bg-white/80 px-3 py-3">
+                {imageUrl ? (
+                  <img src={imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                    <Dice5 size={22} />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-bold text-slate-900">{result.title}</h3>

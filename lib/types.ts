@@ -209,11 +209,11 @@ export type BggSearchResult = {
   geekType: GeekType;
   title: string;
   yearPublished: number | null;
+  thumbnailUrl: string | null;
+  imageUrl: string | null;
 };
 
 export type BggGameDetails = BggSearchResult & {
-  thumbnailUrl: string | null;
-  imageUrl: string | null;
   minPlayers: number | null;
   maxPlayers: number | null;
   playingTime: number | null;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Dice5, Loader2, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import CollectionBggSearch from '@/components/CollectionBggSearch';
 import { BggSearchResult, CollectionGameDto } from '@/lib/types';
@@ -13,6 +13,10 @@ type CollectionAddDrawerProps = {
   onAddToCollectionAndContext: (game: CollectionGameDto | null, result: BggSearchResult) => Promise<void> | void;
   onAddToContextOnly?: (result: BggSearchResult) => Promise<void> | void;
 };
+
+function searchResultImageUrl(result: BggSearchResult) {
+  return result.thumbnailUrl ?? result.imageUrl;
+}
 
 export default function CollectionAddDrawer({
   open,
@@ -147,12 +151,23 @@ export default function CollectionAddDrawer({
 
           {selectedResult && (
             <div className="page-subcard mt-4 p-4">
-              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Gekozen spel</p>
-              <h3 className="mt-2 font-black text-slate-950">{selectedResult.title}</h3>
-              <p className="mt-1 text-sm text-slate-600">
-                BGG #{selectedResult.bggId}
-                {selectedResult.yearPublished ? ` - ${selectedResult.yearPublished}` : ''}
-              </p>
+              <div className="flex items-start gap-3">
+                {searchResultImageUrl(selectedResult) ? (
+                  <img src={searchResultImageUrl(selectedResult)!} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover" />
+                ) : (
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                    <Dice5 size={24} />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Gekozen spel</p>
+                  <h3 className="mt-2 font-black text-slate-950">{selectedResult.title}</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    BGG #{selectedResult.bggId}
+                    {selectedResult.yearPublished ? ` - ${selectedResult.yearPublished}` : ''}
+                  </p>
+                </div>
+              </div>
               <p className="mt-3 text-sm text-slate-600">Wat wil je hiermee doen?</p>
               {error && <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
               <div className="mt-4 grid gap-2">

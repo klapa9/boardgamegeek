@@ -216,7 +216,14 @@ export function parseThingDetails(xml: string): BggThingDetails[] {
     .filter((item): item is BggThingDetails => Boolean(item));
 }
 
-export function parseThingTypes(xml: string): Array<{ bggId: number; itemType: string | null }> {
+export type BggThingSummary = {
+  bggId: number;
+  itemType: string | null;
+  thumbnailUrl: string | null;
+  imageUrl: string | null;
+};
+
+export function parseThingTypes(xml: string): BggThingSummary[] {
   const parsed = parser.parse(xml);
   const items = asArray<Record<string, unknown>>(parsed.items?.item as Record<string, unknown>[] | Record<string, unknown> | undefined);
 
@@ -227,9 +234,11 @@ export function parseThingTypes(xml: string): Array<{ bggId: number; itemType: s
 
       return {
         bggId,
-        itemType: typeof item.type === 'string' ? item.type : null
+        itemType: typeof item.type === 'string' ? item.type : null,
+        thumbnailUrl: text(item.thumbnail),
+        imageUrl: text(item.image)
       };
     })
-    .filter((item): item is { bggId: number; itemType: string | null } => Boolean(item));
+    .filter((item): item is BggThingSummary => Boolean(item));
 }
 
