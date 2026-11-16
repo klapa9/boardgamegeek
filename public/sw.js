@@ -1,4 +1,4 @@
-const CACHE_NAME = 'boardgamecrew-web-v4';
+const CACHE_NAME = 'my-games-web-v5';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSET_PATHS = [
   OFFLINE_URL,

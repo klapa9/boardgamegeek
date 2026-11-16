@@ -137,11 +137,11 @@ export default function LandingPage({ page }: LandingPageProps) {
               ) : null}
 
               {section.exampleTitle && section.exampleBody?.length ? (
-                <div className="mt-5 rounded-[1.5rem] border-2 border-slate-950 bg-[#172036] px-4 py-4 text-[#fff7df] shadow-[0_8px_0_rgba(15,23,42,0.2)]">
-                  <p className="text-sm font-black uppercase tracking-[0.18em] text-[#84d7ff]">{section.exampleTitle}</p>
+                <div className="mt-5 rounded-[1.5rem] border-2 border-slate-950 bg-[#14213D] px-4 py-4 text-[#FFF7EA] shadow-[0_8px_0_rgba(15,23,42,0.2)]">
+                  <p className="text-sm font-black uppercase tracking-[0.18em] text-[#6C9A92]">{section.exampleTitle}</p>
                   <div className="mt-3 space-y-3">
                     {section.exampleBody.map((item) => (
-                      <p key={item} className="text-sm leading-6 text-[#fff7df]/90">
+                      <p key={item} className="text-sm leading-6 text-[#FFF7EA]/90">
                         {item}
                       </p>
                     ))}
@@ -153,11 +153,11 @@ export default function LandingPage({ page }: LandingPageProps) {
         </section>
 
         <section className="page-card-dark px-5 py-6 sm:px-6 sm:py-7">
-          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#84d7ff]">Klaar om dit toe te passen?</p>
-          <h2 className="mt-3 font-poster text-[clamp(2rem,7vw,3.4rem)] uppercase leading-[0.94] text-[#fff7df]">
+          <p className="text-sm font-black uppercase tracking-[0.18em] text-[#6C9A92]">Klaar om dit toe te passen?</p>
+          <h2 className="mt-3 font-poster text-[clamp(2rem,7vw,3.4rem)] uppercase leading-[0.94] text-[#FFF7EA]">
             {page.ctaTitle}
           </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-[#fff7df]/88 sm:text-base">
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-[#FFF7EA]/88 sm:text-base">
             {page.ctaDescription}
           </p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">

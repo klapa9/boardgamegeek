@@ -301,7 +301,7 @@ export default function GameCollectionPicker({
           aria-controls="collection-filters"
           aria-label={filtersOpen ? 'Filters verbergen' : 'Filters tonen'}
           title={filtersOpen ? 'Filters verbergen' : 'Filters tonen'}
-          className={`inline-flex min-w-[3.25rem] items-center justify-center rounded-2xl border-2 px-3 transition ${filtersOpen || hasActiveGameFilters(filters) ? 'border-slate-950 bg-[#172036] text-white' : 'border-slate-950/10 bg-white/80 text-slate-600 hover:bg-white'}`}
+          className={`inline-flex min-w-[3.25rem] items-center justify-center rounded-2xl border-2 px-3 transition ${filtersOpen || hasActiveGameFilters(filters) ? 'border-slate-950 bg-[#14213D] text-white' : 'border-slate-950/10 bg-white/80 text-slate-600 hover:bg-white'}`}
         >
           <span className="relative inline-flex">
             <SlidersHorizontal size={18} />
@@ -377,7 +377,7 @@ export default function GameCollectionPicker({
               title={disabled ? disabledReason : undefined}
               role="option"
               aria-selected={selected}
-              className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition disabled:cursor-not-allowed ${selected ? 'border-slate-950 bg-[#172036] text-white' : disabled ? 'border-amber-100 bg-amber-50/80 text-slate-500' : 'border-slate-950/10 bg-white hover:border-slate-950/25'} ${active ? 'ring-2 ring-sky-200' : ''}`}
+              className={`flex w-full items-center gap-3 rounded-2xl border-2 p-3 text-left transition disabled:cursor-not-allowed ${selected ? 'border-slate-950 bg-[#14213D] text-white' : disabled ? 'border-amber-100 bg-amber-50/80 text-slate-500' : 'border-slate-950/10 bg-white hover:border-slate-950/25'} ${active ? 'ring-2 ring-sky-200' : ''}`}
             >
               {imageUrl ? <img src={imageUrl} alt="" className="h-12 w-12 rounded-xl object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400"><Dice5 size={22} /></div>}
               <span className="min-w-0 flex-1">

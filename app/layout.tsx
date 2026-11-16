@@ -1,9 +1,25 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
-import ProfileLauncher from '@/components/ProfileLauncher';
+import { Bricolage_Grotesque, Nunito_Sans } from 'next/font/google';
 import PwaRegistration from '@/components/PwaRegistration';
+import SiteFooter from '@/components/SiteFooter';
+import SiteHeader from '@/components/SiteHeader';
 import { createMetadata, siteConfig } from '@/lib/seo';
+
+const displayFont = Bricolage_Grotesque({
+  subsets: ['latin'],
+  weight: ['600', '800'],
+  variable: '--font-display',
+  display: 'swap'
+});
+
+const bodyFont = Nunito_Sans({
+  subsets: ['latin'],
+  weight: ['400', '600', '700', '800', '900'],
+  variable: '--font-body',
+  display: 'swap'
+});
 
 const defaultMetadata = createMetadata();
 
@@ -48,17 +64,18 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   interactiveWidget: 'resizes-content',
-  themeColor: '#172036'
+  themeColor: '#14213D'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="nl" suppressHydrationWarning>
+    <html lang="nl" className={`${displayFont.variable} ${bodyFont.variable}`} suppressHydrationWarning>
       <body>
         <ClerkProvider>
           <PwaRegistration />
-          <ProfileLauncher />
+          <SiteHeader />
           {children}
+          <SiteFooter />
         </ClerkProvider>
       </body>
     </html>

@@ -1773,7 +1773,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                 isChosenDate
                   ? 'border-emerald-700 bg-emerald-50 text-emerald-950'
                   : selected
-                    ? 'border-slate-950 bg-[#d8ff63]/55 text-emerald-950'
+                    ? 'border-slate-950 bg-[#FFC857]/55 text-emerald-950'
                     : explicitlyUnavailable
                       ? 'border-slate-300 bg-slate-100 text-slate-700'
                       : unsure
@@ -1931,7 +1931,7 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
                           event.preventDefault();
                           toggleQuestionOption(question, option.id);
                         }}
-                        className={`rounded-2xl border px-4 py-3 ${selected ? 'border-slate-950 bg-[#d8ff63]/55 text-slate-950' : isChosen ? 'border-emerald-700 bg-emerald-50 text-emerald-950' : 'border-slate-200 bg-white text-slate-700'} ${canSelectOption ? 'cursor-pointer transition hover:border-slate-950/40 focus:outline-none focus:ring-2 focus:ring-slate-950/20' : ''}`}
+                        className={`rounded-2xl border px-4 py-3 ${selected ? 'border-slate-950 bg-[#FFC857]/55 text-slate-950' : isChosen ? 'border-emerald-700 bg-emerald-50 text-emerald-950' : 'border-slate-200 bg-white text-slate-700'} ${canSelectOption ? 'cursor-pointer transition hover:border-slate-950/40 focus:outline-none focus:ring-2 focus:ring-slate-950/20' : ''}`}
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className={`text-left ${canSelectOption ? '' : 'opacity-60'}`}>

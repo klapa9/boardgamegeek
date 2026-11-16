@@ -1,8 +1,14 @@
-# BoardgameCrew
+# My Games — Vermeulen Games
 
-BoardgameCrew is een Next.js-app om bordspelavonden te organiseren. Je beheert je eigen collectie, maakt een spelavond aan, deelt een uitnodigingslink en laat deelnemers aangeven wanneer ze kunnen en welke spellen ze graag willen spelen.
+My Games (voorheen BoardGameCrew) is de spelavond-tool van [Vermeulen Games](https://vermeulengames.com): een Next.js-app om bordspelavonden te organiseren. Je beheert je eigen collectie, maakt een spelavond aan, deelt een uitnodigingslink en laat deelnemers aangeven wanneer ze kunnen en welke spellen ze graag willen spelen.
 
 De app is bedoeld voor vriendengroepen, spelclubs en iedereen die minder wil plannen in losse chats, spreadsheets en polls.
+
+## Huisstijl
+
+My Games gebruikt dezelfde huisstijl als vermeulengames.com (Adventure + Modern Playful): navy `#14213D`, cream `#FFF7EA`, geel `#FFC857`, koraal `#F07857` en saliegroen `#6C9A92`, met Bricolage Grotesque voor koppen en Nunito Sans voor tekst. De kleuren staan in `tailwind.config.ts` en `app/globals.css`; header en footer in `components/SiteHeader.tsx` en `components/SiteFooter.tsx`.
+
+De publieke URL komt uit `NEXT_PUBLIC_SITE_URL` (standaard `https://collection.vermeulengames.com`).
 
 ## Wat kun je ermee?
 

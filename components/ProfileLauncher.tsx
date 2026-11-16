@@ -82,18 +82,15 @@ export default function ProfileLauncher() {
 
   return (
     <SignedIn>
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-40 px-4 py-4">
-        <div className="mx-auto flex max-w-6xl justify-end">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="neo-button neo-button-secondary pointer-events-auto rounded-full bg-[rgba(132,215,255,0.95)] px-4 py-2.5 text-sm font-black shadow-soft backdrop-blur"
-          >
-            <UserRound size={17} />
-            <span className="max-w-[10rem] truncate">{buttonLabel}</span>
-          </button>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="ml-1 inline-flex min-h-[2.75rem] items-center gap-2 rounded-full bg-sun px-4 py-2 text-sm font-extrabold text-navy transition hover:bg-sun-300"
+        aria-label={`Profiel van ${buttonLabel}`}
+      >
+        <UserRound size={17} aria-hidden="true" />
+        <span className="max-w-[8rem] truncate">{buttonLabel}</span>
+      </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:items-center" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">

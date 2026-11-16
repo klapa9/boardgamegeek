@@ -103,11 +103,11 @@ export default function FeedbackRequestForm({ isAdmin = false }: FeedbackRequest
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="page-subcard flex items-start gap-3 p-4">
-            <Lightbulb size={18} className="mt-0.5 shrink-0 text-[#8e341c]" />
+            <Lightbulb size={18} className="mt-0.5 shrink-0 text-[#8f3a22]" />
             <p className="text-sm leading-6 text-slate-700">Nieuwe functies, slimme verbeteringen en kleine UX-ideeen zijn allemaal welkom.</p>
           </div>
           <div className="page-subcard flex items-start gap-3 p-4">
-            <Bug size={18} className="mt-0.5 shrink-0 text-[#0f4f6c]" />
+            <Bug size={18} className="mt-0.5 shrink-0 text-[#2f5a53]" />
             <p className="text-sm leading-6 text-slate-700">Zie je een fout of loopt iets vast? Zet het hier meteen door zodat we het kunnen nakijken.</p>
           </div>
         </div>

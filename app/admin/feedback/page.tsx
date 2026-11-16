@@ -81,7 +81,7 @@ export default async function AdminFeedbackPage() {
             <div className="grid gap-4">
               {feedbackRequests.map((request) => (
                 <article key={request.id} className="page-subcard overflow-hidden">
-                  <div className="flex flex-col gap-3 border-b-2 border-slate-950/10 bg-[#fffaf0] px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-3 border-b-2 border-slate-950/10 bg-[#fffdf8] px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="inline-flex items-center gap-2 text-sm font-black text-slate-950">
                         <UserRound size={16} className="shrink-0" />
