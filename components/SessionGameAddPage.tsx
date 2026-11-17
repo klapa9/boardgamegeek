@@ -37,9 +37,14 @@ export default function SessionGameAddPage({ sessionId }: { sessionId: string })
       setPlayers(data.players);
       setGames(data.games);
       setViewerProfile(data.viewer_profile);
+      // De server bepaalt wie je bent (account of gastcookie). Een oud of vreemd
+      // speler-id uit localStorage wordt niet meer gebruikt.
       if (data.viewer_player_id) {
         localStorage.setItem(playerKey(sessionId), data.viewer_player_id);
         setCurrentPlayerId(data.viewer_player_id);
+      } else {
+        localStorage.removeItem(playerKey(sessionId));
+        setCurrentPlayerId(null);
       }
       setError(null);
     } catch (err) {

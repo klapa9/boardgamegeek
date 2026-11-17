@@ -7,6 +7,7 @@ import { fetchBggGamesForRequests, normalizeBggGameRequests, sessionGameKey } fr
 import { serializeAvailability, serializeGame, serializePlayer, serializeRating, serializeSession, serializeSessionQuestion, serializeSessionQuestionAnswer, serializeUserProfile } from '@/lib/serializers';
 import { getCurrentUserProfile, getOrCreateUserProfile } from '@/lib/user-profile';
 import { ensureSessionOrganizerAccess, viewerIsOrganizer } from '@/lib/session-organizer';
+import { readGuestTokenHash } from '@/lib/guest-access';
 
 type GameSelectionMode = 'no_preselect' | 'host_pick' | 'players_pick';
 type NormalizedExtraQuestionOption = {
@@ -313,6 +314,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   if (!session) return NextResponse.json({ error: 'Sessie niet gevonden.' }, { status: 404 });
 
   const viewerProfile = userId ? await getOrCreateUserProfile(userId) : null;
+  const guestHash = viewerProfile ? null : readGuestTokenHash(params.id);
 
   const [players, games, availability, ratings, questions, questionAnswers] = await Promise.all([
     prisma.player.findMany({ where: { sessionId: params.id }, orderBy: { createdAt: 'asc' } }),
@@ -346,7 +348,11 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     questions: questions.map((question) => serializeSessionQuestion(question, question.options)),
     question_answers: questionAnswers.map(serializeSessionQuestionAnswer),
     viewer_profile: viewerProfile ? serializeUserProfile(viewerProfile) : null,
-    viewer_player_id: viewerProfile ? players.find((player) => player.userProfileId === viewerProfile.id)?.id ?? null : null,
+    viewer_player_id: viewerProfile
+      ? players.find((player) => player.userProfileId === viewerProfile.id)?.id ?? null
+      : guestHash
+        ? players.find((player) => !player.userProfileId && player.guestTokenHash === guestHash)?.id ?? null
+        : null,
     viewer_is_organizer: viewerIsOrganizer(session, viewerProfile?.id ?? null)
   });
 }

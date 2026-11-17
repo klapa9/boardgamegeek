@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { serializePlayer } from '@/lib/serializers';
 import { syncStoredUserGameRatingsForPlayer } from '@/lib/user-game-ratings';
 import { getOrCreateUserProfile } from '@/lib/user-profile';
+import { authorizePlayerAccess, createGuestToken, findGuestPlayerFromCookie, setGuestCookie } from '@/lib/guest-access';
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const { userId } = await auth();
@@ -33,22 +34,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ player: serializePlayer(syncedPlayer) });
     }
 
-    const claimablePlayers = await prisma.player.findMany({
-      where: {
-        sessionId: params.id,
-        userProfileId: null,
-        name: { equals: profile.displayName, mode: 'insensitive' }
-      },
-      orderBy: { createdAt: 'asc' }
-    });
+    // Een gastspeler mag alleen aan een account gekoppeld worden door wie die gast
+    // aantoonbaar is (zelfde toestel, geldige gastcookie). Op naam claimen kan niet meer.
+    const claimablePlayer = await findGuestPlayerFromCookie(params.id);
 
-    if (claimablePlayers.length === 1) {
+    if (claimablePlayer) {
       const claimedPlayer = await prisma.$transaction(async (tx) => {
         const nextPlayer = await tx.player.update({
-          where: { id: claimablePlayers[0].id },
+          where: { id: claimablePlayer.id },
           data: {
             userProfileId: profile.id,
-            name: profile.displayName
+            name: profile.displayName,
+            guestTokenHash: null
           }
         });
 
@@ -73,8 +70,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const name = String(body.name ?? '').trim();
   if (!name) return NextResponse.json({ error: 'Naam is verplicht.' }, { status: 400 });
 
-  const player = await prisma.player.create({ data: { sessionId: params.id, name } });
-  return NextResponse.json({ player: serializePlayer(player) });
+  // Deed deze gast al mee op dit toestel? Dan geen dubbele speler aanmaken.
+  const existingGuest = await findGuestPlayerFromCookie(params.id);
+  if (existingGuest) {
+    const player = existingGuest.name === name
+      ? existingGuest
+      : await prisma.player.update({ where: { id: existingGuest.id }, data: { name } });
+    return NextResponse.json({ player: serializePlayer(player) });
+  }
+
+  const { token, hash } = createGuestToken();
+  const player = await prisma.player.create({ data: { sessionId: params.id, name, guestTokenHash: hash } });
+  const response = NextResponse.json({ player: serializePlayer(player) });
+  setGuestCookie(response, params.id, token);
+  return response;
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
@@ -83,8 +92,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const name = String(body.name ?? '').trim();
   if (!playerId || !name) return NextResponse.json({ error: 'Speler en naam zijn verplicht.' }, { status: 400 });
 
-  const existing = await prisma.player.findFirst({ where: { id: playerId, sessionId: params.id } });
-  if (!existing) return NextResponse.json({ error: 'Speler niet gevonden.' }, { status: 404 });
+  const access = await authorizePlayerAccess(params.id, playerId);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+  const existing = access.player;
   if (existing.userProfileId) {
     return NextResponse.json({ error: 'Pas je naam aan via je profiel.' }, { status: 403 });
   }

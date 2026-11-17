@@ -6,6 +6,7 @@ import { normalizeGeekType } from '@/lib/geek-types';
 import { serializeGame } from '@/lib/serializers';
 import { ensureSessionOrganizerAccess } from '@/lib/session-organizer';
 import { getCurrentUserProfile } from '@/lib/user-profile';
+import { authorizePlayerAccess } from '@/lib/guest-access';
 
 type AddSessionGamesBody = {
   added_by?: unknown;
@@ -20,10 +21,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const addedBy = String(body.added_by ?? '').trim();
   if (!addedBy) return NextResponse.json({ error: 'Je moet deelnemen om een spel toe te voegen.' }, { status: 403 });
 
-  const player = await prisma.player.findFirst({
-    where: { id: addedBy, sessionId: params.id }
-  });
-  if (!player) return NextResponse.json({ error: 'Alleen spelers van deze avond kunnen spellen toevoegen.' }, { status: 403 });
+  const access = await authorizePlayerAccess(params.id, addedBy);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
   const singleCollectionGameId = String(body.collection_game_id ?? '').trim();
   const collectionGameIds: string[] = Array.isArray(body.collection_game_ids)
