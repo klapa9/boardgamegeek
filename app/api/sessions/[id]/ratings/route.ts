@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { serializeRating } from '@/lib/serializers';
 import { syncStoredUserGameRating } from '@/lib/user-game-ratings';
 import { syncStoredWebsiteRating } from '@/lib/website-rating';
+import { authorizePlayerAccess } from '@/lib/guest-access';
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const body = await request.json().catch(() => ({}));
@@ -14,17 +15,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Score moet een geheel getal van 0 tot 10 zijn.' }, { status: 400 });
   }
 
-  const [player, game] = await Promise.all([
-    prisma.player.findFirst({
-      where: {
-        id: playerId,
-        sessionId: params.id
-      },
-      select: {
-        id: true,
-        userProfileId: true
-      }
-    }),
+  const [access, game] = await Promise.all([
+    authorizePlayerAccess(params.id, playerId),
     prisma.game.findFirst({
       where: {
         id: gameId,
@@ -41,9 +33,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     })
   ]);
 
-  if (!player) {
-    return NextResponse.json({ error: 'Speler niet gevonden voor deze sessie.' }, { status: 404 });
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
   }
+  const player = access.player;
 
   if (!game) {
     return NextResponse.json({ error: 'Spel niet gevonden voor deze sessie.' }, { status: 404 });

@@ -52,6 +52,8 @@ model Player {
   sessionId String
   userProfileId String?
   name      String
+  /// SHA-256-hash van de geheime gastsleutel (cookie). Null voor accountspelers en oude gasten.
+  guestTokenHash String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -64,6 +66,7 @@ model Player {
 
   @@index([sessionId])
   @@index([userProfileId])
+  @@index([sessionId, guestTokenHash])
   @@unique([sessionId, userProfileId])
 }
 

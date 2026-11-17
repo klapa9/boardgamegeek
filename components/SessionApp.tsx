@@ -412,9 +412,14 @@ export default function SessionApp({ sessionId }: { sessionId: string }) {
       setQuestionAnswers(data.question_answers);
       setViewerProfile(data.viewer_profile);
       setViewerIsOrganizer(data.viewer_is_organizer);
+      // De server bepaalt wie je bent (account of gastcookie). Een oud of vreemd
+      // speler-id uit localStorage wordt niet meer gebruikt.
       if (data.viewer_player_id) {
         localStorage.setItem(playerKey(sessionId), data.viewer_player_id);
         setCurrentPlayerId(data.viewer_player_id);
+      } else {
+        localStorage.removeItem(playerKey(sessionId));
+        setCurrentPlayerId(null);
       }
       setError(null);
       if (showMessage) setMessage('Alles is bijgewerkt.');

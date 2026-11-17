@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { serializeSessionQuestionAnswer } from '@/lib/serializers';
+import { authorizePlayerAccess } from '@/lib/guest-access';
 
 function sameSelection(left: string[], right: string[]) {
   if (left.length !== right.length) return false;
@@ -17,16 +18,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Ongeldige antwoorden.' }, { status: 400 });
   }
 
-  const player = await prisma.player.findFirst({
-    where: {
-      id: playerId,
-      sessionId: params.id
-    },
-    select: { id: true }
-  });
-
-  if (!player) {
-    return NextResponse.json({ error: 'Je moet deelnemen om antwoorden op te slaan.' }, { status: 403 });
+  const access = await authorizePlayerAccess(params.id, playerId);
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status });
   }
 
   const questions = await prisma.sessionQuestion.findMany({
