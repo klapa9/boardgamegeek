@@ -160,7 +160,7 @@ export default function SessionsOverviewList({ sessions }: { sessions: SessionOv
               <div className="flex items-center gap-2">
                 <p className="truncate text-lg font-black text-slate-900">{session.title}</p>
                 {isAdmin && (
-                  <span className="shrink-0 rounded-full bg-[#fff2bd] px-2.5 py-1 text-xs font-bold text-amber-900">
+                  <span className="shrink-0 rounded-full bg-[#FFE7A8] px-2.5 py-1 text-xs font-bold text-amber-900">
                     Organisator
                   </span>
                 )}

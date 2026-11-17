@@ -92,8 +92,8 @@ export default function DateOptionCalendar({
   highlightedDates = [],
   onToggleDate,
   disabled = false,
-  selectedClassName = 'border-slate-950 bg-[#84d7ff] text-slate-950 shadow-sm shadow-sky-200/80',
-  highlightedClassName = 'border-slate-950/40 bg-[#84d7ff]/45 text-slate-950',
+  selectedClassName = 'border-slate-950 bg-[#6C9A92] text-slate-950 shadow-sm shadow-sky-200/80',
+  highlightedClassName = 'border-slate-950/40 bg-[#6C9A92]/45 text-slate-950',
   nonInteractiveDates = [],
   selectionMode = 'multiple'
 }: {

@@ -18,7 +18,7 @@ export default function GamesPage() {
           </p>
           <Link
             href="/bgg"
-            className="mt-4 inline-flex items-center gap-3 rounded-2xl border-2 border-slate-950 bg-[#0077cc] px-4 py-3 text-sm font-bold text-white shadow-[0_4px_0_0_#0f172a] transition hover:-translate-y-0.5 hover:bg-[#0b84d9]"
+            className="mt-4 inline-flex items-center gap-3 rounded-2xl border-2 border-slate-950 bg-[#14213D] px-4 py-3 text-sm font-bold text-white shadow-[0_4px_0_0_#14213D] transition hover:-translate-y-0.5 hover:bg-[#253252]"
           >
             <Image
               src="/boardgamegeek-logo.png"

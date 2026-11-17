@@ -709,7 +709,7 @@ export default function CreateSessionForm({
           <div className="page-subcard p-4">
             <p className="text-sm font-semibold text-slate-700">Planning keuze</p>
             <div className="mt-3 grid gap-2">
-              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'fixed_day' ? 'border-slate-950 bg-[#d8ff63]/45' : 'border-slate-950/10 bg-white/80'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'fixed_day' ? 'border-slate-950 bg-[#FFC857]/45' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="planning-mode"
@@ -721,7 +721,7 @@ export default function CreateSessionForm({
                 <p className="font-bold text-slate-900">Ik kies zelf 1 dag</p>
                 <p className="text-sm text-slate-600">Je kiest straks 1 datum waarop de spelavond plaatsvindt.</p>
               </label>
-              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'vote_dates' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${planningMode === 'vote_dates' ? 'border-slate-950 bg-[#6C9A92]/35' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="planning-mode"
@@ -739,7 +739,7 @@ export default function CreateSessionForm({
           <div className="page-subcard p-4">
             <p className="text-sm font-semibold text-slate-700">Spelkeuze</p>
             <div className="mt-3 grid gap-2">
-              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'no_preselect' ? 'border-slate-950 bg-[#ffc7b8]/55' : 'border-slate-950/10 bg-white/80'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'no_preselect' ? 'border-slate-950 bg-[#fbd2c3]/55' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="game-mode"
@@ -751,7 +751,7 @@ export default function CreateSessionForm({
                 <p className="font-bold text-slate-900">Geen spel op voorhand kiezen.</p>
                 <p className="text-sm text-slate-600">Er worden geen spellen weergegeven bij deze spelavond.</p>
               </label>
-              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'host_pick' ? 'border-slate-950 bg-[#fff2bd]' : 'border-slate-950/10 bg-white/80'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'host_pick' ? 'border-slate-950 bg-[#FFE7A8]' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="game-mode"
@@ -763,7 +763,7 @@ export default function CreateSessionForm({
                 <p className="font-bold text-slate-900">Ik kies zelf de spellen.</p>
                 <p className="text-sm text-slate-600">Je selecteert straks zelf de spellen die gespeeld zullen worden.</p>
               </label>
-              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'players_pick' ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
+              <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${gameSelectionMode === 'players_pick' ? 'border-slate-950 bg-[#6C9A92]/35' : 'border-slate-950/10 bg-white/80'}`}>
                 <input
                   type="radio"
                   name="game-mode"
@@ -878,7 +878,7 @@ export default function CreateSessionForm({
                     </div>
 
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${!question.allowMultiple ? 'border-slate-950 bg-[#fff2bd]' : 'border-slate-950/10 bg-white/80'}`}>
+                      <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${!question.allowMultiple ? 'border-slate-950 bg-[#FFE7A8]' : 'border-slate-950/10 bg-white/80'}`}>
                         <input
                           type="radio"
                           name={`question-mode-${question.clientId}`}
@@ -889,7 +889,7 @@ export default function CreateSessionForm({
                         <p className="font-bold text-slate-900">1 antwoord</p>
                         <p className="text-sm text-slate-600">Elke deelnemer kiest precies 1 optie.</p>
                       </label>
-                      <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${question.allowMultiple ? 'border-slate-950 bg-[#84d7ff]/35' : 'border-slate-950/10 bg-white/80'}`}>
+                      <label className={`cursor-pointer rounded-2xl border-2 px-4 py-3 ${question.allowMultiple ? 'border-slate-950 bg-[#6C9A92]/35' : 'border-slate-950/10 bg-white/80'}`}>
                         <input
                           type="radio"
                           name={`question-mode-${question.clientId}`}

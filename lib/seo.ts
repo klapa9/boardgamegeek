@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
 
 export const siteConfig = {
-  name: 'boardgamecrew.nl',
-  url: 'https://boardgamecrew.nl',
+  name: 'My Games',
+  brand: 'Vermeulen Games',
+  url: (process.env.NEXT_PUBLIC_SITE_URL || 'https://collection.vermeulengames.com').replace(/\/$/, ''),
+  mainSiteUrl: 'https://vermeulengames.com',
   locale: 'nl_NL',
   defaultTitle: 'Bordspelavond plannen en je spellenverzameling beheren',
   description:
     'Plan bordspelavonden, verzamel beschikbaarheid, laat vrienden stemmen op spellen en houd je bordspellenverzameling overzichtelijk.',
-  ogImage: '/branding/boardgamecrew-full.png'
+  ogImage: '/branding/my-games-og.png'
 } as const;
 
 type SeoMetadataInput = {
@@ -79,7 +81,12 @@ export function getHomeStructuredData() {
       name: siteConfig.name,
       url: siteConfig.url,
       inLanguage: 'nl',
-      description: siteConfig.description
+      description: siteConfig.description,
+      publisher: {
+        '@type': 'Organization',
+        name: siteConfig.brand,
+        url: siteConfig.mainSiteUrl
+      }
     },
     {
       '@context': 'https://schema.org',

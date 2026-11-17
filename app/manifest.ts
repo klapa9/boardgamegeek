@@ -3,15 +3,15 @@ import { siteConfig } from '@/lib/seo';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: siteConfig.name,
-    short_name: 'BoardgameCrew',
+    name: `${siteConfig.name} — Vermeulen Games`,
+    short_name: siteConfig.name,
     description: siteConfig.description,
     start_url: '/',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#172036',
-    theme_color: '#172036',
+    background_color: '#07172A',
+    theme_color: '#14213D',
     lang: 'nl',
     icons: [
       {

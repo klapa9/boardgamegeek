@@ -6,14 +6,14 @@ import { createMetadata } from '@/lib/seo';
 
 export const metadata = createMetadata({
   title: 'Inloggen',
-  description: 'Log in op boardgamecrew.nl om je spelavonden en collectie te beheren.',
+  description: 'Log in op My Games van Vermeulen Games om je spelavonden en collectie te beheren.',
   index: false
 });
 
 export default function SignInPage() {
   return (
     <main className="app-shell">
-      <div className="mx-auto flex min-h-screen w-full max-w-3xl min-w-0 items-center px-4 py-8">
+      <div className="mx-auto flex min-h-[70vh] w-full max-w-3xl min-w-0 items-center px-4 py-8">
         <div className="w-full min-w-0">
           <section className="page-card page-card-sky w-full min-w-0 overflow-hidden p-4 md:p-6">
             <Link
@@ -26,17 +26,17 @@ export default function SignInPage() {
 
             <div className="mt-5 flex flex-col items-center justify-center gap-4 text-center sm:flex-row sm:text-left">
               <Image
-                src="/branding/boardgamecrew-mark.png"
-                alt="BoardgameCrew logo"
-                width={308}
-                height={335}
+                src="/branding/vermeulen-games-mark.png"
+                alt="Logo van Vermeulen Games"
+                width={512}
+                height={512}
                 priority
-                className="h-auto w-[90px] shrink-0 sm:w-[104px]"
+                className="h-[88px] w-[88px] shrink-0 rounded-full border-2 border-slate-950 sm:h-[104px] sm:w-[104px]"
               />
               <div>
-                <p className="font-poster text-[clamp(1.8rem,7vw,3.1rem)] leading-[0.92] text-slate-950">boardgamecrew</p>
+                <h1 className="font-poster text-[clamp(1.8rem,7vw,3.1rem)] leading-[0.95] text-slate-950">Inloggen bij My Games</h1>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
-                  de beste tool om je spelavonden te organiseren.
+                  Plan je spelavonden en beheer je collectie. Je vrienden hebben geen account nodig.
                 </p>
               </div>
             </div>

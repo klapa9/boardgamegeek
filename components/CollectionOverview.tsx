@@ -116,7 +116,7 @@ function AddGamesModal({ group, saving, selectedIds, onClose, onSave, onSelected
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-games-modal-title"
-        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[#fff7ec] shadow-[0_20px_0_0_rgba(15,23,42,0.2)]"
+        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border-4 border-slate-950 bg-[#fffdf8] shadow-[0_20px_0_0_rgba(15,23,42,0.2)]"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b-2 border-slate-950/10 px-5 py-4 sm:px-6">
@@ -434,7 +434,7 @@ export default function CollectionOverview() {
                 }}
                 className={`min-w-0 overflow-hidden rounded-[2rem] border-4 p-4 text-left transition ${
                   selectedGroupId === group.id
-                    ? 'border-slate-950 bg-[#172036] text-white shadow-[0_12px_0_0_#0f172a]'
+                    ? 'border-slate-950 bg-[#14213D] text-white shadow-[0_12px_0_0_#14213D]'
                     : 'border-slate-950 bg-[rgba(255,255,255,0.82)] text-slate-950 shadow-[0_12px_0_0_rgba(23,32,54,0.14)] hover:-translate-y-1'
                 }`}
               >
@@ -463,7 +463,7 @@ export default function CollectionOverview() {
               className="min-w-0 overflow-hidden rounded-[2rem] border-4 border-dashed border-slate-950/25 bg-[rgba(255,255,255,0.7)] p-4 text-left transition hover:-translate-y-1 hover:border-slate-950/40 hover:bg-white"
             >
               <div className="flex h-full flex-col justify-between gap-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#84d7ff] text-slate-700 shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#6C9A92] text-slate-700 shadow-sm">
                   <Plus size={22} />
                 </div>
                 <div>
@@ -672,7 +672,7 @@ export default function CollectionOverview() {
                                 onClick={() => void toggleGameGroup(game.id, group.id)}
                                 className={`inline-flex items-center gap-2 rounded-full border-2 px-3 py-2 text-sm font-semibold transition disabled:opacity-60 ${
                                   selected
-                                    ? 'border-slate-950 bg-[#84d7ff] text-slate-950'
+                                    ? 'border-slate-950 bg-[#6C9A92] text-slate-950'
                                     : 'border-slate-950/15 bg-white text-slate-700 hover:border-slate-950/30'
                                 }`}
                               >
